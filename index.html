@@ -11,7 +11,14 @@
         .container { max-width: 800px; margin: 0 auto; }
         
         .progress-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .progress-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; font-size: 18px; }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 10px; font-size: 18px; }
+        .progress-title-wrap { display: inline-flex; align-items: center; gap: 6px; }
+        .btn-rec-review-emoji {
+            width: 22px; height: 22px; padding: 0; border: none; border-radius: 4px;
+            background: transparent; font-size: 14px; line-height: 1; cursor: pointer;
+            opacity: 0.75; vertical-align: middle;
+        }
+        .btn-rec-review-emoji:hover { opacity: 1; background: #EFF6FF; }
         .progress-track { background: #E5E7EB; border-radius: 10px; height: 12px; overflow: hidden; }
         .progress-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.5s ease-in-out; }
         
@@ -19,8 +26,6 @@
         .day-badge { display: inline-block; background: var(--secondary); color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-bottom: 10px; }
         .time-estimate { color: var(--danger); font-weight: bold; font-size: 16px; margin: 15px 0; background: #FEF2F2; padding: 10px; border-radius: 8px; display: inline-block; }
         
-        .shortcut-info { margin-top: 20px; font-size: 15px; color: #374151; background: #F8FAFC; padding: 20px; border-radius: 12px; display: inline-block; text-align: left; border: 1px solid #E2E8F0; }
-        .shortcut-row { margin-bottom: 8px; display: flex; align-items: center; }
         .shortcut-key { background: #1E293B; padding: 4px 8px; border-radius: 6px; font-weight: bold; color: #FFF; font-family: monospace; min-width: 65px; text-align: center; margin-right: 10px; }
         
         .mission-btn { background: var(--primary); color: white; padding: 20px 40px; border-radius: 12px; font-size: 20px; font-weight: bold; border: none; cursor: pointer; transition: 0.3s; width: 100%; max-width: 400px; display: flex; align-items: center; justify-content: center; margin: 0 auto; gap: 10px;}
@@ -57,103 +62,68 @@
         .feedback.pass { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
         .feedback.fail { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
         
-        .stt-transcript { margin-top: 10px; font-size: 15px; font-weight: normal; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 6px; }
-        .highlight-target { margin-top: 10px; font-size: 16px; background: #FFF; padding: 10px; border-radius: 6px; border: 1px dashed #9CA3AF; color: #333; }
-        
-        .missed-words-section { margin-top: 15px; padding: 15px; background: #FFF; border-radius: 8px; border: 1px dashed #FCA5A5; text-align: left; }
-        .missed-word-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; flex-wrap: wrap; font-size: 16px; }
-        .word-text { min-width: 100px; color: var(--danger); font-weight: 900; text-decoration: underline; margin-right: 10px; }
+        .bracket-feedback-line {
+            font-size: 17px; line-height: 1.55; font-weight: 600; color: #1E293B;
+            margin: 6px 0 2px; word-break: break-word;
+        }
+        .bracket-mistake { color: var(--danger); font-weight: 900; font-size: 1.22em; }
+        .fb-status { font-size: 14px; margin-bottom: 4px; }
+        .listening-hint { font-size: 14px; font-weight: normal; font-style: italic; opacity: 0.85; }
+
+        .missed-word-btns {
+            display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;
+        }
+        .missed-word-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 8px; border-radius: 5px; border: 1px solid #FCA5A5;
+            background: #FFF; color: var(--danger); font-size: 11px; font-weight: 700;
+            cursor: pointer; line-height: 1.2;
+        }
+        .missed-word-chip:hover { background: #FEF2F2; }
+        .missed-word-chip .shortcut-key {
+            min-width: auto; margin: 0; padding: 1px 4px; font-size: 10px;
+        }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         .syllable-stress { font-weight: 900; color: var(--danger); text-decoration: underline; }
 
-        .btn-settings-mini {
-            position: fixed; top: 14px; right: 14px; z-index: 100;
-            width: 30px; height: 30px; border-radius: 50%;
-            border: 1px solid #CBD5E1; background: #FFF;
-            color: #64748B; font-size: 14px; cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            display: flex; align-items: center; justify-content: center;
+        #recording-review-page {
+            display: none; background: white; padding: 16px 20px 24px;
+            border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;
         }
-        .btn-settings-mini:hover { background: #F8FAFC; color: var(--primary); border-color: var(--primary); }
-
-        .compare-overlay {
-            display: none; position: fixed; inset: 0; z-index: 200;
-            background: rgba(15, 23, 42, 0.45);
-            align-items: center; justify-content: center; padding: 16px;
+        .review-back {
+            background: none; border: none; color: #64748B; font-size: 13px;
+            cursor: pointer; padding: 0 0 12px; text-decoration: underline;
         }
-        .compare-overlay.open { display: flex; }
-        .compare-panel {
-            background: #FFF; border-radius: 12px; max-width: 520px; width: 100%;
-            max-height: 85vh; overflow: hidden; display: flex; flex-direction: column;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        .review-page-title { font-size: 15px; font-weight: 700; color: var(--primary); margin: 0 0 14px; }
+        .review-card {
+            padding: 12px 0; border-bottom: 1px solid #F1F5F9;
         }
-        .compare-panel-header {
-            padding: 14px 16px; border-bottom: 1px solid #E2E8F0;
-            display: flex; justify-content: space-between; align-items: center;
+        .review-card:last-child { border-bottom: none; }
+        .review-card-meta { font-size: 11px; color: #64748B; font-weight: 600; margin-bottom: 4px; }
+        .review-card-sentence {
+            font-size: 14px; color: #1E293B; line-height: 1.45; margin-bottom: 8px;
         }
-        .compare-panel-header h3 { margin: 0; font-size: 16px; }
-        .compare-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748B; }
-        .compare-current {
-            padding: 14px 16px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0;
+        .review-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-review-audio {
+            padding: 6px 12px; border: none; border-radius: 6px;
+            font-size: 12px; font-weight: 700; cursor: pointer; color: white;
         }
-        .compare-current-label { font-size: 12px; color: #64748B; margin-bottom: 8px; }
-        .compare-current-title { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
-        .compare-btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
-        .btn-compare-play {
-            flex: 1; min-width: 120px; padding: 10px 12px; border: none; border-radius: 8px;
-            font-weight: 700; font-size: 13px; cursor: pointer; color: white;
-        }
-        .btn-compare-play.ever { background: #6366F1; }
-        .btn-compare-play.latest { background: #10B981; }
-        .btn-compare-play.both { background: #0EA5E9; }
-        .btn-compare-play:disabled { opacity: 0.4; cursor: not-allowed; }
-        .compare-list {
-            overflow-y: auto; padding: 8px 12px 14px; flex: 1;
-        }
-        .compare-item {
-            padding: 10px 8px; border-bottom: 1px solid #F1F5F9; font-size: 13px;
-        }
-        .compare-item.current { background: #EFF6FF; border-radius: 6px; }
-        .compare-item-title { font-weight: 600; margin-bottom: 6px; color: #334155; }
-        .compare-item-btns { display: flex; gap: 6px; flex-wrap: wrap; }
-        .btn-compare-mini {
-            padding: 5px 10px; border-radius: 6px; border: none; font-size: 11px;
-            font-weight: 700; cursor: pointer; color: white;
-        }
-        .btn-compare-mini.ever { background: #818CF8; }
-        .btn-compare-mini.latest { background: #34D399; }
-        .btn-compare-mini.both { background: #38BDF8; }
-        .compare-empty { padding: 24px; text-align: center; color: #94A3B8; font-size: 14px; }
+        .btn-review-audio.ever { background: #6366F1; }
+        .btn-review-audio.latest { background: #10B981; }
+        .btn-review-audio:disabled { opacity: 0.35; cursor: not-allowed; }
+        .review-empty { text-align: center; color: #94A3B8; font-size: 14px; padding: 24px 8px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
-<button type="button" class="btn-settings-mini" id="btn-open-compare" title="녹음 비교 (최초 vs 최근)">⚙</button>
-
-<div id="compare-overlay" class="compare-overlay">
-    <div class="compare-panel">
-        <div class="compare-panel-header">
-            <h3>🎧 발음 비교</h3>
-            <button type="button" class="compare-close" id="btn-close-compare">×</button>
-        </div>
-        <div class="compare-current" id="compare-current-block">
-            <div class="compare-current-label">현재 위치</div>
-            <div class="compare-current-title" id="compare-current-title">—</div>
-            <div class="compare-btn-row">
-                <button type="button" class="btn-compare-play ever" id="cmp-play-ever">최초 저장</button>
-                <button type="button" class="btn-compare-play latest" id="cmp-play-latest">최근 저장</button>
-                <button type="button" class="btn-compare-play both" id="cmp-play-both">최초 → 최근</button>
-            </div>
-        </div>
-        <div class="compare-list" id="compare-list"></div>
-    </div>
-</div>
-
 <div class="container">
     <div class="progress-container">
         <div class="progress-header">
-            <span>🏆 7일 완성 스크립트 마스터</span>
+            <span class="progress-title-wrap">
+                <span>🏆 7일 완성 스크립트 마스터</span>
+                <button type="button" class="btn-rec-review-emoji" id="btn-open-recording-review" title="발음 비교 (최초·최근)">🎧</button>
+            </span>
             <span id="overall-progress-text">0% 달성</span>
         </div>
         <div class="progress-track">
@@ -166,18 +136,15 @@
         <h2 id="today-targets">주제 1 & 2 마스터하기</h2>
         <div class="time-estimate" id="time-estimate">⏱️ 오늘 필요 연습 시간: 약 16분</div>
         <br>
-        <button class="mission-btn" id="btn-start-mission" onclick="startDailyMission()">오늘 미션 시작하기 <span class="shortcut-key" style="margin-left:5px; font-size:14px; padding:4px 8px; background:rgba(0,0,0,0.2);">Space</span></button>
-        
-        <div class="shortcut-info">
-            <div style="font-weight:bold; margin-bottom:10px; color:var(--primary);">💡 스마트 단축키 안내</div>
-            <div class="shortcut-row"><span class="shortcut-key">ESC</span> AI 음성 즉시 끄기</div>
-            <div class="shortcut-row"><span class="shortcut-key">Space</span> ⏭️ <b>건너뛰기 / 진행 / 강제 통과</b> (다음 흐름으로 이동)</div>
-            <div class="shortcut-row"><span class="shortcut-key">Enter</span> 🎤 <b>마이크 켜기·끄기 / 실패 시 다시 도전</b> (내 행동 입력)</div>
-            <div class="shortcut-row"><span class="shortcut-key">0</span> 방금 내가 녹음한 발음 다시 듣기</div>
-            <div class="shortcut-row"><span class="shortcut-key">1, 2...</span> 오답 단어 정확한 발음 개별 듣기</div>
-        </div>
+        <button class="mission-btn" id="btn-start-mission" onclick="startDailyMission()">오늘 미션 시작하기</button>
         <br>
         <button onclick="resetProgress()" style="margin-top:20px; background:none; border:none; color:#888; text-decoration:underline; cursor:pointer; font-size:12px;">데이터 초기화</button>
+    </div>
+
+    <div id="recording-review-page">
+        <button type="button" class="review-back" id="btn-close-recording-review">← 돌아가기</button>
+        <h3 class="review-page-title">🎧 발음 비교 · 최초 / 최근</h3>
+        <div id="recording-review-list"></div>
     </div>
 
     <div id="mission-area">
@@ -323,7 +290,7 @@
     let everFirstAudioUrl = null;
     let globalAudioStream = null;
     let recordingArchive = {};
-    let compareAudioPlaying = false;
+    let reviewReturnView = 'dash';
     const RECORDING_IDB_NAME = 'interviewRecordingArchive';
     const RECORDING_IDB_STORE = 'slots';
 
@@ -336,16 +303,11 @@
     const fbRes = document.getElementById('stt-result');
     const fbBtnGroup = document.getElementById('fb-btn-group');
     const uiRetryCount = document.getElementById('retry-counter');
-    const elCompareOverlay = document.getElementById('compare-overlay');
-    const elCompareList = document.getElementById('compare-list');
-    const elCompareCurrentTitle = document.getElementById('compare-current-title');
+    const elReviewPage = document.getElementById('recording-review-page');
+    const elReviewList = document.getElementById('recording-review-list');
 
-    document.getElementById('btn-open-compare').onclick = openComparePanel;
-    document.getElementById('btn-close-compare').onclick = closeComparePanel;
-    elCompareOverlay.onclick = function(e) { if (e.target === elCompareOverlay) closeComparePanel(); };
-    document.getElementById('cmp-play-ever').onclick = function() { playSlotAudio(getRecordingKey(), 'everFirst'); };
-    document.getElementById('cmp-play-latest').onclick = function() { playSlotAudio(getRecordingKey(), 'latest'); };
-    document.getElementById('cmp-play-both').onclick = function() { playSlotCompare(getRecordingKey()); };
+    document.getElementById('btn-open-recording-review').onclick = openRecordingReviewPage;
+    document.getElementById('btn-close-recording-review').onclick = closeRecordingReviewPage;
 
     function getRecordingKey(topicIdx, phase, sentIdx) {
         const t = topicIdx !== undefined ? topicIdx : currentTopicIndex;
@@ -496,6 +458,21 @@
         return key;
     }
 
+    function getSentenceTextForKey(key) {
+        const parts = key.split('-');
+        const t = parseInt(parts[0], 10);
+        const data = db[t];
+        if (!data) return '';
+        if (parts[1] === '2') {
+            const idx = parseInt(parts[2], 10);
+            return data.sentences[idx] ? data.sentences[idx][1] : '';
+        }
+        if (parts[1] === '3' || parts[1] === '4') {
+            return data.sentences.map(function(s) { return s[1]; }).join(' ');
+        }
+        return '';
+    }
+
     function playAudioUrl(url, onDone) {
         if (!url) { if (onDone) onDone(); return; }
         const audio = new Audio(url);
@@ -506,93 +483,64 @@
 
     function playSlotAudio(key, which) {
         const slot = recordingArchive[key];
-        if (!slot) return;
-        compareAudioPlaying = true;
+        if (!slot || !slot[which]) return;
         speechSynthesis.cancel();
         playAudioUrl(slot[which]);
     }
 
-    function playSlotCompare(key) {
-        const slot = recordingArchive[key];
-        if (!slot || !slot.everFirst) return;
-        compareAudioPlaying = true;
-        speechSynthesis.cancel();
-        playAudioUrl(slot.everFirst, function() {
-            if (slot.latest && slot.latest !== slot.everFirst) {
-                setTimeout(function() { playAudioUrl(slot.latest); }, 450);
-            }
-        });
-    }
-
-    function canCompareSlot(key) {
-        const slot = recordingArchive[key];
-        return slot && slot.everFirst && slot.latest && slot.everFirst !== slot.latest;
-    }
-
-    function updateCompareCurrentBlock() {
-        const key = mPhase >= 2 && elMission.style.display === 'block' ? getRecordingKey() : null;
-        if (!key) {
-            elCompareCurrentTitle.innerText = '미션 중이 아니거나 녹음 단계가 아닙니다';
-            document.getElementById('cmp-play-ever').disabled = true;
-            document.getElementById('cmp-play-latest').disabled = true;
-            document.getElementById('cmp-play-both').disabled = true;
-            return;
-        }
-        elCompareCurrentTitle.innerText = parseRecordingKeyLabel(key);
-        const slot = recordingArchive[key];
-        document.getElementById('cmp-play-ever').disabled = !slot || !slot.everFirst;
-        document.getElementById('cmp-play-latest').disabled = !slot || !slot.latest;
-        document.getElementById('cmp-play-both').disabled = !canCompareSlot(key);
-    }
-
-    function renderCompareList() {
+    function renderRecordingReviewList() {
         const keys = Object.keys(recordingArchive).sort();
-        const currentKey = mPhase >= 2 && elMission.style.display === 'block' ? getRecordingKey() : null;
         if (!keys.length) {
-            elCompareList.innerHTML = '<div class="compare-empty">저장된 녹음이 없습니다.<br>문장 훈련(2단계)부터 말하면 자동 저장됩니다.<br>2회차를 돌려도 <b>최초 저장</b>은 유지됩니다.</div>';
+            elReviewList.innerHTML = '<div class="review-empty">저장된 녹음이 없습니다.<br>문장 훈련(2단계)부터 말하면 자동 저장됩니다.</div>';
             return;
         }
-        elCompareList.innerHTML = keys.map(function(key) {
-            const isCur = key === currentKey;
-            const canBoth = canCompareSlot(key);
-            return `<div class="compare-item${isCur ? ' current' : ''}">
-                <div class="compare-item-title">${parseRecordingKeyLabel(key)}${isCur ? ' · 지금' : ''}</div>
-                <div class="compare-item-btns">
-                    <button type="button" class="btn-compare-mini ever" data-key="${key}" data-act="ever">최초</button>
-                    <button type="button" class="btn-compare-mini latest" data-key="${key}" data-act="latest">최근</button>
-                    <button type="button" class="btn-compare-mini both" data-key="${key}" data-act="both"${canBoth ? '' : ' disabled style="opacity:0.4"'}>비교</button>
+        elReviewList.innerHTML = keys.map(function(key) {
+            const slot = recordingArchive[key];
+            const sentence = formatEngForDisplay(addPauseSlashes(getSentenceTextForKey(key)), false);
+            const hasEver = !!(slot && slot.everFirst);
+            const hasLatest = !!(slot && slot.latest);
+            return `<div class="review-card">
+                <div class="review-card-meta">${parseRecordingKeyLabel(key)}</div>
+                <div class="review-card-sentence">${sentence || '—'}</div>
+                <div class="review-card-actions">
+                    <button type="button" class="btn-review-audio ever" data-key="${key}" data-act="everFirst"${hasEver ? '' : ' disabled'}>🎧 최초 발음</button>
+                    <button type="button" class="btn-review-audio latest" data-key="${key}" data-act="latest"${hasLatest ? '' : ' disabled'}>🎧 최근 발음</button>
                 </div>
             </div>`;
         }).join('');
-        elCompareList.querySelectorAll('.btn-compare-mini').forEach(function(btn) {
+        elReviewList.querySelectorAll('.btn-review-audio').forEach(function(btn) {
             btn.onclick = function() {
-                const k = btn.getAttribute('data-key');
-                const act = btn.getAttribute('data-act');
-                if (act === 'ever') playSlotAudio(k, 'everFirst');
-                else if (act === 'latest') playSlotAudio(k, 'latest');
-                else playSlotCompare(k);
+                playSlotAudio(btn.getAttribute('data-key'), btn.getAttribute('data-act'));
             };
         });
     }
 
-    function openComparePanel() {
-        updateCompareCurrentBlock();
-        renderCompareList();
-        elCompareOverlay.classList.add('open');
+    function openRecordingReviewPage() {
+        if (elMission.style.display === 'block') {
+            reviewReturnView = 'mission';
+            stopRecordingSilently();
+            speechSynthesis.cancel();
+        } else {
+            reviewReturnView = 'dash';
+        }
+        elDash.style.display = 'none';
+        elMission.style.display = 'none';
+        elReviewPage.style.display = 'block';
+        renderRecordingReviewList();
     }
 
-    function closeComparePanel() {
-        elCompareOverlay.classList.remove('open');
-        compareAudioPlaying = false;
+    function closeRecordingReviewPage() {
+        elReviewPage.style.display = 'none';
+        speechSynthesis.cancel();
+        if (reviewReturnView === 'mission') {
+            elMission.style.display = 'block';
+        } else {
+            elDash.style.display = 'block';
+        }
     }
 
-    window.playProgressCompare = function() {
-        const key = getRecordingKey();
-        playSlotCompare(key);
-    };
-
-    function canCompareProgress() {
-        return canCompareSlot(getRecordingKey());
+    function isRecordingReviewOpen() {
+        return elReviewPage.style.display === 'block';
     }
 
     async function initAudioStream() {
@@ -604,9 +552,9 @@
     }
 
     document.addEventListener('keydown', function(event) {
-        if (event.code === 'Escape' && elCompareOverlay.classList.contains('open')) {
+        if (event.code === 'Escape' && isRecordingReviewOpen()) {
             event.preventDefault();
-            closeComparePanel();
+            closeRecordingReviewPage();
             return;
         }
         if (elDash.style.display !== 'none') {
@@ -652,6 +600,11 @@
                 if(currentMissedWordsList[idx]) {
                     speakExaggeratedWord(currentMissedWordsList[idx]);
                 }
+            }
+            else if (event.code === 'Backspace') {
+                event.preventDefault();
+                if (isRecording) return;
+                goPreviousSentence();
             }
         }
     });
@@ -741,7 +694,7 @@
     function runPhase1() {
         mPhase = 1; retryCount = 0;
         let data = db[currentTopicIndex];
-        updateUI(data.question, data.kor, applyStress(data.sentences.map(s=>s[1]).join(' ')));
+        updateUI(data.question, data.kor, formatEngForDisplay(data.sentences.map(s=>s[1]).join(' / '), true));
         document.getElementById('ui-eng-text').className = 'english-text'; 
 
         speakText(data.kor, 'ko', () => {
@@ -762,7 +715,7 @@
         let sentEng = data.sentences[mSentIdx][1];
         currentTargetEng = sentEng;
 
-        updateUI(data.question, sentKor, applyStress(sentEng));
+        updateUI(data.question, sentKor, formatEngForDisplay(sentEng, false));
         document.getElementById('ui-eng-text').className = 'english-text';
         speakText(sentEng, 'en');
     }
@@ -773,7 +726,7 @@
         let data = db[currentTopicIndex];
         currentTargetEng = data.sentences.map(s=>s[1]).join(' ');
         
-        updateUI(data.question, data.kor, applyStress(currentTargetEng));
+        updateUI(data.question, data.kor, formatEngForDisplay(currentTargetEng, true));
         document.getElementById('ui-eng-text').className = 'english-text mode-blur';
         speakText("Now, speak the whole script.", 'en');
     }
@@ -791,14 +744,43 @@
         speakText(data.altQuestion, 'en');
     }
 
+    function stopRecordingSilently() {
+        if (!isRecording) return;
+        isRecording = false;
+        clearTimeout(recordTimer);
+        try { recognition.stop(); } catch(e){}
+        if (!isMobile) {
+            try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){}
+        }
+        btnMic.innerHTML = "🎤 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
+        btnMic.classList.remove('recording');
+    }
+
+    function goPreviousSentence() {
+        speechSynthesis.cancel();
+        stopRecordingSilently();
+        fbBox.style.display = 'none';
+        fbBox.className = 'feedback';
+
+        if (mPhase === 2) {
+            if (mSentIdx > 0) {
+                mSentIdx--;
+                loadCurrentSentence();
+            } else {
+                runPhase1();
+            }
+        } else if (mPhase === 3) {
+            mPhase = 2;
+            mSentIdx = db[currentTopicIndex].sentences.length - 1;
+            loadCurrentSentence();
+        } else if (mPhase === 4) {
+            runPhase3();
+        }
+    }
+
     function forceNextPhase() { 
         speechSynthesis.cancel();
-        if(isRecording) {
-            isRecording = false;
-            clearTimeout(recordTimer);
-            try { recognition.stop(); } catch(e){}
-            if(!isMobile) { try { if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){} }
-        }
+        stopRecordingSilently();
         
         if(mPhase === 1) runPhase2();
         else if(mPhase === 2) {
@@ -811,7 +793,7 @@
     
     function retryCurrentPhase() {
         speechSynthesis.cancel();
-        if(isRecording) toggleMic();
+        stopRecordingSilently();
         if(mPhase === 2) loadCurrentSentence();
         else if(mPhase === 3) runPhase3();
         else if(mPhase === 4) runPhase4();
@@ -836,6 +818,33 @@
         }
     }
 
+    function stressHtmlToCaps(htmlFrag) {
+        return htmlFrag.replace(/<span class='syllable-stress'>([^<]*)<\/span>/gi, function(_, s) { return s.toUpperCase(); });
+    }
+
+    function wordToStressCaps(word) {
+        const match = word.match(/[a-zA-Z]+/);
+        if (!match) return word;
+        const clean = match[0].toLowerCase();
+        const start = word.indexOf(match[0]);
+        const end = start + match[0].length;
+        if (stressDict[clean]) {
+            return word.slice(0, start) + stressHtmlToCaps(stressDict[clean]) + word.slice(end);
+        }
+        return word;
+    }
+
+    function addPauseSlashes(text) {
+        return text
+            .replace(/,\s*/g, ' / ')
+            .replace(/;\s*/g, ' / ');
+    }
+
+    function formatEngForDisplay(text, multiSentence) {
+        let t = multiSentence ? text : addPauseSlashes(text);
+        return applyStress(t);
+    }
+
     function applyStress(text) {
         let words = text.split(' ');
         return words.map(w => {
@@ -843,6 +852,58 @@
             if(stressDict[clean]) return w.replace(/[a-zA-Z]+/, stressDict[clean]);
             return w;
         }).join(' ');
+    }
+
+    function cleanWordToken(w) {
+        return w.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9]/g, '');
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    const IGNORE_ALIGN = new Set(['a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by', 'that', 'this']);
+
+    function buildBracketFeedbackHtml(targetStr, cleanSpokenArr) {
+        const tokens = targetStr.split(/\s+/).filter(Boolean);
+        const spoken = [...cleanSpokenArr];
+        const parts = [];
+
+        for (let i = 0; i < tokens.length; i++) {
+            const tw = tokens[i];
+            const ct = cleanWordToken(tw);
+            const displayWord = escapeHtml(wordToStressCaps(tw));
+
+            if (spoken.length && spoken[0] === ct) {
+                parts.push(displayWord);
+                spoken.shift();
+                continue;
+            }
+
+            let spokenGuess = null;
+            if (spoken.length) {
+                const cand = spoken[0];
+                const future = tokens.slice(i + 1).map(cleanWordToken);
+                if (!future.includes(cand)) {
+                    spokenGuess = cand;
+                    spoken.shift();
+                }
+            }
+
+            if (!spokenGuess && IGNORE_ALIGN.has(ct)) {
+                parts.push(displayWord);
+                continue;
+            }
+
+            const bracket = spokenGuess ? '[' + escapeHtml(spokenGuess) + ']' : '[-]';
+            parts.push(displayWord + '<span class="bracket-mistake">' + bracket + '</span>');
+        }
+
+        spoken.forEach(function(extra) {
+            parts.push('<span class="bracket-mistake">[+' + escapeHtml(extra) + ']</span>');
+        });
+
+        return parts.join(' ');
     }
     
     function sanitizeForTTS(text) {
@@ -968,7 +1029,7 @@
         let fullSpoken = finalTranscript + interim;
         fbBox.style.display = 'block';
         fbBox.className = 'feedback';
-        fbRes.innerHTML = `<i>듣는 중: ${fullSpoken}</i>`;
+        fbRes.innerHTML = `<div class="listening-hint">듣는 중…</div>`;
         
         let targetWords = currentTargetEng.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
         let spokenWords = fullSpoken.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
@@ -983,21 +1044,6 @@
         if(!isRecording) return; 
         stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
     };
-
-    function getHighlightedTarget(targetStr, cleanSpokenArr) {
-        let words = targetStr.split(' ');
-        return words.map(w => {
-            let subWords = w.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
-            let ignoreWords = ['a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by', 'that', 'this'];
-            
-            let isMissed = subWords.some(sub => sub && !cleanSpokenArr.includes(sub) && !ignoreWords.includes(sub));
-            
-            if(isMissed) {
-                return `<span style="color:var(--danger); text-decoration:underline; font-weight:900;">${w}</span>`;
-            }
-            return w;
-        }).join(' ');
-    }
 
     function evaluateAnswer(spokenText) {
         if(!spokenText.trim()) {
@@ -1020,37 +1066,41 @@
 
         //const threshold = mPhase >= 3 ? 75 : 80;
         const threshold = 100;
-	const matchRate = Math.round((matchCount / cleanTarget.length) * 100);
-        const highlightedTargetHtml = getHighlightedTarget(currentTargetEng, cleanSpoken);
-        
-        let ignoreWords = ['a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by'];
-        let coreMissed = missedWords.filter(w => w.length >= 2 && !ignoreWords.includes(w));
+        const matchRate = Math.round((matchCount / cleanTarget.length) * 100);
+        let coreMissed = missedWords.filter(w => w.length >= 2 && !IGNORE_ALIGN.has(w));
         let uniqueMissed = [...new Set(coreMissed)]; 
         
         currentMissedWordsList = uniqueMissed; 
 
-        //let isPass = false;
         let isPass = (matchRate === 100);
 	if(mPhase === 2) isPass = (matchRate >= threshold) && (uniqueMissed.length === 0);
         else isPass = (matchRate >= threshold);
 
-        let resHtml = `<div style="margin-bottom:10px;">내 발음: <div class="stt-transcript">"${spokenText}"</div></div>`;
-        resHtml += `<div>정답 비교: <div class="highlight-target">${highlightedTargetHtml}</div></div>`;
-        resHtml += `<div style="margin-top:10px;">일치율: <b>${matchRate}%</b> (목표 ${threshold}%)</div>`;
+        function buildMissedWordBtnsHtml(words) {
+            if (!words.length) return '';
+            const chips = words.map(function(word, idx) {
+                const safe = word.replace(/'/g, "\\'");
+                return `<button type="button" class="missed-word-chip" onclick="speakExaggeratedWord('${safe}')">${word}<span class="shortcut-key">${idx + 1}</span></button>`;
+            }).join('');
+            return `<div class="missed-word-btns">${chips}</div>`;
+        }
+
+        const bracketLine = buildBracketFeedbackHtml(currentTargetEng, cleanSpoken);
+        let resHtml = '';
+        if (!isPass) {
+            resHtml = `<div class="bracket-feedback-line">${bracketLine}</div>${buildMissedWordBtnsHtml(uniqueMissed)}`;
+        }
         
         fbBox.style.display = 'block';
         fbBtnGroup.innerHTML = ''; 
 
         if(!isMobile) {
             fbBtnGroup.innerHTML += `<button class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">0</span></button>`;
-            if (canCompareProgress()) {
-                fbBtnGroup.innerHTML += `<button class="btn-play-audio" style="background:#6366F1;" onclick="playProgressCompare()">📈 최초 → 최근</button>`;
-            }
         }
 
         if(isPass) {
             fbBox.className = 'feedback pass';
-            fbRes.innerHTML = `✅ 완벽합니다! (2초 뒤 자동 진행)<br>` + resHtml;
+            fbRes.innerHTML = `<div class="fb-status">✅ 완벽합니다 · 2초 후 진행</div>`;
             document.getElementById('ui-eng-text').classList.remove('mode-blur'); 
             uiRetryCount.innerText = "";
             
@@ -1066,26 +1116,11 @@
             
             if(retryCount >= 20) {
                 fbBox.className = 'feedback fail';
-                fbRes.innerHTML = `⚠️ 최대 재도전 횟수를 초과하여 다음으로 이동합니다.<br>` + resHtml;
+                fbRes.innerHTML = `<div class="fb-status">⚠️ 재도전 초과 · 다음으로 이동</div>` + resHtml;
                 setTimeout(forceNextPhase, 2000);
             } else {
                 fbBox.className = 'feedback fail';
-                let failReason = (matchRate < threshold) ? `일치율 부족 (${matchRate}%)` : `핵심 단어 누락`;
-                let failContent = `❌ 불합격 (${failReason})<br>` + resHtml;
-                
-                if(uniqueMissed.length > 0) {
-                    failContent += `<div class="missed-words-section"><div>⚠️ <b>틀린 단어 자동 교정</b> (다시 듣기는 해당 숫자키 누름)</div>`;
-                    uniqueMissed.forEach((word, idx) => {
-                        failContent += `
-                            <div class="missed-word-row">
-                                <button class="mini-btn listen" onclick="speakExaggeratedWord('${word}')">🔊 단어 발음 <span class="shortcut-key" style="margin-left:5px; font-size:11px; padding:1px 4px; background:rgba(0,0,0,0.2);">${idx + 1}</span></button>
-                                <span class="word-text" style="margin-left:10px;">${word}</span>
-                            </div>`;
-                    });
-                    failContent += `</div>`;
-                }
-                
-                fbRes.innerHTML = failContent;
+                fbRes.innerHTML = `<div class="fb-status">❌ 다시 말해 보세요</div>` + resHtml;
                 document.getElementById('ui-eng-text').classList.remove('mode-blur');
                 
                 if(mPhase >= 3) {
@@ -1105,6 +1140,7 @@
             try { recognition.stop(); } catch(e){}
         }
         speechSynthesis.cancel();
+        elReviewPage.style.display = 'none';
         elDash.style.display = 'block';
         elMission.style.display = 'none';
         updateDashboard();
