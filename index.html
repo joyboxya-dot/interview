@@ -113,6 +113,9 @@
         .btn-review-audio.latest { background: #10B981; }
         .btn-review-audio:disabled { opacity: 0.35; cursor: not-allowed; }
         .review-empty { text-align: center; color: #94A3B8; font-size: 14px; padding: 24px 8px; line-height: 1.6; }
+        .azure-status { font-size: 12px; color: #64748B; margin-top: 12px; }
+        .azure-status.ok { color: #16A34A; }
+        .azure-status.warn { color: #D97706; }
     </style>
 </head>
 <body>
@@ -139,6 +142,7 @@
         <button class="mission-btn" id="btn-start-mission" onclick="startDailyMission()">오늘 미션 시작하기</button>
         <br>
         <button onclick="resetProgress()" style="margin-top:20px; background:none; border:none; color:#888; text-decoration:underline; cursor:pointer; font-size:12px;">데이터 초기화</button>
+        <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
     </div>
 
     <div id="recording-review-page">
@@ -174,13 +178,17 @@
         <div class="controls">
             <button class="btn-mic" id="btn-main-mic" onclick="handleMicClick()">🎤 말하기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">Enter</span></button>
             <button class="btn-skip" id="btn-skip" onclick="forceNextPhase()">건너뛰기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">Space</span></button>
-            <button onclick="speechSynthesis.cancel()" style="background:#EF4444; color:white; border:none; border-radius:8px; padding:0 20px; font-weight:bold; cursor:pointer;">중단 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">ESC</span></button>
+            <button onclick="stopAllPlayback()" style="background:#EF4444; color:white; border:none; border-radius:8px; padding:0 20px; font-weight:bold; cursor:pointer;">중단 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">ESC</span></button>
         </div>
     </div>
 </div>
 
+<script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+<script src="js/user-settings.js"></script>
+<script src="js/azure-speech.js"></script>
 <script>
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    let useAzureMic = false;
     let femaleEngVoice = null;
     let femaleKorVoice = null;
     
@@ -288,6 +296,7 @@
     let audioChunks = [];
     let userAudioUrl = null;
     let everFirstAudioUrl = null;
+    let activeAudio = null;
     let globalAudioStream = null;
     let recordingArchive = {};
     let reviewReturnView = 'dash';
@@ -473,18 +482,39 @@
         return '';
     }
 
+    function stopAllPlayback() {
+        speechSynthesis.cancel();
+        if (activeAudio) {
+            activeAudio.pause();
+            activeAudio.currentTime = 0;
+            activeAudio.onended = null;
+            activeAudio.onerror = null;
+            activeAudio = null;
+        }
+    }
+
     function playAudioUrl(url, onDone) {
         if (!url) { if (onDone) onDone(); return; }
+        stopAllPlayback();
         const audio = new Audio(url);
-        audio.onended = function() { if (onDone) onDone(); };
-        audio.onerror = function() { if (onDone) onDone(); };
-        audio.play().catch(function() { if (onDone) onDone(); });
+        activeAudio = audio;
+        audio.onended = function() {
+            if (activeAudio === audio) activeAudio = null;
+            if (onDone) onDone();
+        };
+        audio.onerror = function() {
+            if (activeAudio === audio) activeAudio = null;
+            if (onDone) onDone();
+        };
+        audio.play().catch(function() {
+            if (activeAudio === audio) activeAudio = null;
+            if (onDone) onDone();
+        });
     }
 
     function playSlotAudio(key, which) {
         const slot = recordingArchive[key];
         if (!slot || !slot[which]) return;
-        speechSynthesis.cancel();
         playAudioUrl(slot[which]);
     }
 
@@ -519,7 +549,7 @@
         if (elMission.style.display === 'block') {
             reviewReturnView = 'mission';
             stopRecordingSilently();
-            speechSynthesis.cancel();
+            stopAllPlayback();
         } else {
             reviewReturnView = 'dash';
         }
@@ -531,7 +561,7 @@
 
     function closeRecordingReviewPage() {
         elReviewPage.style.display = 'none';
-        speechSynthesis.cancel();
+        stopAllPlayback();
         if (reviewReturnView === 'mission') {
             elMission.style.display = 'block';
         } else {
@@ -566,7 +596,7 @@
         else if (elMission.style.display === 'block') {
             if (event.code === 'Escape') {
                 event.preventDefault();
-                speechSynthesis.cancel();
+                stopAllPlayback();
             } 
             else if (event.code === 'Space') {
                 event.preventDefault();
@@ -744,11 +774,126 @@
         speakText(data.altQuestion, 'en');
     }
 
+    window.onAzureInterim = function(text) {
+        if (!isRecording || !useAzureMic) return;
+        fbBox.style.display = 'block';
+        fbBox.className = 'feedback';
+        fbRes.innerHTML = `<div class="listening-hint">듣는 중… ${escapeHtml(text)}</div>`;
+    };
+
+    function updateAzureStatusLabel(ok) {
+        const el = document.getElementById('azure-status');
+        if (!el) return;
+        const s = window.INTERVIEW_SETTINGS || {};
+        if (!s.useAzurePronunciation) {
+            el.className = 'azure-status';
+            el.textContent = '브라우저 단어 매칭 모드';
+            return;
+        }
+        if (ok) {
+            el.className = 'azure-status ok';
+            el.textContent = 'Azure 발음 평가 연결됨';
+        } else {
+            el.className = 'azure-status warn';
+            el.textContent = 'Azure 미연결 — speech-server 폴더에서 npm start 후 새로고침';
+        }
+    }
+
+    function evaluateAnswerFromAzure(assessment) {
+        if (!assessment || !assessment.text.trim()) {
+            alert('음성이 감지되지 않았습니다. Enter를 눌러 다시 시도하세요.');
+            return;
+        }
+
+        const cfg = window.INTERVIEW_SETTINGS || {};
+        const acc = Math.round(assessment.accuracyScore || 0);
+        const flu = Math.round(assessment.fluencyScore || 0);
+        const comp = Math.round(assessment.completenessScore || 0);
+        const pro = assessment.prosodyScore != null ? Math.round(assessment.prosodyScore) : null;
+
+        const uniqueMissed = AzureSpeech.getWeakWords(assessment.words);
+        currentMissedWordsList = uniqueMissed;
+
+        let isPass =
+            acc >= (cfg.passAccuracy ?? 70) &&
+            flu >= (cfg.passFluency ?? 55);
+        if (pro != null) {
+            isPass = isPass && pro >= (cfg.passProsody ?? 55);
+        }
+        if (mPhase === 2) {
+            isPass = isPass && uniqueMissed.length === 0;
+        }
+
+        const scoreLine =
+            `정확도 ${acc} · 유창성 ${flu} · 완성도 ${comp}` +
+            (pro != null ? ` · 억양 ${pro}` : '');
+
+        const cleanSpoken = assessment.text.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+        const bracketLine = buildBracketFeedbackHtml(currentTargetEng, cleanSpoken);
+
+        function buildMissedWordBtnsHtml(words) {
+            if (!words.length) return '';
+            const chips = words.map(function(word, idx) {
+                const safe = word.replace(/'/g, "\\'");
+                return `<button type="button" class="missed-word-chip" onclick="speakExaggeratedWord('${safe}')">${word}<span class="shortcut-key">${idx + 1}</span></button>`;
+            }).join('');
+            return `<div class="missed-word-btns">${chips}</div>`;
+        }
+
+        let resHtml = '';
+        if (!isPass) {
+            resHtml = `<div class="bracket-feedback-line">${bracketLine}</div>${buildMissedWordBtnsHtml(uniqueMissed)}`;
+        }
+
+        fbBox.style.display = 'block';
+        fbBtnGroup.innerHTML = '';
+        if (!isMobile) {
+            fbBtnGroup.innerHTML += `<button class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">0</span></button>`;
+        }
+
+        if (isPass) {
+            fbBox.className = 'feedback pass';
+            fbRes.innerHTML = `<div class="fb-status">✅ ${scoreLine} · 2초 후 진행</div>`;
+            document.getElementById('ui-eng-text').classList.remove('mode-blur');
+            uiRetryCount.innerText = '';
+            setTimeout(function() {
+                if (fbBox.className.includes('pass') && fbBox.style.display === 'block') {
+                    forceNextPhase();
+                }
+            }, 2000);
+        } else {
+            retryCount++;
+            uiRetryCount.innerText = `재도전: ${retryCount} / 20`;
+            if (retryCount >= 20) {
+                fbBox.className = 'feedback fail';
+                fbRes.innerHTML = `<div class="fb-status">⚠️ ${scoreLine} · 다음으로 이동</div>` + resHtml;
+                setTimeout(forceNextPhase, 2000);
+            } else {
+                fbBox.className = 'feedback fail';
+                fbRes.innerHTML = `<div class="fb-status">❌ ${scoreLine}</div>` + resHtml;
+                document.getElementById('ui-eng-text').classList.remove('mode-blur');
+                if (mPhase >= 3) {
+                    fbBtnGroup.innerHTML += `<button id="btn-force-pass" class="btn-force-pass" style="display:block;" onclick="handleTopicCompleteByForce()">⏭️ 흐름을 위해 일단 넘어가기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">Space</span></button>`;
+                }
+                if (uniqueMissed.length > 0) {
+                    autoPlayMissedWords(uniqueMissed);
+                }
+            }
+        }
+    }
+
     function stopRecordingSilently() {
         if (!isRecording) return;
+        const wasAzure = useAzureMic;
         isRecording = false;
+        useAzureMic = false;
         clearTimeout(recordTimer);
-        try { recognition.stop(); } catch(e){}
+        if (!wasAzure) {
+            try { recognition.stop(); } catch(e){}
+        }
+        if (typeof AzureSpeech !== 'undefined') {
+            AzureSpeech.stopIfActive();
+        }
         if (!isMobile) {
             try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){}
         }
@@ -757,7 +902,7 @@
     }
 
     function goPreviousSentence() {
-        speechSynthesis.cancel();
+        stopAllPlayback();
         stopRecordingSilently();
         fbBox.style.display = 'none';
         fbBox.className = 'feedback';
@@ -779,7 +924,7 @@
     }
 
     function forceNextPhase() { 
-        speechSynthesis.cancel();
+        stopAllPlayback();
         stopRecordingSilently();
         
         if(mPhase === 1) runPhase2();
@@ -792,7 +937,7 @@
     }
     
     function retryCurrentPhase() {
-        speechSynthesis.cancel();
+        stopAllPlayback();
         stopRecordingSilently();
         if(mPhase === 2) loadCurrentSentence();
         else if(mPhase === 3) runPhase3();
@@ -918,7 +1063,7 @@
     }
 
     function speakText(text, lang='en', callback=null) {
-        speechSynthesis.cancel();
+        stopAllPlayback();
         const safeText = lang === 'en' ? sanitizeForTTS(text) : text;
         const utter = new SpeechSynthesisUtterance(safeText);
         
@@ -934,7 +1079,7 @@
     }
 
     function autoPlayMissedWords(wordsArray) {
-        speechSynthesis.cancel();
+        stopAllPlayback();
         wordsArray.forEach(word => {
             const utter = new SpeechSynthesisUtterance(sanitizeForTTS(word));
             utter.lang = 'en-US'; utter.rate = 0.4; utter.pitch = 1.0; 
@@ -944,7 +1089,7 @@
     }
 
     window.speakExaggeratedWord = function(word) {
-        speechSynthesis.cancel();
+        stopAllPlayback();
         const utter = new SpeechSynthesisUtterance(sanitizeForTTS(word));
         utter.lang = 'en-US'; utter.rate = 0.4; utter.pitch = 1.0; 
         if(femaleEngVoice) utter.voice = femaleEngVoice;
@@ -952,35 +1097,43 @@
     }
 
     window.playUserAudio = function() {
-        if(userAudioUrl) {
-            let audio = new Audio(userAudioUrl);
-            audio.play();
+        if (userAudioUrl) {
+            playAudioUrl(userAudioUrl);
         } else {
             console.log("No audio to play");
         }
     }
 
-    function stopRecordingAndEvaluate(textToEval) {
+    async function stopRecordingAndEvaluate(textToEval) {
         if(!isRecording) return;
+        const wasAzure = useAzureMic;
         isRecording = false;
+        useAzureMic = false;
         clearTimeout(recordTimer);
         
         btnMic.innerHTML = "🎤 다시 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
         btnMic.classList.remove('recording');
 
-        try { recognition.stop(); } catch(e){}
+        if (!wasAzure) {
+            try { recognition.stop(); } catch(e){}
+        }
         if(!isMobile) {
             try { if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){}
         }
 
-        evaluateAnswer(textToEval);
+        if (wasAzure && typeof AzureSpeech !== 'undefined') {
+            const assessment = await AzureSpeech.stopAzureRecording();
+            evaluateAnswerFromAzure(assessment);
+        } else {
+            evaluateAnswer(textToEval);
+        }
     }
 
     async function handleMicClick() {
         if(isRecording) {
-            stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
+            await stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
         } else {
-            speechSynthesis.cancel();
+            stopAllPlayback();
             finalTranscript = '';
             currentInterim = '';
             currentMissedWordsList = [];
@@ -995,25 +1148,47 @@
                 mediaRecorder.start();
             }
 
-            try {
-                recognition.start();
-                btnMic.innerHTML = "🛑 말하는 중... (클릭/Enter로 종료)";
-                btnMic.classList.add('recording');
-                isRecording = true;
-                
-                fbBox.style.display = 'none';
-                
-                clearTimeout(recordTimer);
-                let targetWordCount = currentTargetEng.split(' ').length;
-                let maxWaitTime = Math.max(15000, targetWordCount * 2000); 
-                
-                recordTimer = setTimeout(() => {
-                    if(isRecording) {
-                        stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
-                    }
-                }, maxWaitTime);
+            useAzureMic = typeof AzureSpeech !== 'undefined' && AzureSpeech.shouldUseAzureForPhase(mPhase);
 
-            } catch(e) {}
+            if (useAzureMic) {
+                try {
+                    await AzureSpeech.startAzureRecording(currentTargetEng);
+                    btnMic.innerHTML = "🛑 말하는 중... (클릭/Enter로 종료)";
+                    btnMic.classList.add('recording');
+                    isRecording = true;
+                    fbBox.style.display = 'none';
+                    clearTimeout(recordTimer);
+                    let targetWordCount = currentTargetEng.split(' ').length;
+                    let maxWaitTime = Math.max(15000, targetWordCount * 2000);
+                    recordTimer = setTimeout(function() {
+                        if (isRecording) stopRecordingAndEvaluate('');
+                    }, maxWaitTime);
+                } catch (e) {
+                    console.warn('Azure mic failed, fallback to browser STT', e);
+                    useAzureMic = false;
+                    startBrowserRecognition();
+                }
+            } else {
+                startBrowserRecognition();
+            }
+        }
+    }
+
+    function startBrowserRecognition() {
+        try {
+            recognition.start();
+            btnMic.innerHTML = "🛑 말하는 중... (클릭/Enter로 종료)";
+            btnMic.classList.add('recording');
+            isRecording = true;
+            fbBox.style.display = 'none';
+            clearTimeout(recordTimer);
+            let targetWordCount = currentTargetEng.split(' ').length;
+            let maxWaitTime = Math.max(15000, targetWordCount * 2000);
+            recordTimer = setTimeout(function() {
+                if (isRecording) stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
+            }, maxWaitTime);
+        } catch(e) {
+            alert("마이크 권한이 필요합니다. 브라우저 설정을 확인해주세요.");
         }
     }
 
@@ -1035,13 +1210,14 @@
         let spokenWords = fullSpoken.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
         let lastTargetWord = targetWords[targetWords.length - 1];
         
+        if (useAzureMic) return;
         if (spokenWords.length >= targetWords.length * 0.8 && spokenWords.includes(lastTargetWord)) {
             stopRecordingAndEvaluate(fullSpoken);
         }
     };
 
     recognition.onend = function() {
-        if(!isRecording) return; 
+        if(!isRecording || useAzureMic) return; 
         stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
     };
 
@@ -1136,17 +1312,23 @@
 
     function goHome() {
         if(isRecording) {
-            isRecording = false;
-            try { recognition.stop(); } catch(e){}
+            stopRecordingSilently();
         }
-        speechSynthesis.cancel();
+        stopAllPlayback();
         elReviewPage.style.display = 'none';
         elDash.style.display = 'block';
         elMission.style.display = 'none';
         updateDashboard();
     }
 
-    hydrateArchiveFromIdb().then(updateDashboard);
+    hydrateArchiveFromIdb().then(function() {
+        updateDashboard();
+        if (typeof AzureSpeech !== 'undefined') {
+            AzureSpeech.initAzureSpeech().then(updateAzureStatusLabel);
+        } else {
+            updateAzureStatusLabel(false);
+        }
+    });
 </script>
 </body>
 </html>
