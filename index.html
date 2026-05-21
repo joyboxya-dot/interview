@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>면접 스크립트 훈련기 (V38)</title>
+    <style>
+        :root { --primary: #2563EB; --secondary: #1E40AF; --success: #16A34A; --danger: #DC2626; --warning: #D97706; --bg: #F3F4F6; --card: #FFFFFF; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: #333; line-height: 1.6; }
+        
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        .progress-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .progress-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; font-size: 18px; }
+        .progress-track { background: #E5E7EB; border-radius: 10px; height: 12px; overflow: hidden; }
+        .progress-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.5s ease-in-out; }
+        
+        #dashboard { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
+        .day-badge { display: inline-block; background: var(--secondary); color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-bottom: 10px; }
+        .time-estimate { color: var(--danger); font-weight: bold; font-size: 16px; margin: 15px 0; background: #FEF2F2; padding: 10px; border-radius: 8px; display: inline-block; }
+        
+        .shortcut-info { margin-top: 20px; font-size: 15px; color: #374151; background: #F8FAFC; padding: 20px; border-radius: 12px; display: inline-block; text-align: left; border: 1px solid #E2E8F0; }
+        .shortcut-row { margin-bottom: 8px; display: flex; align-items: center; }
+        .shortcut-key { background: #1E293B; padding: 4px 8px; border-radius: 6px; font-weight: bold; color: #FFF; font-family: monospace; min-width: 65px; text-align: center; margin-right: 10px; }
+        
+        .mission-btn { background: var(--primary); color: white; padding: 20px 40px; border-radius: 12px; font-size: 20px; font-weight: bold; border: none; cursor: pointer; transition: 0.3s; width: 100%; max-width: 400px; display: flex; align-items: center; justify-content: center; margin: 0 auto; gap: 10px;}
+        .mission-btn:hover { background: var(--secondary); transform: scale(1.02); }
+        
+        #mission-area { display: none; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .stepper { display: flex; justify-content: space-between; margin-bottom: 25px; position: relative; }
+        .stepper::before { content: ''; position: absolute; top: 15px; left: 0; right: 0; height: 3px; background: #E5E7EB; z-index: 1; }
+        .step { position: relative; z-index: 2; background: white; padding: 0 10px; text-align: center; color: #9CA3AF; font-weight: bold; font-size: 14px; flex: 1; }
+        .step .circle { width: 30px; height: 30px; border-radius: 50%; background: #E5E7EB; color: white; line-height: 30px; margin: 0 auto 5px; font-size: 14px; }
+        .step.active { color: var(--primary); }
+        .step.active .circle { background: var(--primary); box-shadow: 0 0 0 3px #DBEAFE; }
+        .step.done { color: var(--success); }
+        .step.done .circle { background: var(--success); }
+        
+        .question-box { background: #F8FAFC; border-left: 4px solid var(--primary); padding: 15px; margin-bottom: 15px; border-radius: 4px; font-size: 18px; font-weight: bold; color: #111; }
+        .bridge-box { background: #FEF3C7; border-left: 4px solid var(--warning); padding: 15px; margin-bottom: 15px; border-radius: 4px; font-size: 15px; display: none; }
+        
+        .korean-text { font-size: 16px; color: #555; margin-bottom: 10px; font-weight: bold; }
+        .english-text { font-size: 20px; color: #222; line-height: 1.6; margin-bottom: 20px; padding: 15px; background: #F9FAFB; border-radius: 8px; transition: 0.3s; }
+        .mode-blur { filter: blur(6px); cursor: pointer; }
+        .mode-blur:hover { filter: blur(0); }
+        
+        .controls { display: flex; gap: 10px; margin-top: 15px;}
+        .btn-mic { flex: 1; background: var(--primary); color: white; padding: 15px; border-radius: 8px; font-size: 18px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-mic.recording { background: var(--danger); animation: pulse 1s infinite; }
+        .btn-skip { background: #9CA3AF; color: white; padding: 15px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        
+        .fb-btn-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .btn-force-pass { background: white; color: var(--warning); padding: 10px 15px; border-radius: 8px; font-weight: bold; border: 2px solid var(--warning); cursor: pointer; flex: 1; min-width: 48%; display: none; }
+        .btn-play-audio { background: #10B981; color: white; padding: 12px 15px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; font-size: 15px; flex: 1; min-width: 48%; }
+
+        .feedback { margin-top: 15px; padding: 15px; border-radius: 8px; font-weight: bold; display: none; }
+        .feedback.pass { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+        .feedback.fail { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+        
+        .stt-transcript { margin-top: 10px; font-size: 15px; font-weight: normal; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 6px; }
+        .highlight-target { margin-top: 10px; font-size: 16px; background: #FFF; padding: 10px; border-radius: 6px; border: 1px dashed #9CA3AF; color: #333; }
+        
+        .missed-words-section { margin-top: 15px; padding: 15px; background: #FFF; border-radius: 8px; border: 1px dashed #FCA5A5; text-align: left; }
+        .missed-word-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; flex-wrap: wrap; font-size: 16px; }
+        .word-text { min-width: 100px; color: var(--danger); font-weight: 900; text-decoration: underline; margin-right: 10px; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .syllable-stress { font-weight: 900; color: var(--danger); text-decoration: underline; }
+
+        .btn-settings-mini {
+            position: fixed; top: 14px; right: 14px; z-index: 100;
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 1px solid #CBD5E1; background: #FFF;
+            color: #64748B; font-size: 14px; cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-settings-mini:hover { background: #F8FAFC; color: var(--primary); border-color: var(--primary); }
+
+        .compare-overlay {
+            display: none; position: fixed; inset: 0; z-index: 200;
+            background: rgba(15, 23, 42, 0.45);
+            align-items: center; justify-content: center; padding: 16px;
+        }
+        .compare-overlay.open { display: flex; }
+        .compare-panel {
+            background: #FFF; border-radius: 12px; max-width: 520px; width: 100%;
+            max-height: 85vh; overflow: hidden; display: flex; flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+        .compare-panel-header {
+            padding: 14px 16px; border-bottom: 1px solid #E2E8F0;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .compare-panel-header h3 { margin: 0; font-size: 16px; }
+        .compare-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748B; }
+        .compare-current {
+            padding: 14px 16px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0;
+        }
+        .compare-current-label { font-size: 12px; color: #64748B; margin-bottom: 8px; }
+        .compare-current-title { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+        .compare-btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .btn-compare-play {
+            flex: 1; min-width: 120px; padding: 10px 12px; border: none; border-radius: 8px;
+            font-weight: 700; font-size: 13px; cursor: pointer; color: white;
+        }
+        .btn-compare-play.ever { background: #6366F1; }
+        .btn-compare-play.latest { background: #10B981; }
+        .btn-compare-play.both { background: #0EA5E9; }
+        .btn-compare-play:disabled { opacity: 0.4; cursor: not-allowed; }
+        .compare-list {
+            overflow-y: auto; padding: 8px 12px 14px; flex: 1;
+        }
+        .compare-item {
+            padding: 10px 8px; border-bottom: 1px solid #F1F5F9; font-size: 13px;
+        }
+        .compare-item.current { background: #EFF6FF; border-radius: 6px; }
+        .compare-item-title { font-weight: 600; margin-bottom: 6px; color: #334155; }
+        .compare-item-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-compare-mini {
+            padding: 5px 10px; border-radius: 6px; border: none; font-size: 11px;
+            font-weight: 700; cursor: pointer; color: white;
+        }
+        .btn-compare-mini.ever { background: #818CF8; }
+        .btn-compare-mini.latest { background: #34D399; }
+        .btn-compare-mini.both { background: #38BDF8; }
+        .compare-empty { padding: 24px; text-align: center; color: #94A3B8; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<button type="button" class="btn-settings-mini" id="btn-open-compare" title="녹음 비교 (최초 vs 최근)">⚙</button>
+
+<div id="compare-overlay" class="compare-overlay">
+    <div class="compare-panel">
+        <div class="compare-panel-header">
+            <h3>🎧 발음 비교</h3>
+            <button type="button" class="compare-close" id="btn-close-compare">×</button>
+        </div>
+        <div class="compare-current" id="compare-current-block">
+            <div class="compare-current-label">현재 위치</div>
+            <div class="compare-current-title" id="compare-current-title">—</div>
+            <div class="compare-btn-row">
+                <button type="button" class="btn-compare-play ever" id="cmp-play-ever">최초 저장</button>
+                <button type="button" class="btn-compare-play latest" id="cmp-play-latest">최근 저장</button>
+                <button type="button" class="btn-compare-play both" id="cmp-play-both">최초 → 최근</button>
+            </div>
+        </div>
+        <div class="compare-list" id="compare-list"></div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="progress-container">
+        <div class="progress-header">
+            <span>🏆 7일 완성 스크립트 마스터</span>
+            <span id="overall-progress-text">0% 달성</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" id="overall-progress-bar"></div>
+        </div>
+    </div>
+
+    <div id="dashboard">
+        <div class="day-badge" id="today-badge">Day 1 훈련</div>
+        <h2 id="today-targets">주제 1 & 2 마스터하기</h2>
+        <div class="time-estimate" id="time-estimate">⏱️ 오늘 필요 연습 시간: 약 16분</div>
+        <br>
+        <button class="mission-btn" id="btn-start-mission" onclick="startDailyMission()">오늘 미션 시작하기 <span class="shortcut-key" style="margin-left:5px; font-size:14px; padding:4px 8px; background:rgba(0,0,0,0.2);">Space</span></button>
+        
+        <div class="shortcut-info">
+            <div style="font-weight:bold; margin-bottom:10px; color:var(--primary);">💡 스마트 단축키 안내</div>
+            <div class="shortcut-row"><span class="shortcut-key">ESC</span> AI 음성 즉시 끄기</div>
+            <div class="shortcut-row"><span class="shortcut-key">Space</span> ⏭️ <b>건너뛰기 / 진행 / 강제 통과</b> (다음 흐름으로 이동)</div>
+            <div class="shortcut-row"><span class="shortcut-key">Enter</span> 🎤 <b>마이크 켜기·끄기 / 실패 시 다시 도전</b> (내 행동 입력)</div>
+            <div class="shortcut-row"><span class="shortcut-key">0</span> 방금 내가 녹음한 발음 다시 듣기</div>
+            <div class="shortcut-row"><span class="shortcut-key">1, 2...</span> 오답 단어 정확한 발음 개별 듣기</div>
+        </div>
+        <br>
+        <button onclick="resetProgress()" style="margin-top:20px; background:none; border:none; color:#888; text-decoration:underline; cursor:pointer; font-size:12px;">데이터 초기화</button>
+    </div>
+
+    <div id="mission-area">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <div style="font-weight:bold; color:var(--primary);" id="ui-topic-title">주제 제목</div>
+            <div style="font-size:14px; font-weight:bold; color:var(--danger);" id="retry-counter"></div>
+        </div>
+        
+        <div class="stepper" id="stepper">
+            <div class="step" id="step-1"><div class="circle">1</div>의미 수용</div>
+            <div class="step" id="step-2"><div class="circle">2</div>문장 훈련</div>
+            <div class="step" id="step-3"><div class="circle">3</div>전체 강세</div>
+            <div class="step" id="step-4"><div class="circle">4</div>피벗 방어</div>
+        </div>
+        
+        <div class="question-box" id="ui-question-box">Q. 질문</div>
+        <div class="bridge-box" id="ui-bridge-box"></div>
+
+        <div class="korean-text" id="ui-kor-text"></div>
+        <div class="english-text" id="ui-eng-text"></div>
+        
+        <div id="feedback-box" class="feedback">
+            <div id="stt-result"></div>
+            <div class="fb-btn-group" id="fb-btn-group"></div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-mic" id="btn-main-mic" onclick="handleMicClick()">🎤 말하기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">Enter</span></button>
+            <button class="btn-skip" id="btn-skip" onclick="forceNextPhase()">건너뛰기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">Space</span></button>
+            <button onclick="speechSynthesis.cancel()" style="background:#EF4444; color:white; border:none; border-radius:8px; padding:0 20px; font-weight:bold; cursor:pointer;">중단 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">ESC</span></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    let femaleEngVoice = null;
+    let femaleKorVoice = null;
+    
+    function loadVoices() {
+        const voices = speechSynthesis.getVoices();
+        if (!voices.length) return;
+        const premiumEng = ['Microsoft Aria Online', 'Microsoft Jenny Online', 'Google US English', 'Samantha', 'Ava'];
+        femaleEngVoice = voices.find(v => v.lang.startsWith('en') && premiumEng.some(n => v.name.includes(n))) || voices.find(v => v.lang.startsWith('en'));
+        femaleKorVoice = voices.find(v => v.lang.startsWith('ko') && (v.name.includes('Google') || v.name.includes('Yumi') || v.name.includes('Female'))) || voices.find(v => v.lang.startsWith('ko'));
+    }
+    speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
+
+    const stressDict = {
+        "engineer": "engi<span class='syllable-stress'>neer</span>",
+        "engineers": "engi<span class='syllable-stress'>neers</span>",
+        "inefficient": "inef<span class='syllable-stress'>fi</span>cient",
+        "inefficiency": "inef<span class='syllable-stress'>fi</span>ciency",
+        "modernization": "moderni<span class='syllable-stress'>za</span>tion",
+        "operations": "ope<span class='syllable-stress'>ra</span>tions",
+        "pipelines": "<span class='syllable-stress'>pipe</span>lines",
+        "legacy": "<span class='syllable-stress'>leg</span>acy",
+        "investments": "in<span class='syllable-stress'>vest</span>ments",
+        "documented": "<span class='syllable-stress'>doc</span>umented",
+        "settlement": "<span class='syllable-stress'>set</span>tlement",
+        "analyzed": "<span class='syllable-stress'>an</span>alyzed",
+        "standard": "<span class='syllable-stress'>stan</span>dard",
+        "stabilized": "<span class='syllable-stress'>sta</span>bilized",
+        "flexible": "<span class='syllable-stress'>flex</span>ible",
+        "management": "<span class='syllable-stress'>man</span>agement",
+        "participated": "par<span class='syllable-stress'>tic</span>ipated",
+        "development": "de<span class='syllable-stress'>vel</span>opment",
+        "communicated": "com<span class='syllable-stress'>mu</span>nicated",
+        "successfully": "suc<span class='syllable-stress'>cess</span>fully",
+        "dangerous": "<span class='syllable-stress'>dan</span>gerous",
+        "divided": "di<span class='syllable-stress'>vid</span>ed",
+        "external": "ex<span class='syllable-stress'>ter</span>nal",
+        "vendor": "<span class='syllable-stress'>ven</span>dor",
+        "accidentally": "acci<span class='syllable-stress'>den</span>tally",
+        "manually": "<span class='syllable-stress'>man</span>ually",
+        "validation": "vali<span class='syllable-stress'>da</span>tion",
+        "safeguard": "<span class='syllable-stress'>safe</span>guard",
+        "nervous": "<span class='syllable-stress'>ner</span>vous",
+        "thoroughly": "<span class='syllable-stress'>thor</span>oughly",
+        "accuracy": "<span class='syllable-stress'>ac</span>curacy",
+        "enterprise": "<span class='syllable-stress'>en</span>terprise",
+        "experience": "ex<span class='syllable-stress'>pe</span>rience",
+        "overcoming": "over<span class='syllable-stress'>com</span>ing",
+        "optimizing": "<span class='syllable-stress'>op</span>timizing",
+        "performance": "per<span class='syllable-stress'>for</span>mance",
+        "massive": "<span class='syllable-stress'>mas</span>sive",
+        "execution": "exe<span class='syllable-stress'>cu</span>tion",
+        "optimize": "<span class='syllable-stress'>op</span>timize",
+        "resume": "<span class='syllable-stress'>res</span>ume",
+        "simulation": "simu<span class='syllable-stress'>la</span>tion",
+        "automated": "<span class='syllable-stress'>au</span>tomated",
+        "educational": "edu<span class='syllable-stress'>ca</span>tional",
+        "continuous": "con<span class='syllable-stress'>tin</span>uous",
+        "technologies": "tech<span class='syllable-stress'>nol</span>ogies",
+        "architect": "<span class='syllable-stress'>ar</span>chitect",
+        "designing": "de<span class='syllable-stress'>sign</span>ing",
+        "syntax": "<span class='syllable-stress'>syn</span>tax",
+        "immediately": "im<span class='syllable-stress'>me</span>diately",
+        "stability": "sta<span class='syllable-stress'>bil</span>ity",
+        "official": "of<span class='syllable-stress'>fi</span>cial"
+    };
+
+    const db = [
+        { title: "업무 효율화 경험", question: "Tell me about a time you improved an inefficient process.", altQuestion: "How do you handle repetitive tasks?", kor: "NPS 고도화 프로젝트 이후 저는 운영 엔지니어로 합류했습니다. 그 당시 ETL 로그 확인은 매우 비효율적이었습니다. 팀원들은 이 이중 확인을 당연시 여겼지만 저는 비효율을 싫어합니다. 퇴근 후 개인 시간을 써서 레거시 쉘 스크립트를 수정했고, 읽기 전용 로그 화면을 메인 UI에 직접 추가했습니다. 결과적으로 이중 접속을 없애고 많은 시간을 절약했습니다.", sentences: [["NPS 고도화 프로젝트 이후 저는 운영 엔지니어로 합류했습니다.", "After the NPS modernization project, I joined as an operations engineer."], ["그 당시 ETL 로그 확인은 매우 비효율적이었습니다.", "At that time, checking ETL logs was very inefficient."], ["팀원들은 이 이중 확인을 당연시 여겼지만 저는 비효율을 싫어합니다.", "The team accepted this dual-check as normal, but I hate inefficiency."], ["퇴근 후 개인 시간을 써서 레거시 쉘 스크립트를 수정했습니다.", "After work, I used my personal time to modify the legacy shell scripts."], ["읽기 전용 로그 화면을 메인 UI에 직접 추가했습니다.", "I built a read-only log screen and added it directly to the main UI."], ["결과적으로 이중 접속을 없애고 많은 시간을 절약했습니다.", "As a result, we stopped the dual-system check and saved a lot of time."]] },
+        { title: "문서화 부족 해결", question: "Can you share an experience dealing with a poorly documented system?", altQuestion: "What is the hardest challenge you faced recently?", kor: "NPS 고도화 직후 저희 팀은 약 800억 달러를 관리하는 거대한 시스템을 다뤘습니다. 하지만 비즈니스 로직이 문서화되어 있지 않아 일일 결산이 매우 어려웠습니다. 운영 업무 중 틈틈이 복잡한 로직을 직접 분석하여 200페이지 분량의 가이드를 작성했습니다. 팀은 이를 표준으로 사용했고, 매일의 결산을 안정화할 수 있었습니다.", sentences: [["NPS 고도화 직후 저희 팀은 약 800억 달러를 관리하는 거대한 시스템을 다뤘습니다.", "Right after the NPS modernization, my team handled a massive system managing about 800 billion dollars."], ["하지만 비즈니스 로직이 문서화되어 있지 않아 일일 결산이 매우 어려웠습니다.", "However, the business logic was never documented, which made our daily settlement very difficult."], ["운영 업무 중 틈틈이 복잡한 로직을 직접 분석하여 200페이지 분량의 가이드를 작성했습니다.", "While doing regular operations, I personally analyzed the complex logic and wrote a 200-page guide."], ["팀은 이를 표준으로 사용했고, 매일의 결산을 안정화할 수 있었습니다.", "We used this as our team standard, which stabilized our daily settlement."]] },
+        { title: "협업과 커뮤니케이션", question: "Describe a time you worked closely with another team.", altQuestion: "How do you resolve conflicts with other departments?", kor: "다올증권 입사 직후 MTS 현대화 프로젝트에 투입되어 외부 모바일 팀과 일했습니다. 그들은 빠른 전송을, 저희는 관리 부담 감소를 원했습니다. 3개월간 백엔드 파트를 리드하며 업무를 분배하고 일정을 관리했습니다. 약 50개의 새 API를 만들고 나머지는 기존 것에 매핑하여 성공적으로 새로운 MTS를 런칭했습니다.", sentences: [["다올증권 입사 직후 MTS 현대화 프로젝트에 투입되어 외부 모바일 팀과 일했습니다.", "Right after joining Daol Securities, I joined the MTS modernization project working with an external mobile team."], ["그들은 빠른 전송을, 저희는 관리 부담 감소를 원했습니다.", "They wanted fast data delivery, but we wanted to reduce management burden."], ["3개월간 백엔드 파트를 리드하며 업무를 분배하고 일정을 관리했습니다.", "Over three months, I led our back-end team, dividing tasks and managing the schedule."], ["약 50개의 새 API를 만들고 나머지는 기존 것에 매핑하여 성공적으로 런칭했습니다.", "We created about 50 new APIs and mapped the rest, successfully launching the new MTS system."]] },
+        { title: "SPOF 및 시스템 안정성", question: "How do you handle system stability and prevent SPOF?", altQuestion: "Can you explain a time you prioritized safety over speed?", kor: "모바일 팀은 모든 데이터를 한 번에 받기 위해 하나의 큰 API를 원했습니다. 하지만 한 부분이 실패하면 앱 전체가 죽기 때문에 위험하다고 말했습니다. 대신 데이터를 사용자, 계좌, 시세 등 40개의 작은 API로 나눴습니다. 이렇게 하면 뉴스 API가 실패해도 주식 매매는 가능하므로 훨씬 안전합니다.", sentences: [["모바일 팀은 모든 데이터를 한 번에 받기 위해 하나의 큰 API를 원했습니다.", "The mobile team wanted one big API to get all data at once."], ["하지만 한 부분이 실패하면 앱 전체가 죽기 때문에 위험하다고 말했습니다.", "But I told them it's dangerous because if one part fails, the whole app crashes."], ["대신 데이터를 사용자, 계좌, 시세 등 40개의 작은 API로 나눴습니다.", "So, I divided the data into 40 smaller APIs like user, account, and market price."], ["뉴스 API가 실패해도 주식 매매는 가능하므로 훨씬 안전합니다.", "This way, even if the news API fails, users can still trade stocks, which is much safer."]] },
+        { title: "장애 해결 경험", question: "Tell me about a time you resolved a critical system failure.", altQuestion: "Describe a stressful situation at work and how you handled it.", kor: "외부 업체로부터 매일 데이터를 받는데, 어느 날 파일명에 공백이 들어가 배치 작업이 실패했습니다. 장이 열리기 전 수동으로 파일명을 고쳐 배치를 무사히 돌렸습니다. 이후 업체에 검증을 요청하는 한편, 저희 내부 시스템에도 검증 로직을 추가하여 이중 안전장치를 만들었습니다. 덕분에 문제는 재발하지 않았습니다.", sentences: [["어느 날 파일명에 공백이 들어가 배치 작업이 실패했습니다.", "One night a batch job failed because the vendor accidentally put a space in the file name."], ["장이 열리기 전 수동으로 파일명을 고쳐 배치를 무사히 돌렸습니다.", "I manually fixed it and ran the batch before the market opened."], ["저희 내부 시스템에도 검증 로직을 추가하여 이중 안전장치를 만들었습니다.", "I added validation logic to our internal system too, creating a double-safeguard."], ["덕분에 이 문제는 다시는 발생하지 않았습니다.", "Thanks to this double-check system, this issue never happened again."]] },
+        { title: "단점 및 극복", question: "What is your greatest weakness?", altQuestion: "Tell me about a skill you are currently trying to improve.", kor: "솔직히 저는 그 자리에서 순발력 있게 대답하는 편은 아닙니다. 압박을 받으면 긴장하지만, 이를 알기에 매우 철저히 준비하고 행동 전 항상 두 번 체크합니다. 금융 IT에서는 속도보다 100% 정확성이 중요하다고 믿습니다. 또한 온프레미스 배경이라 클라우드 경험이 부족하지만, AWS와 Snowflake를 독학하며 보완하고 있습니다.", sentences: [["솔직히 저는 그 자리에서 순발력 있게 대답하는 편은 아니며 압박을 받으면 긴장합니다.", "To be honest, I am not a quick thinker on the spot and can get nervous under pressure."], ["하지만 이를 알기에 매우 철저히 준비하고 행동 전 항상 두 번 체크합니다.", "But knowing this, I prepare very thoroughly and always double-check before acting."], ["금융 IT에서는 속도보다 100% 정확성이 더 중요하다고 믿습니다.", "In financial IT, I believe 100% accuracy is more important than speed."], ["클라우드 경험이 부족하지만, AWS와 Snowflake를 독학하며 보완하고 있습니다.", "I lack cloud experience, but I am overcoming this by self-studying AWS and Snowflake."]] },
+        { title: "쿼리 최적화", question: "Can you give an example of optimizing database performance?", altQuestion: "How do you approach performance issues in a system?", kor: "NPS 프로젝트 결산 시 엄청난 양의 데이터를 다루다 보니 일부 배치 작업이 너무 느렸습니다. 오라클 쿼리의 실행 계획을 분석해 보니 풀 테이블 스캔을 하고 있었습니다. 적절한 인덱스를 추가하고 쿼리 힌트를 사용하여 조인 경로를 최적화했고, 결과적으로 배치가 훨씬 빠르고 안정적으로 끝났습니다.", sentences: [["NPS 프로젝트 결산 시 일부 배치 작업이 너무 느렸습니다.", "In the NPS project, some batch jobs for settlement were running too slow."], ["오라클 쿼리의 실행 계획을 분석해 보니 풀 테이블 스캔을 하고 있었습니다.", "I analyzed the Execution Plan of the Oracle queries and found they were doing Full Table Scans."], ["적절한 인덱스를 추가하고 쿼리 힌트를 사용하여 조인 경로를 최적화했습니다.", "I added proper Indexes and used Query Hints to optimize the join path."], ["결과적으로 배치가 훨씬 빠르고 안정적으로 끝났습니다.", "As a result, the batch job finished much faster and more stably."]] },
+        { title: "공백기 설명", question: "I see a gap in your resume. What were you doing?", altQuestion: "How did you spend your time between jobs?", kor: "지난 5년은 가족을 미국에 정착시키고 영주권을 받는 데 집중했습니다. 직장이 없었음에도 Python으로 주식 매매 시뮬레이션을 만들고 AI 앱을 배포하는 등 기술 능력을 예리하게 유지했습니다. 이 프로젝트들로 새로운 도구를 빠르게 익혔으며, 이제 가족이 완전히 정착했으므로 100% 일터로 돌아갈 준비가 되었습니다.", sentences: [["지난 5년은 가족을 미국에 정착시키고 영주권을 받는 데 집중했습니다.", "Over the past five years, I moved to the US to settle my family down and got my green card."], ["직장이 없었음에도 Python 프로젝트와 AI 앱 배포로 기술 능력을 유지했습니다.", "Even without a job, I kept my tech skills sharp by doing Python projects and deploying AI apps."], ["이 프로젝트들을 통해 데이터 스킬을 향상시키고 새로운 도구를 익혔습니다.", "Through these projects, I improved my data skills and learned new tools."], ["이제 가족이 완전히 정착했으므로 100% 일터로 돌아갈 준비가 되었습니다.", "Now my family is fully settled, and I am 100% ready to return to work."]] },
+        { title: "비전 (5/10년)", question: "Where do you see yourself in five and ten years?", altQuestion: "What are your long-term career goals?", kor: "5년 뒤 저는 이곳의 핵심 엔지니어가 되어 제 온프레미스 경험과 최신 클라우드 기술을 융합하고 싶습니다. 복잡한 파이프라인 문제 시 가장 먼저 찾는 사람이 될 것입니다. 10년 뒤에는 테크니컬 아키텍트가 되어 강력한 미래 지향적 시스템을 설계하고, 주니어들을 멘토링하고 싶습니다.", sentences: [["5년 뒤 저는 제 경험과 클라우드 기술을 융합하는 핵심 엔지니어가 되고 싶습니다.", "In five years, I want to be a core engineer merging my experience with cloud technologies."], ["복잡한 데이터 파이프라인 문제 시 가장 먼저 찾는 사람이 될 것입니다.", "I want to be the go-to person for complex data pipelines."], ["10년 뒤에는 강력한 미래 지향적 시스템을 설계하는 테크니컬 아키텍트가 되고 싶습니다.", "In ten years, I want to be a Technical Architect designing strong, future-proof systems."], ["또한 제가 과거에 그랬던 것처럼 주니어 엔지니어들을 멘토링하고 싶습니다.", "Also, I want to mentor junior engineers, just like I did in the past."]] },
+        { title: "돌발/모르는 질문 대응", question: "How do you handle tools or syntax you don't know?", altQuestion: "What do you do when you face a problem you can't solve immediately?", kor: "지금 당장 정확한 문법이 기억나진 않지만 개념은 이해하고 있습니다. 실무에서는 시스템 안정성을 위해 기억력에만 의존하지 않고 항상 팀의 기존 코드나 공식 문서를 먼저 확인합니다. 또한 해당 도구에 직접적 경험은 없어도 최근 AWS를 독학한 것처럼 새로운 기술을 매우 빠르게 배울 수 있습니다.", sentences: [["지금 당장 정확한 문법이 기억나진 않지만 개념은 이해하고 있습니다.", "I don't remember the exact syntax right now, but I understand the concept."], ["실무에서는 안정성을 위해 항상 팀의 기존 코드나 공식 문서를 먼저 확인합니다.", "For system stability, I always check the team's existing code or official documents first."], ["직접적인 경험은 없지만 새로운 기술을 매우 빠르게 배울 수 있습니다.", "I lack direct experience, but I learn new tech very quickly."], ["예를 들어 최근에 AWS와 Snowflake를 스스로 독학했습니다.", "For example, I recently self-studied AWS and Snowflake."]] }
+    ];
+
+    const bridges = ["That's a great question. In my experience, ", "I can relate that to my background. ", "That's an interesting point. Actually, "];
+
+    let progress = JSON.parse(localStorage.getItem('interviewProgressV37')) || { currentDay: 1, completedTopics: 0 };
+    let todaysTopics = [];
+    let currentTopicIndex = 0;
+    
+    let mPhase = 1; 
+    let mSentIdx = 0;
+    let currentTargetEng = "";
+    let retryCount = 0; 
+    let currentMissedWordsList = []; 
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = true; 
+    recognition.continuous = true; 
+    
+    let isRecording = false;
+    let finalTranscript = ''; 
+    let currentInterim = '';
+    let recordTimer = null;
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let userAudioUrl = null;
+    let everFirstAudioUrl = null;
+    let globalAudioStream = null;
+    let recordingArchive = {};
+    let compareAudioPlaying = false;
+    const RECORDING_IDB_NAME = 'interviewRecordingArchive';
+    const RECORDING_IDB_STORE = 'slots';
+
+    const elDash = document.getElementById('dashboard');
+    const elMission = document.getElementById('mission-area');
+    const btnMic = document.getElementById('btn-main-mic');
+    const btnSkip = document.getElementById('btn-skip');
+    const btnStart = document.getElementById('btn-start-mission');
+    const fbBox = document.getElementById('feedback-box');
+    const fbRes = document.getElementById('stt-result');
+    const fbBtnGroup = document.getElementById('fb-btn-group');
+    const uiRetryCount = document.getElementById('retry-counter');
+    const elCompareOverlay = document.getElementById('compare-overlay');
+    const elCompareList = document.getElementById('compare-list');
+    const elCompareCurrentTitle = document.getElementById('compare-current-title');
+
+    document.getElementById('btn-open-compare').onclick = openComparePanel;
+    document.getElementById('btn-close-compare').onclick = closeComparePanel;
+    elCompareOverlay.onclick = function(e) { if (e.target === elCompareOverlay) closeComparePanel(); };
+    document.getElementById('cmp-play-ever').onclick = function() { playSlotAudio(getRecordingKey(), 'everFirst'); };
+    document.getElementById('cmp-play-latest').onclick = function() { playSlotAudio(getRecordingKey(), 'latest'); };
+    document.getElementById('cmp-play-both').onclick = function() { playSlotCompare(getRecordingKey()); };
+
+    function getRecordingKey(topicIdx, phase, sentIdx) {
+        const t = topicIdx !== undefined ? topicIdx : currentTopicIndex;
+        const p = phase !== undefined ? phase : mPhase;
+        if (p === 2) return `${t}-2-${sentIdx !== undefined ? sentIdx : mSentIdx}`;
+        return `${t}-${p}`;
+    }
+
+    function openRecordingDb() {
+        return new Promise(function(resolve, reject) {
+            const req = indexedDB.open(RECORDING_IDB_NAME, 1);
+            req.onupgradeneeded = function(e) {
+                e.target.result.createObjectStore(RECORDING_IDB_STORE);
+            };
+            req.onsuccess = function() { resolve(req.result); };
+            req.onerror = function() { reject(req.error); };
+        });
+    }
+
+    async function idbGetAllRecordingsFixed() {
+        try {
+            const db = await openRecordingDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(RECORDING_IDB_STORE, 'readonly');
+                const store = tx.objectStore(RECORDING_IDB_STORE);
+                const keysReq = store.getAllKeys();
+                keysReq.onsuccess = function() {
+                    const keys = keysReq.result || [];
+                    if (!keys.length) { resolve([]); return; }
+                    const out = [];
+                    let pending = keys.length;
+                    keys.forEach(function(key) {
+                        const g = store.get(key);
+                        g.onsuccess = function() {
+                            out.push({ key: key, data: g.result });
+                            if (--pending === 0) resolve(out);
+                        };
+                        g.onerror = function() {
+                            if (--pending === 0) resolve(out);
+                        };
+                    });
+                };
+                keysReq.onerror = function() { reject(keysReq.error); };
+            });
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async function idbPutRecording(key, data) {
+        const db = await openRecordingDb();
+        return new Promise(function(resolve, reject) {
+            const tx = db.transaction(RECORDING_IDB_STORE, 'readwrite');
+            tx.objectStore(RECORDING_IDB_STORE).put(data, key);
+            tx.oncomplete = function() { resolve(); };
+            tx.onerror = function() { reject(tx.error); };
+        });
+    }
+
+    async function idbClearRecordings() {
+        try {
+            const db = await openRecordingDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(RECORDING_IDB_STORE, 'readwrite');
+                tx.objectStore(RECORDING_IDB_STORE).clear();
+                tx.oncomplete = function() { resolve(); };
+                tx.onerror = function() { reject(tx.error); };
+            });
+        } catch (e) {}
+    }
+
+    function revokeArchiveUrls() {
+        Object.values(recordingArchive).forEach(function(slot) {
+            if (slot.everFirst) URL.revokeObjectURL(slot.everFirst);
+            if (slot.latest && slot.latest !== slot.everFirst) URL.revokeObjectURL(slot.latest);
+        });
+    }
+
+    function clearRecordingArchive() {
+        revokeArchiveUrls();
+        recordingArchive = {};
+        everFirstAudioUrl = null;
+        userAudioUrl = null;
+        idbClearRecordings();
+    }
+
+    function syncCurrentRecordingRefs() {
+        if (mPhase < 2) {
+            everFirstAudioUrl = null;
+            userAudioUrl = null;
+            return;
+        }
+        const slot = recordingArchive[getRecordingKey()];
+        everFirstAudioUrl = slot ? slot.everFirst : null;
+        userAudioUrl = slot ? slot.latest : null;
+    }
+
+    async function hydrateArchiveFromIdb() {
+        const rows = await idbGetAllRecordingsFixed();
+        revokeArchiveUrls();
+        recordingArchive = {};
+        rows.forEach(function(row) {
+            if (!row.data) return;
+            const everUrl = row.data.everFirst ? URL.createObjectURL(row.data.everFirst) : null;
+            const latUrl = row.data.latest ? URL.createObjectURL(row.data.latest) : everUrl;
+            recordingArchive[row.key] = { everFirst: everUrl || latUrl, latest: latUrl || everUrl };
+        });
+        syncCurrentRecordingRefs();
+    }
+
+    async function persistSlotToIdb(key, slot) {
+        const existing = (await idbGetAllRecordingsFixed()).find(function(r) { return r.key === key; });
+        const prev = existing ? existing.data : {};
+        const everBlob = prev.everFirst || (slot._everBlob || null);
+        const latestBlob = slot._latestBlob;
+        if (!everBlob && !latestBlob) return;
+        await idbPutRecording(key, {
+            everFirst: everBlob || latestBlob,
+            latest: latestBlob || everBlob
+        });
+    }
+
+    function saveRecordingToArchive() {
+        if (!audioChunks.length || mPhase < 2) return;
+        const key = getRecordingKey();
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+
+        if (!recordingArchive[key]) {
+            recordingArchive[key] = { everFirst: url, latest: url, _latestBlob: blob, _everBlob: blob };
+        } else {
+            const slot = recordingArchive[key];
+            if (slot.latest !== slot.everFirst) URL.revokeObjectURL(slot.latest);
+            slot.latest = url;
+            slot._latestBlob = blob;
+        }
+        syncCurrentRecordingRefs();
+        persistSlotToIdb(key, recordingArchive[key]);
+    }
+
+    function parseRecordingKeyLabel(key) {
+        const parts = key.split('-');
+        const t = parseInt(parts[0], 10);
+        const title = db[t] ? db[t].title : `주제 ${t}`;
+        if (parts[1] === '2') return `${title} · 문장 ${parseInt(parts[2], 10) + 1}`;
+        if (parts[1] === '3') return `${title} · 통문장`;
+        if (parts[1] === '4') return `${title} · 피벗`;
+        return key;
+    }
+
+    function playAudioUrl(url, onDone) {
+        if (!url) { if (onDone) onDone(); return; }
+        const audio = new Audio(url);
+        audio.onended = function() { if (onDone) onDone(); };
+        audio.onerror = function() { if (onDone) onDone(); };
+        audio.play().catch(function() { if (onDone) onDone(); });
+    }
+
+    function playSlotAudio(key, which) {
+        const slot = recordingArchive[key];
+        if (!slot) return;
+        compareAudioPlaying = true;
+        speechSynthesis.cancel();
+        playAudioUrl(slot[which]);
+    }
+
+    function playSlotCompare(key) {
+        const slot = recordingArchive[key];
+        if (!slot || !slot.everFirst) return;
+        compareAudioPlaying = true;
+        speechSynthesis.cancel();
+        playAudioUrl(slot.everFirst, function() {
+            if (slot.latest && slot.latest !== slot.everFirst) {
+                setTimeout(function() { playAudioUrl(slot.latest); }, 450);
+            }
+        });
+    }
+
+    function canCompareSlot(key) {
+        const slot = recordingArchive[key];
+        return slot && slot.everFirst && slot.latest && slot.everFirst !== slot.latest;
+    }
+
+    function updateCompareCurrentBlock() {
+        const key = mPhase >= 2 && elMission.style.display === 'block' ? getRecordingKey() : null;
+        if (!key) {
+            elCompareCurrentTitle.innerText = '미션 중이 아니거나 녹음 단계가 아닙니다';
+            document.getElementById('cmp-play-ever').disabled = true;
+            document.getElementById('cmp-play-latest').disabled = true;
+            document.getElementById('cmp-play-both').disabled = true;
+            return;
+        }
+        elCompareCurrentTitle.innerText = parseRecordingKeyLabel(key);
+        const slot = recordingArchive[key];
+        document.getElementById('cmp-play-ever').disabled = !slot || !slot.everFirst;
+        document.getElementById('cmp-play-latest').disabled = !slot || !slot.latest;
+        document.getElementById('cmp-play-both').disabled = !canCompareSlot(key);
+    }
+
+    function renderCompareList() {
+        const keys = Object.keys(recordingArchive).sort();
+        const currentKey = mPhase >= 2 && elMission.style.display === 'block' ? getRecordingKey() : null;
+        if (!keys.length) {
+            elCompareList.innerHTML = '<div class="compare-empty">저장된 녹음이 없습니다.<br>문장 훈련(2단계)부터 말하면 자동 저장됩니다.<br>2회차를 돌려도 <b>최초 저장</b>은 유지됩니다.</div>';
+            return;
+        }
+        elCompareList.innerHTML = keys.map(function(key) {
+            const isCur = key === currentKey;
+            const canBoth = canCompareSlot(key);
+            return `<div class="compare-item${isCur ? ' current' : ''}">
+                <div class="compare-item-title">${parseRecordingKeyLabel(key)}${isCur ? ' · 지금' : ''}</div>
+                <div class="compare-item-btns">
+                    <button type="button" class="btn-compare-mini ever" data-key="${key}" data-act="ever">최초</button>
+                    <button type="button" class="btn-compare-mini latest" data-key="${key}" data-act="latest">최근</button>
+                    <button type="button" class="btn-compare-mini both" data-key="${key}" data-act="both"${canBoth ? '' : ' disabled style="opacity:0.4"'}>비교</button>
+                </div>
+            </div>`;
+        }).join('');
+        elCompareList.querySelectorAll('.btn-compare-mini').forEach(function(btn) {
+            btn.onclick = function() {
+                const k = btn.getAttribute('data-key');
+                const act = btn.getAttribute('data-act');
+                if (act === 'ever') playSlotAudio(k, 'everFirst');
+                else if (act === 'latest') playSlotAudio(k, 'latest');
+                else playSlotCompare(k);
+            };
+        });
+    }
+
+    function openComparePanel() {
+        updateCompareCurrentBlock();
+        renderCompareList();
+        elCompareOverlay.classList.add('open');
+    }
+
+    function closeComparePanel() {
+        elCompareOverlay.classList.remove('open');
+        compareAudioPlaying = false;
+    }
+
+    window.playProgressCompare = function() {
+        const key = getRecordingKey();
+        playSlotCompare(key);
+    };
+
+    function canCompareProgress() {
+        return canCompareSlot(getRecordingKey());
+    }
+
+    async function initAudioStream() {
+        if(isMobile) return; 
+        if(!globalAudioStream) {
+            try { globalAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } 
+            catch(err) { console.error("Mic denied"); }
+        }
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.code === 'Escape' && elCompareOverlay.classList.contains('open')) {
+            event.preventDefault();
+            closeComparePanel();
+            return;
+        }
+        if (elDash.style.display !== 'none') {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                btnStart.click();
+            }
+        }
+        else if (elMission.style.display === 'block') {
+            if (event.code === 'Escape') {
+                event.preventDefault();
+                speechSynthesis.cancel();
+            } 
+            else if (event.code === 'Space') {
+                event.preventDefault();
+                if (isRecording) return; // 녹음 중 스페이스 오작동 방지
+                
+                let btnForcePass = document.getElementById('btn-force-pass');
+                
+                if (fbBox.classList.contains('pass')) {
+                    forceNextPhase();
+                } else if (btnForcePass && btnForcePass.style.display === 'block') {
+                    btnForcePass.click();
+                } else if (btnSkip.style.display !== 'none') {
+                    forceNextPhase();
+                }
+            } 
+            else if (event.code === 'Enter') {
+                event.preventDefault();
+                if (fbBox.classList.contains('fail')) {
+                    retryCurrentPhase();
+                } else {
+                    if(btnMic.style.display !== 'none') btnMic.click();
+                }
+            } 
+            else if (event.key === '0' || event.code === 'Numpad0') {
+                event.preventDefault();
+                playUserAudio();
+            }
+            else if (event.key >= '1' && event.key <= '9') {
+                event.preventDefault();
+                let idx = parseInt(event.key) - 1;
+                if(currentMissedWordsList[idx]) {
+                    speakExaggeratedWord(currentMissedWordsList[idx]);
+                }
+            }
+        }
+    });
+
+    function updateDashboard() {
+        progress.currentDay = Math.floor(progress.completedTopics / 2) + 1;
+        let pct = Math.round((progress.completedTopics / db.length) * 100);
+        document.getElementById('overall-progress-text').innerText = `${pct}% 달성`;
+        document.getElementById('overall-progress-bar').style.width = `${pct}%`;
+
+        if (progress.completedTopics >= db.length) {
+            document.getElementById('today-badge').innerText = "🎉 100% 달성!";
+            document.getElementById('today-targets').innerText = "모든 스크립트 마스터 완료";
+            document.getElementById('time-estimate').innerText = "원하는 주제를 복습하세요.";
+            todaysTopics = [Math.floor(Math.random()*db.length)]; 
+        } else {
+            document.getElementById('today-badge').innerText = `Day ${progress.currentDay} 훈련`;
+            let t1 = progress.completedTopics;
+            let t2 = t1 + 1;
+            todaysTopics = t2 < db.length ? [t1, t2] : [t1];
+            
+            let targetNames = todaysTopics.map(i => db[i].title).join(' & ');
+            document.getElementById('today-targets').innerText = `[${targetNames}] 마스터하기`;
+            document.getElementById('time-estimate').innerText = `⏱️ 예상 소요 시간: 약 ${todaysTopics.length * 8}분`;
+        }
+    }
+
+    function resetProgress() {
+        if(confirm("모든 학습 데이터가 지워집니다. 녹음 아카이브(최초·최근)도 함께 삭제됩니다. 계속할까요?")) {
+            localStorage.removeItem('interviewProgressV37');
+            progress = { currentDay: 1, completedTopics: 0 };
+            clearRecordingArchive();
+            updateDashboard();
+        }
+    }
+
+    function saveProgress() {
+        progress.completedTopics++;
+        localStorage.setItem('interviewProgressV37', JSON.stringify(progress));
+    }
+
+    async function startDailyMission() {
+        if(todaysTopics.length === 0) return;
+        await initAudioStream(); 
+        elDash.style.display = 'none';
+        elMission.style.display = 'block';
+        currentTopicIndex = todaysTopics[0];
+        runPhase1();
+    }
+
+    function updateStepper(phase) {
+        for(let i=1; i<=4; i++) {
+            let el = document.getElementById('step-'+i);
+            el.className = 'step';
+            if(i < phase) { el.classList.add('done'); el.innerHTML = `<div class="circle">✓</div>` + el.innerText.substring(1); }
+            else if(i === phase) { el.classList.add('active'); el.innerHTML = `<div class="circle">${i}</div>` + el.innerText.substring(1); }
+            else { el.innerHTML = `<div class="circle">${i}</div>` + el.innerText.substring(1); }
+        }
+    }
+
+    function updateUI(question, kor, eng, showBridge=false) {
+        document.getElementById('ui-topic-title').innerText = `[현재 학습중] ${db[currentTopicIndex].title}`;
+        document.getElementById('ui-question-box').innerText = "Q. " + question;
+        document.getElementById('ui-kor-text').innerHTML = kor;
+        document.getElementById('ui-eng-text').innerHTML = eng;
+        document.getElementById('ui-bridge-box').style.display = showBridge ? 'block' : 'none';
+        
+        fbBox.style.display = 'none';
+        fbBox.className = 'feedback'; 
+        uiRetryCount.innerText = '';
+        currentMissedWordsList = [];
+        fbBtnGroup.innerHTML = '';
+        
+        updateStepper(mPhase);
+        
+        if(mPhase === 1) {
+            btnMic.style.display = 'none';
+            btnSkip.style.flex = "3";
+        } else {
+            btnMic.style.display = 'flex';
+            btnSkip.style.flex = "1";
+        }
+        btnMic.innerHTML = "🎤 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
+        btnMic.classList.remove('recording');
+    }
+
+    function runPhase1() {
+        mPhase = 1; retryCount = 0;
+        let data = db[currentTopicIndex];
+        updateUI(data.question, data.kor, applyStress(data.sentences.map(s=>s[1]).join(' ')));
+        document.getElementById('ui-eng-text').className = 'english-text'; 
+
+        speakText(data.kor, 'ko', () => {
+            speakText(data.sentences.map(s=>s[1]).join(' '), 'en', () => { setTimeout(forceNextPhase, 1500); });
+        });
+    }
+
+    function runPhase2() {
+        mPhase = 2; mSentIdx = 0;
+        loadCurrentSentence();
+    }
+
+    function loadCurrentSentence() {
+        retryCount = 0;
+        syncCurrentRecordingRefs();
+        let data = db[currentTopicIndex];
+        let sentKor = `[문장 ${mSentIdx+1}/${data.sentences.length}] ` + data.sentences[mSentIdx][0];
+        let sentEng = data.sentences[mSentIdx][1];
+        currentTargetEng = sentEng;
+
+        updateUI(data.question, sentKor, applyStress(sentEng));
+        document.getElementById('ui-eng-text').className = 'english-text';
+        speakText(sentEng, 'en');
+    }
+
+    function runPhase3() {
+        mPhase = 3; retryCount = 0;
+        syncCurrentRecordingRefs();
+        let data = db[currentTopicIndex];
+        currentTargetEng = data.sentences.map(s=>s[1]).join(' ');
+        
+        updateUI(data.question, data.kor, applyStress(currentTargetEng));
+        document.getElementById('ui-eng-text').className = 'english-text mode-blur';
+        speakText("Now, speak the whole script.", 'en');
+    }
+
+    function runPhase4() {
+        mPhase = 4; retryCount = 0;
+        syncCurrentRecordingRefs();
+        let data = db[currentTopicIndex];
+        let randBridge = bridges[Math.floor(Math.random() * bridges.length)];
+        currentTargetEng = randBridge + data.sentences.map(s=>s[1]).join(' '); 
+        
+        updateUI(data.altQuestion, "스크립트 완전 숨김 상태", "👀 브릿지로 시작하여 스크립트로 자연스럽게 이어가세요.", true);
+        document.getElementById('ui-bridge-box').innerHTML = `<b>[추천 브릿지]</b> <br><span style="color:#B45309">"${randBridge}"</span>`;
+        document.getElementById('ui-eng-text').className = 'english-text mode-blur'; 
+        speakText(data.altQuestion, 'en');
+    }
+
+    function forceNextPhase() { 
+        speechSynthesis.cancel();
+        if(isRecording) {
+            isRecording = false;
+            clearTimeout(recordTimer);
+            try { recognition.stop(); } catch(e){}
+            if(!isMobile) { try { if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){} }
+        }
+        
+        if(mPhase === 1) runPhase2();
+        else if(mPhase === 2) {
+            if(mSentIdx < db[currentTopicIndex].sentences.length - 1) { mSentIdx++; loadCurrentSentence(); }
+            else runPhase3();
+        }
+        else if(mPhase === 3) runPhase4();
+        else if(mPhase === 4) handleTopicComplete();
+    }
+    
+    function retryCurrentPhase() {
+        speechSynthesis.cancel();
+        if(isRecording) toggleMic();
+        if(mPhase === 2) loadCurrentSentence();
+        else if(mPhase === 3) runPhase3();
+        else if(mPhase === 4) runPhase4();
+    }
+
+    function handleTopicCompleteByForce() {
+        if(mPhase === 3) runPhase4();
+        else if(mPhase === 4) handleTopicComplete();
+    }
+
+    function handleTopicComplete() {
+        saveProgress();
+        todaysTopics.shift();
+        if(todaysTopics.length > 0) {
+            alert("👏 첫 번째 주제를 마쳤습니다! 바로 다음 주제로 넘어갑니다.");
+            currentTopicIndex = todaysTopics[0];
+            runPhase1();
+        } else {
+            alert("🎉 오늘의 목표량을 달성하셨습니다! 수고하셨습니다.");
+            goHome();
+            updateDashboard();
+        }
+    }
+
+    function applyStress(text) {
+        let words = text.split(' ');
+        return words.map(w => {
+            let clean = w.replace(/[^a-zA-Z]/g, '').toLowerCase();
+            if(stressDict[clean]) return w.replace(/[a-zA-Z]+/, stressDict[clean]);
+            return w;
+        }).join(' ');
+    }
+    
+    function sanitizeForTTS(text) {
+        let words = text.split(' ');
+        let result = words.map(w => {
+            let pureWord = w.replace(/[^a-zA-Z]/g, '');
+            if (pureWord.length > 1 && pureWord === pureWord.toUpperCase()) return w;
+            return w.toLowerCase();
+        }).join(' ');
+        result = result.replace(/\./g, '.  ').replace(/,/g, ',  ');
+        return result;
+    }
+
+    function speakText(text, lang='en', callback=null) {
+        speechSynthesis.cancel();
+        const safeText = lang === 'en' ? sanitizeForTTS(text) : text;
+        const utter = new SpeechSynthesisUtterance(safeText);
+        
+        if(lang === 'en') {
+            utter.lang = 'en-US'; utter.rate = 0.95; utter.pitch = 1.05; 
+            if(femaleEngVoice) utter.voice = femaleEngVoice;
+        } else {
+            utter.lang = 'ko-KR'; utter.rate = 0.95; utter.pitch = 0.9; 
+            if(femaleKorVoice) utter.voice = femaleKorVoice;
+        }
+        if(callback) utter.onend = callback;
+        speechSynthesis.speak(utter);
+    }
+
+    function autoPlayMissedWords(wordsArray) {
+        speechSynthesis.cancel();
+        wordsArray.forEach(word => {
+            const utter = new SpeechSynthesisUtterance(sanitizeForTTS(word));
+            utter.lang = 'en-US'; utter.rate = 0.4; utter.pitch = 1.0; 
+            if(femaleEngVoice) utter.voice = femaleEngVoice;
+            speechSynthesis.speak(utter);
+        });
+    }
+
+    window.speakExaggeratedWord = function(word) {
+        speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(sanitizeForTTS(word));
+        utter.lang = 'en-US'; utter.rate = 0.4; utter.pitch = 1.0; 
+        if(femaleEngVoice) utter.voice = femaleEngVoice;
+        speechSynthesis.speak(utter);
+    }
+
+    window.playUserAudio = function() {
+        if(userAudioUrl) {
+            let audio = new Audio(userAudioUrl);
+            audio.play();
+        } else {
+            console.log("No audio to play");
+        }
+    }
+
+    function stopRecordingAndEvaluate(textToEval) {
+        if(!isRecording) return;
+        isRecording = false;
+        clearTimeout(recordTimer);
+        
+        btnMic.innerHTML = "🎤 다시 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
+        btnMic.classList.remove('recording');
+
+        try { recognition.stop(); } catch(e){}
+        if(!isMobile) {
+            try { if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){}
+        }
+
+        evaluateAnswer(textToEval);
+    }
+
+    async function handleMicClick() {
+        if(isRecording) {
+            stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
+        } else {
+            speechSynthesis.cancel();
+            finalTranscript = '';
+            currentInterim = '';
+            currentMissedWordsList = [];
+            
+            if(!isMobile && globalAudioStream) {
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(globalAudioStream);
+                mediaRecorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    saveRecordingToArchive();
+                };
+                mediaRecorder.start();
+            }
+
+            try {
+                recognition.start();
+                btnMic.innerHTML = "🛑 말하는 중... (클릭/Enter로 종료)";
+                btnMic.classList.add('recording');
+                isRecording = true;
+                
+                fbBox.style.display = 'none';
+                
+                clearTimeout(recordTimer);
+                let targetWordCount = currentTargetEng.split(' ').length;
+                let maxWaitTime = Math.max(15000, targetWordCount * 2000); 
+                
+                recordTimer = setTimeout(() => {
+                    if(isRecording) {
+                        stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
+                    }
+                }, maxWaitTime);
+
+            } catch(e) {}
+        }
+    }
+
+    recognition.onresult = function(event) {
+        if (!isRecording) return;
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + ' ';
+            else interim += event.results[i][0].transcript;
+        }
+        currentInterim = interim; 
+        
+        let fullSpoken = finalTranscript + interim;
+        fbBox.style.display = 'block';
+        fbBox.className = 'feedback';
+        fbRes.innerHTML = `<i>듣는 중: ${fullSpoken}</i>`;
+        
+        let targetWords = currentTargetEng.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+        let spokenWords = fullSpoken.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+        let lastTargetWord = targetWords[targetWords.length - 1];
+        
+        if (spokenWords.length >= targetWords.length * 0.8 && spokenWords.includes(lastTargetWord)) {
+            stopRecordingAndEvaluate(fullSpoken);
+        }
+    };
+
+    recognition.onend = function() {
+        if(!isRecording) return; 
+        stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
+    };
+
+    function getHighlightedTarget(targetStr, cleanSpokenArr) {
+        let words = targetStr.split(' ');
+        return words.map(w => {
+            let subWords = w.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+            let ignoreWords = ['a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by', 'that', 'this'];
+            
+            let isMissed = subWords.some(sub => sub && !cleanSpokenArr.includes(sub) && !ignoreWords.includes(sub));
+            
+            if(isMissed) {
+                return `<span style="color:var(--danger); text-decoration:underline; font-weight:900;">${w}</span>`;
+            }
+            return w;
+        }).join(' ');
+    }
+
+    function evaluateAnswer(spokenText) {
+        if(!spokenText.trim()) {
+            alert("음성이 감지되지 않았습니다. Enter를 눌러 다시 시도하세요.");
+            return;
+        }
+
+        const cleanSpoken = spokenText.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+        const cleanTarget = currentTargetEng.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+        
+        let matchCount = 0;
+        let missedWords = [];
+        let tempSpoken = [...cleanSpoken]; 
+
+        cleanTarget.forEach(word => {
+            const index = tempSpoken.indexOf(word);
+            if(index !== -1) { matchCount++; tempSpoken.splice(index, 1); } 
+            else { missedWords.push(word); }
+        });
+
+        //const threshold = mPhase >= 3 ? 75 : 80;
+        const threshold = 100;
+	const matchRate = Math.round((matchCount / cleanTarget.length) * 100);
+        const highlightedTargetHtml = getHighlightedTarget(currentTargetEng, cleanSpoken);
+        
+        let ignoreWords = ['a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by'];
+        let coreMissed = missedWords.filter(w => w.length >= 2 && !ignoreWords.includes(w));
+        let uniqueMissed = [...new Set(coreMissed)]; 
+        
+        currentMissedWordsList = uniqueMissed; 
+
+        //let isPass = false;
+        let isPass = (matchRate === 100);
+	if(mPhase === 2) isPass = (matchRate >= threshold) && (uniqueMissed.length === 0);
+        else isPass = (matchRate >= threshold);
+
+        let resHtml = `<div style="margin-bottom:10px;">내 발음: <div class="stt-transcript">"${spokenText}"</div></div>`;
+        resHtml += `<div>정답 비교: <div class="highlight-target">${highlightedTargetHtml}</div></div>`;
+        resHtml += `<div style="margin-top:10px;">일치율: <b>${matchRate}%</b> (목표 ${threshold}%)</div>`;
+        
+        fbBox.style.display = 'block';
+        fbBtnGroup.innerHTML = ''; 
+
+        if(!isMobile) {
+            fbBtnGroup.innerHTML += `<button class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">0</span></button>`;
+            if (canCompareProgress()) {
+                fbBtnGroup.innerHTML += `<button class="btn-play-audio" style="background:#6366F1;" onclick="playProgressCompare()">📈 최초 → 최근</button>`;
+            }
+        }
+
+        if(isPass) {
+            fbBox.className = 'feedback pass';
+            fbRes.innerHTML = `✅ 완벽합니다! (2초 뒤 자동 진행)<br>` + resHtml;
+            document.getElementById('ui-eng-text').classList.remove('mode-blur'); 
+            uiRetryCount.innerText = "";
+            
+            setTimeout(() => {
+                if(fbBox.className.includes('pass') && fbBox.style.display === 'block') {
+                    forceNextPhase();
+                }
+            }, 2000); 
+            
+        } else {
+            retryCount++;
+            uiRetryCount.innerText = `재도전: ${retryCount} / 20`;
+            
+            if(retryCount >= 20) {
+                fbBox.className = 'feedback fail';
+                fbRes.innerHTML = `⚠️ 최대 재도전 횟수를 초과하여 다음으로 이동합니다.<br>` + resHtml;
+                setTimeout(forceNextPhase, 2000);
+            } else {
+                fbBox.className = 'feedback fail';
+                let failReason = (matchRate < threshold) ? `일치율 부족 (${matchRate}%)` : `핵심 단어 누락`;
+                let failContent = `❌ 불합격 (${failReason})<br>` + resHtml;
+                
+                if(uniqueMissed.length > 0) {
+                    failContent += `<div class="missed-words-section"><div>⚠️ <b>틀린 단어 자동 교정</b> (다시 듣기는 해당 숫자키 누름)</div>`;
+                    uniqueMissed.forEach((word, idx) => {
+                        failContent += `
+                            <div class="missed-word-row">
+                                <button class="mini-btn listen" onclick="speakExaggeratedWord('${word}')">🔊 단어 발음 <span class="shortcut-key" style="margin-left:5px; font-size:11px; padding:1px 4px; background:rgba(0,0,0,0.2);">${idx + 1}</span></button>
+                                <span class="word-text" style="margin-left:10px;">${word}</span>
+                            </div>`;
+                    });
+                    failContent += `</div>`;
+                }
+                
+                fbRes.innerHTML = failContent;
+                document.getElementById('ui-eng-text').classList.remove('mode-blur');
+                
+                if(mPhase >= 3) {
+                    fbBtnGroup.innerHTML += `<button id="btn-force-pass" class="btn-force-pass" style="display:block;" onclick="handleTopicCompleteByForce()">⏭️ 흐름을 위해 일단 넘어가기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">Space</span></button>`;
+                }
+                
+                if(uniqueMissed.length > 0) {
+                    autoPlayMissedWords(uniqueMissed);
+                }
+            }
+        }
+    }
+
+    function goHome() {
+        if(isRecording) {
+            isRecording = false;
+            try { recognition.stop(); } catch(e){}
+        }
+        speechSynthesis.cancel();
+        elDash.style.display = 'block';
+        elMission.style.display = 'none';
+        updateDashboard();
+    }
+
+    hydrateArchiveFromIdb().then(updateDashboard);
+</script>
+</body>
+</html>
