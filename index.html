@@ -121,6 +121,10 @@
         .azure-status { font-size: 12px; color: #64748B; margin-top: 12px; }
         .azure-status.ok { color: #16A34A; }
         .azure-status.warn { color: #D97706; }
+        .recall-hint { font-size: 14px; color: #64748B; font-weight: 600; margin-bottom: 10px; }
+        .recall-keywords { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+        .keyword-chip { background: #FEF3C7; color: #92400E; padding: 8px 14px; border-radius: 8px; font-size: 15px; font-weight: 700; border: 1px solid #FCD34D; }
+        .eng-hidden { color: #94A3B8; font-style: italic; font-size: 15px; }
     </style>
 </head>
 <body>
@@ -145,7 +149,7 @@
 
     <div id="dashboard">
         <div class="day-badge" id="today-badge">전체 1회 훈련</div>
-        <h2 id="today-targets">10개 주제 · 4단계 완주</h2>
+        <h2 id="today-targets">10개 주제 · 6단계 완주</h2>
         <p id="resume-info" style="color:var(--primary); font-weight:bold; margin:10px 0 0; display:none;"></p>
         <div class="time-estimate" id="time-estimate">⏱️ 전체 1회 예상: 약 2~3시간</div>
         <br>
@@ -170,10 +174,12 @@
         </div>
         
         <div class="stepper" id="stepper">
-            <div class="step" id="step-1"><div class="circle">1</div>의미 수용</div>
-            <div class="step" id="step-2"><div class="circle">2</div>문장 훈련</div>
-            <div class="step" id="step-3"><div class="circle">3</div>전체 강세</div>
-            <div class="step" id="step-4"><div class="circle">4</div>피벗 방어</div>
+            <div class="step" id="step-1"><div class="circle">1</div>의미</div>
+            <div class="step" id="step-2"><div class="circle">2</div>문장</div>
+            <div class="step" id="step-3"><div class="circle">3</div>한글</div>
+            <div class="step" id="step-4"><div class="circle">4</div>키워드</div>
+            <div class="step" id="step-5"><div class="circle">5</div>질문</div>
+            <div class="step" id="step-6"><div class="circle">6</div>피벗</div>
         </div>
         
         <div class="question-box" id="ui-question-box">Q. 질문</div>
@@ -284,7 +290,8 @@
     const bridges = ["That's a great question. In my experience, ", "I can relate that to my background. ", "That's an interesting point. Actually, "];
 
     const STORAGE_KEY = 'interviewProgressV38';
-    const PHASE_LABELS = ['의미 수용', '문장 훈련', '전체 강세', '피벗 방어'];
+    const PHASE_LABELS = ['의미 수용', '문장 훈련', '한글 회상', '키워드 회상', '질문 회상', '피벗 방어'];
+    const KOR_STOPWORDS = new Set(['저는', '저희', '그', '이', '저', '및', '등', '후', '때', '것', '수', '있', '하는', '했습니다', '합니다', '있습니다', '있었습니다', '하여', '으로', '에서', '까지', '한다', '했다']);
 
     function defaultProgress() {
         return { checkpoint: { topicIndex: 0, phase: 1, sentIdx: 0, bridge: null }, fullRunCompleted: false, fullRunCount: 0 };
@@ -292,7 +299,12 @@
 
     function loadProgress() {
         const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+            const p = JSON.parse(saved);
+            if (p.checkpoint && p.checkpoint.phase > 6) p.checkpoint.phase = 6;
+            if (p.checkpoint && p.checkpoint.phase < 1) p.checkpoint.phase = 1;
+            return p;
+        }
         const legacy = localStorage.getItem('interviewProgressV37');
         if (legacy) {
             const old = JSON.parse(legacy);
@@ -640,7 +652,7 @@
                 if (fbBox.classList.contains('pass')) {
                     forceNextPhase();
                 } else if (btnForcePass && btnForcePass.style.display === 'block') {
-                    btnForcePass.click();
+                    forceNextPhase();
                 } else if (btnSkip.style.display !== 'none') {
                     forceNextPhase();
                 }
@@ -673,22 +685,43 @@
     });
 
     function getTotalSteps() {
-        return db.reduce(function(sum, t) { return sum + 1 + t.sentences.length + 1 + 1; }, 0);
+        return db.reduce(function(sum, t) { return sum + 1 + t.sentences.length + 4; }, 0);
     }
 
     function getCompletedSteps(cp) {
         let steps = 0;
         for (let i = 0; i < cp.topicIndex; i++) {
-            steps += 1 + db[i].sentences.length + 1 + 1;
+            steps += 1 + db[i].sentences.length + 4;
         }
         if (cp.topicIndex < db.length) {
             const t = db[cp.topicIndex];
+            const n = t.sentences.length;
             if (cp.phase === 1) steps += 0;
             else if (cp.phase === 2) steps += 1 + cp.sentIdx;
-            else if (cp.phase === 3) steps += 1 + t.sentences.length;
-            else if (cp.phase === 4) steps += 1 + t.sentences.length + 1;
+            else if (cp.phase === 3) steps += 1 + n;
+            else if (cp.phase === 4) steps += 1 + n + 1;
+            else if (cp.phase === 5) steps += 1 + n + 2;
+            else if (cp.phase === 6) steps += 1 + n + 3;
         }
         return steps;
+    }
+
+    function getTopicFullEng(data) {
+        return data.sentences.map(function(s) { return s[1]; }).join(' ');
+    }
+
+    function getTopicKeywords(data) {
+        if (data.keywords && data.keywords.length) return data.keywords;
+        const words = data.kor.replace(/[.,]/g, ' ').split(/\s+/).filter(function(w) {
+            return w.length >= 2 && !KOR_STOPWORDS.has(w);
+        });
+        return [...new Set(words)].slice(0, 8);
+    }
+
+    function formatKeywordsHtml(data) {
+        return getTopicKeywords(data).map(function(kw) {
+            return '<span class="keyword-chip">' + escapeHtml(kw) + '</span>';
+        }).join('');
     }
 
     function hasResumePoint() {
@@ -706,7 +739,7 @@
     }
 
     function persistProgress() {
-        const bridge = mPhase === 4 ? (progress.checkpoint && progress.checkpoint.bridge) || null : null;
+        const bridge = mPhase === 6 ? (progress.checkpoint && progress.checkpoint.bridge) || null : null;
         progress.checkpoint = {
             topicIndex: currentTopicIndex,
             phase: mPhase,
@@ -748,7 +781,7 @@
             btnRestart.style.display = 'none';
         } else {
             document.getElementById('today-badge').innerText = '전체 1회 훈련';
-            document.getElementById('today-targets').innerText = db.length + '개 주제 · 4단계';
+            document.getElementById('today-targets').innerText = db.length + '개 주제 · 6단계';
             const remainMin = Math.max(10, Math.round((total - done) * 2));
             document.getElementById('time-estimate').innerText = '⏱️ 남은 예상: 약 ' + remainMin + '분';
 
@@ -784,8 +817,10 @@
 
         if (mPhase === 1) runPhase1();
         else if (mPhase === 2) loadCurrentSentence();
-        else if (mPhase === 3) runPhase3();
-        else if (mPhase === 4) runPhase4(cp.bridge);
+        else if (mPhase === 3) runPhase3RecallKor();
+        else if (mPhase === 4) runPhase4RecallKeywords();
+        else if (mPhase === 5) runPhase5RecallQuestion();
+        else if (mPhase === 6) runPhase6Pivot(cp.bridge);
     }
 
     async function startMission(fromBeginning) {
@@ -808,12 +843,20 @@
     }
 
     function updateStepper(phase) {
-        for(let i=1; i<=4; i++) {
-            let el = document.getElementById('step-'+i);
+        const labels = ['의미', '문장', '한글', '키워드', '질문', '피벗'];
+        for (let i = 1; i <= 6; i++) {
+            let el = document.getElementById('step-' + i);
             el.className = 'step';
-            if(i < phase) { el.classList.add('done'); el.innerHTML = `<div class="circle">✓</div>` + el.innerText.substring(1); }
-            else if(i === phase) { el.classList.add('active'); el.innerHTML = `<div class="circle">${i}</div>` + el.innerText.substring(1); }
-            else { el.innerHTML = `<div class="circle">${i}</div>` + el.innerText.substring(1); }
+            const label = labels[i - 1];
+            if (i < phase) {
+                el.classList.add('done');
+                el.innerHTML = '<div class="circle">✓</div>' + label;
+            } else if (i === phase) {
+                el.classList.add('active');
+                el.innerHTML = '<div class="circle">' + i + '</div>' + label;
+            } else {
+                el.innerHTML = '<div class="circle">' + i + '</div>' + label;
+            }
         }
     }
 
@@ -874,28 +917,66 @@
         speakText(sentEng, 'en');
     }
 
-    function runPhase3() {
+    function runPhase3RecallKor() {
         mPhase = 3; retryCount = 0;
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
-        currentTargetEng = data.sentences.map(s=>s[1]).join(' ');
-        
-        updateUI(data.question, data.kor, formatEngForDisplay(currentTargetEng, true));
-        document.getElementById('ui-eng-text').className = 'english-text mode-blur';
+        currentTargetEng = getTopicFullEng(data);
+        updateUI(
+            data.question,
+            '<div class="recall-hint">[3단계 · 한글 회상] 아래 한글을 보고 영어 스크립트 전체를 말하세요.</div>' + escapeHtml(data.kor),
+            '<div class="eng-hidden">영어 스크립트는 숨김 · 말한 뒤 Space로 다음</div>',
+            false
+        );
+        document.getElementById('ui-eng-text').className = 'english-text';
         persistProgress();
-        speakText("Now, speak the whole script.", 'en');
     }
 
-    function runPhase4(bridgeText) {
+    function runPhase4RecallKeywords() {
         mPhase = 4; retryCount = 0;
+        syncCurrentRecordingRefs();
+        let data = db[currentTopicIndex];
+        currentTargetEng = getTopicFullEng(data);
+        updateUI(
+            data.question,
+            '<div class="recall-hint">[4단계 · 키워드 회상] 키워드만 보고 영어 스크립트 전체를 말하세요.</div><div class="recall-keywords">' + formatKeywordsHtml(data) + '</div>',
+            '<div class="eng-hidden">영어 스크립트는 숨김 · 말한 뒤 Space로 다음</div>',
+            false
+        );
+        document.getElementById('ui-eng-text').className = 'english-text';
+        persistProgress();
+    }
+
+    function runPhase5RecallQuestion() {
+        mPhase = 5; retryCount = 0;
+        syncCurrentRecordingRefs();
+        let data = db[currentTopicIndex];
+        currentTargetEng = getTopicFullEng(data);
+        updateUI(
+            data.question,
+            '<div class="recall-hint">[5단계 · 질문 회상] 질문만 보고 영어 답변 전체를 말하세요.</div>',
+            '<div class="eng-hidden">한글·영어 힌트 숨김 · 말한 뒤 Space로 다음</div>',
+            false
+        );
+        document.getElementById('ui-kor-text').innerHTML = '';
+        document.getElementById('ui-eng-text').className = 'english-text';
+        persistProgress();
+    }
+
+    function runPhase6Pivot(bridgeText) {
+        mPhase = 6; retryCount = 0;
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
         let randBridge = bridgeText || bridges[Math.floor(Math.random() * bridges.length)];
         progress.checkpoint.bridge = randBridge;
-        currentTargetEng = randBridge + data.sentences.map(s=>s[1]).join(' '); 
-        
-        updateUI(data.altQuestion, "스크립트 완전 숨김 상태", "👀 브릿지로 시작하여 스크립트로 자연스럽게 이어가세요.", true);
-        document.getElementById('ui-bridge-box').innerHTML = `<b>[추천 브릿지]</b> <br><span style="color:#B45309">"${randBridge}"</span>`;
+        currentTargetEng = randBridge + getTopicFullEng(data);
+        updateUI(
+            data.altQuestion,
+            '<div class="recall-hint">[6단계 · 피벗] 브릿지로 시작해 스크립트로 이어가세요.</div>',
+            '👀 영어 스크립트 숨김',
+            true
+        );
+        document.getElementById('ui-bridge-box').innerHTML = '<b>[추천 브릿지]</b><br><span style="color:#B45309">"' + escapeHtml(randBridge) + '"</span>';
         document.getElementById('ui-eng-text').className = 'english-text mode-blur';
         persistProgress();
         speakText(data.altQuestion, 'en');
@@ -939,10 +1020,6 @@
         if (pro != null) {
             isPass = isPass && pro >= (cfg.passProsody ?? 55);
         }
-        if (mPhase === 2) {
-            isPass = isPass && uniqueMissed.length === 0;
-        }
-
         const scoreLine =
             `정확도 ${acc} · 유창성 ${flu} · 완성도 ${comp}` +
             (pro != null ? ` · 억양 ${pro}` : '');
@@ -970,35 +1047,62 @@
             fbBtnGroup.innerHTML += `<button class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">0</span></button>`;
         }
 
+        showEvalResult(isPass, '✅ ' + scoreLine + ' · Space로 다음', '❌ ' + scoreLine, resHtml, uniqueMissed);
+    }
+
+    function showEvalResult(isPass, passMsg, failMsg, resHtml, uniqueMissed) {
         if (isPass) {
             fbBox.className = 'feedback pass';
-            fbRes.innerHTML = `<div class="fb-status">✅ ${scoreLine} · 2초 후 진행</div>`;
+            fbRes.innerHTML = '<div class="fb-status">' + passMsg + '</div>';
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
             uiRetryCount.innerText = '';
-            setTimeout(function() {
-                if (fbBox.className.includes('pass') && fbBox.style.display === 'block') {
-                    forceNextPhase();
-                }
-            }, 2000);
         } else {
             retryCount++;
-            uiRetryCount.innerText = `재도전: ${retryCount} / 20`;
+            uiRetryCount.innerText = '재도전: ' + retryCount + ' / 20';
             if (retryCount >= 20) {
                 fbBox.className = 'feedback fail';
-                fbRes.innerHTML = `<div class="fb-status">⚠️ ${scoreLine} · 다음으로 이동</div>` + resHtml;
-                setTimeout(forceNextPhase, 2000);
+                fbRes.innerHTML = '<div class="fb-status">⚠️ 재도전 초과 · Space로 다음</div>' + (resHtml || '');
             } else {
                 fbBox.className = 'feedback fail';
-                fbRes.innerHTML = `<div class="fb-status">❌ ${scoreLine}</div>` + resHtml;
+                fbRes.innerHTML = '<div class="fb-status">' + failMsg + '</div>' + (resHtml || '');
                 document.getElementById('ui-eng-text').classList.remove('mode-blur');
                 if (mPhase >= 3) {
-                    fbBtnGroup.innerHTML += `<button id="btn-force-pass" class="btn-force-pass" style="display:block;" onclick="handleTopicCompleteByForce()">⏭️ 흐름을 위해 일단 넘어가기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">Space</span></button>`;
+                    fbBtnGroup.innerHTML += '<button id="btn-force-pass" class="btn-force-pass" style="display:block;" onclick="forceNextPhase()">⏭️ 일단 넘어가기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">Space</span></button>';
                 }
-                if (uniqueMissed.length > 0) {
+                if (mPhase === 2 && uniqueMissed && uniqueMissed.length > 0) {
                     autoPlayMissedWords(uniqueMissed);
                 }
             }
         }
+    }
+
+    function evaluateAnswerRecall(spokenText) {
+        if (!spokenText.trim()) {
+            alert('음성이 감지되지 않았습니다. Enter를 눌러 다시 시도하세요.');
+            return;
+        }
+        const cleanSpoken = spokenText.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+        const cleanTarget = currentTargetEng.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+        let matchCount = 0;
+        let tempSpoken = [...cleanSpoken];
+        cleanTarget.forEach(function(word) {
+            const index = tempSpoken.indexOf(word);
+            if (index !== -1) { matchCount++; tempSpoken.splice(index, 1); }
+        });
+        const matchRate = cleanTarget.length ? Math.round((matchCount / cleanTarget.length) * 100) : 0;
+        const minWords = Math.max(3, Math.floor(cleanTarget.length * 0.35));
+        const isPass = cleanSpoken.length >= minWords || matchRate >= 45;
+
+        const bracketLine = buildBracketFeedbackHtml(currentTargetEng, cleanSpoken);
+        let resHtml = '<div class="bracket-feedback-line">' + bracketLine + '</div>';
+        resHtml += '<div style="font-size:13px;color:#64748B;margin-top:6px;">회상 단계 · 참고 일치율 ' + matchRate + '% (Space로 다음)</div>';
+
+        fbBox.style.display = 'block';
+        fbBtnGroup.innerHTML = '';
+        if (!isMobile) {
+            fbBtnGroup.innerHTML += '<button class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">0</span></button>';
+        }
+        showEvalResult(isPass, '✅ 회상 OK · Space로 다음', '❌ 더 말해 보세요 (짧음)', resHtml, []);
     }
 
     function stopRecordingSilently() {
@@ -1038,7 +1142,11 @@
             mSentIdx = db[currentTopicIndex].sentences.length - 1;
             loadCurrentSentence();
         } else if (mPhase === 4) {
-            runPhase3();
+            runPhase3RecallKor();
+        } else if (mPhase === 5) {
+            runPhase4RecallKeywords();
+        } else if (mPhase === 6) {
+            runPhase5RecallQuestion();
         }
         persistProgress();
     }
@@ -1050,10 +1158,12 @@
         if(mPhase === 1) runPhase2();
         else if(mPhase === 2) {
             if(mSentIdx < db[currentTopicIndex].sentences.length - 1) { mSentIdx++; loadCurrentSentence(); }
-            else runPhase3();
+            else runPhase3RecallKor();
         }
-        else if(mPhase === 3) runPhase4();
-        else if(mPhase === 4) handleTopicComplete();
+        else if(mPhase === 3) runPhase4RecallKeywords();
+        else if(mPhase === 4) runPhase5RecallQuestion();
+        else if(mPhase === 5) runPhase6Pivot();
+        else if(mPhase === 6) handleTopicComplete();
         persistProgress();
     }
     
@@ -1061,13 +1171,14 @@
         stopAllPlayback();
         stopRecordingSilently();
         if(mPhase === 2) loadCurrentSentence();
-        else if(mPhase === 3) runPhase3();
-        else if(mPhase === 4) runPhase4(progress.checkpoint.bridge);
+        else if(mPhase === 3) runPhase3RecallKor();
+        else if(mPhase === 4) runPhase4RecallKeywords();
+        else if(mPhase === 5) runPhase5RecallQuestion();
+        else if(mPhase === 6) runPhase6Pivot(progress.checkpoint.bridge);
     }
 
     function handleTopicCompleteByForce() {
-        if(mPhase === 3) runPhase4();
-        else if(mPhase === 4) handleTopicComplete();
+        forceNextPhase();
     }
 
     function handleTopicComplete() {
@@ -1246,11 +1357,14 @@
             try { if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e){}
         }
 
-        if (wasAzure && typeof AzureSpeech !== 'undefined') {
+        const evalPhase = mPhase;
+        if (wasAzure && evalPhase === 2 && typeof AzureSpeech !== 'undefined') {
             const assessment = await AzureSpeech.stopAzureRecording();
             evaluateAnswerFromAzure(assessment);
-        } else {
+        } else if (evalPhase === 2) {
             evaluateAnswer(textToEval);
+        } else if (evalPhase >= 3) {
+            evaluateAnswerRecall(textToEval);
         }
     }
 
@@ -1373,9 +1487,7 @@
         
         currentMissedWordsList = uniqueMissed; 
 
-        let isPass = (matchRate === 100);
-	if(mPhase === 2) isPass = (matchRate >= threshold) && (uniqueMissed.length === 0);
-        else isPass = (matchRate >= threshold);
+        let isPass = (matchRate >= threshold) && (uniqueMissed.length === 0);
 
         function buildMissedWordBtnsHtml(words) {
             if (!words.length) return '';
@@ -1399,40 +1511,7 @@
             fbBtnGroup.innerHTML += `<button class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">0</span></button>`;
         }
 
-        if(isPass) {
-            fbBox.className = 'feedback pass';
-            fbRes.innerHTML = `<div class="fb-status">✅ 완벽합니다 · 2초 후 진행</div>`;
-            document.getElementById('ui-eng-text').classList.remove('mode-blur'); 
-            uiRetryCount.innerText = "";
-            
-            setTimeout(() => {
-                if(fbBox.className.includes('pass') && fbBox.style.display === 'block') {
-                    forceNextPhase();
-                }
-            }, 2000); 
-            
-        } else {
-            retryCount++;
-            uiRetryCount.innerText = `재도전: ${retryCount} / 20`;
-            
-            if(retryCount >= 20) {
-                fbBox.className = 'feedback fail';
-                fbRes.innerHTML = `<div class="fb-status">⚠️ 재도전 초과 · 다음으로 이동</div>` + resHtml;
-                setTimeout(forceNextPhase, 2000);
-            } else {
-                fbBox.className = 'feedback fail';
-                fbRes.innerHTML = `<div class="fb-status">❌ 다시 말해 보세요</div>` + resHtml;
-                document.getElementById('ui-eng-text').classList.remove('mode-blur');
-                
-                if(mPhase >= 3) {
-                    fbBtnGroup.innerHTML += `<button id="btn-force-pass" class="btn-force-pass" style="display:block;" onclick="handleTopicCompleteByForce()">⏭️ 흐름을 위해 일단 넘어가기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">Space</span></button>`;
-                }
-                
-                if(uniqueMissed.length > 0) {
-                    autoPlayMissedWords(uniqueMissed);
-                }
-            }
-        }
+        showEvalResult(isPass, '✅ 완벽합니다 · Space로 다음', '❌ 다시 말해 보세요', resHtml, uniqueMissed);
     }
 
     function goHome() {
