@@ -12,6 +12,11 @@
         
         .progress-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .progress-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 10px; font-size: 18px; }
+        .progress-meta { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+        .progress-pct { color: var(--primary); font-variant-numeric: tabular-nums; }
+        .run-count { font-size: 12px; font-weight: 500; color: #64748B; background: #F1F5F9; padding: 4px 11px; border-radius: 999px; }
+        .run-count strong { color: #0F172A; font-weight: 700; }
+        .progress-hint { margin-top: 8px; font-size: 12px; color: #94A3B8; font-weight: 500; text-align: right; }
         .progress-title-wrap { display: inline-flex; align-items: center; gap: 6px; }
         .btn-rec-review-emoji {
             width: 22px; height: 22px; padding: 0; border: none; border-radius: 4px;
@@ -124,22 +129,29 @@
     <div class="progress-container">
         <div class="progress-header">
             <span class="progress-title-wrap">
-                <span>🏆 7일 완성 스크립트 마스터</span>
+                <span>🏆 전체 스크립트 마스터</span>
                 <button type="button" class="btn-rec-review-emoji" id="btn-open-recording-review" title="발음 비교 (최초·최근)">🎧</button>
             </span>
-            <span id="overall-progress-text">0% 달성</span>
+            <div class="progress-meta">
+                <span id="overall-progress-text" class="progress-pct">0%</span>
+                <span id="run-count-badge" class="run-count">완주 <strong id="run-count-num">0</strong>회</span>
+            </div>
         </div>
         <div class="progress-track">
             <div class="progress-fill" id="overall-progress-bar"></div>
         </div>
+        <div class="progress-hint" id="progress-hint">1회 완주 시 100%</div>
     </div>
 
     <div id="dashboard">
-        <div class="day-badge" id="today-badge">Day 1 훈련</div>
-        <h2 id="today-targets">주제 1 & 2 마스터하기</h2>
-        <div class="time-estimate" id="time-estimate">⏱️ 오늘 필요 연습 시간: 약 16분</div>
+        <div class="day-badge" id="today-badge">전체 1회 훈련</div>
+        <h2 id="today-targets">10개 주제 · 4단계 완주</h2>
+        <p id="resume-info" style="color:var(--primary); font-weight:bold; margin:10px 0 0; display:none;"></p>
+        <div class="time-estimate" id="time-estimate">⏱️ 전체 1회 예상: 약 2~3시간</div>
         <br>
-        <button class="mission-btn" id="btn-start-mission" onclick="startDailyMission()">오늘 미션 시작하기</button>
+        <button class="mission-btn" id="btn-start-mission" onclick="startMission(false)">학습 시작하기</button>
+        <br>
+        <button id="btn-restart" onclick="startMission(true)" style="margin-top:12px; background:none; border:none; color:#666; text-decoration:underline; cursor:pointer; font-size:13px; display:none;">처음부터 다시 시작</button>
         <br>
         <button onclick="resetProgress()" style="margin-top:20px; background:none; border:none; color:#888; text-decoration:underline; cursor:pointer; font-size:12px;">데이터 초기화</button>
         <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
@@ -271,8 +283,29 @@
 
     const bridges = ["That's a great question. In my experience, ", "I can relate that to my background. ", "That's an interesting point. Actually, "];
 
-    let progress = JSON.parse(localStorage.getItem('interviewProgressV37')) || { currentDay: 1, completedTopics: 0 };
-    let todaysTopics = [];
+    const STORAGE_KEY = 'interviewProgressV38';
+    const PHASE_LABELS = ['의미 수용', '문장 훈련', '전체 강세', '피벗 방어'];
+
+    function defaultProgress() {
+        return { checkpoint: { topicIndex: 0, phase: 1, sentIdx: 0, bridge: null }, fullRunCompleted: false, fullRunCount: 0 };
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+        const legacy = localStorage.getItem('interviewProgressV37');
+        if (legacy) {
+            const old = JSON.parse(legacy);
+            return {
+                checkpoint: { topicIndex: Math.min(old.completedTopics || 0, db.length - 1), phase: 1, sentIdx: 0, bridge: null },
+                fullRunCompleted: false,
+                fullRunCount: 0
+            };
+        }
+        return defaultProgress();
+    }
+
+    let progress = loadProgress();
     let currentTopicIndex = 0;
     
     let mPhase = 1; 
@@ -639,50 +672,139 @@
         }
     });
 
-    function updateDashboard() {
-        progress.currentDay = Math.floor(progress.completedTopics / 2) + 1;
-        let pct = Math.round((progress.completedTopics / db.length) * 100);
-        document.getElementById('overall-progress-text').innerText = `${pct}% 달성`;
-        document.getElementById('overall-progress-bar').style.width = `${pct}%`;
+    function getTotalSteps() {
+        return db.reduce(function(sum, t) { return sum + 1 + t.sentences.length + 1 + 1; }, 0);
+    }
 
-        if (progress.completedTopics >= db.length) {
-            document.getElementById('today-badge').innerText = "🎉 100% 달성!";
-            document.getElementById('today-targets').innerText = "모든 스크립트 마스터 완료";
-            document.getElementById('time-estimate').innerText = "원하는 주제를 복습하세요.";
-            todaysTopics = [Math.floor(Math.random()*db.length)]; 
+    function getCompletedSteps(cp) {
+        let steps = 0;
+        for (let i = 0; i < cp.topicIndex; i++) {
+            steps += 1 + db[i].sentences.length + 1 + 1;
+        }
+        if (cp.topicIndex < db.length) {
+            const t = db[cp.topicIndex];
+            if (cp.phase === 1) steps += 0;
+            else if (cp.phase === 2) steps += 1 + cp.sentIdx;
+            else if (cp.phase === 3) steps += 1 + t.sentences.length;
+            else if (cp.phase === 4) steps += 1 + t.sentences.length + 1;
+        }
+        return steps;
+    }
+
+    function hasResumePoint() {
+        const cp = progress.checkpoint;
+        return cp.topicIndex > 0 || cp.phase > 1 || cp.sentIdx > 0;
+    }
+
+    function getResumeLabel() {
+        const cp = progress.checkpoint;
+        let label = db[cp.topicIndex].title + ' · ' + PHASE_LABELS[cp.phase - 1];
+        if (cp.phase === 2) {
+            label += ' · 문장 ' + (cp.sentIdx + 1) + '/' + db[cp.topicIndex].sentences.length;
+        }
+        return label;
+    }
+
+    function persistProgress() {
+        const bridge = mPhase === 4 ? (progress.checkpoint && progress.checkpoint.bridge) || null : null;
+        progress.checkpoint = {
+            topicIndex: currentTopicIndex,
+            phase: mPhase,
+            sentIdx: mSentIdx,
+            bridge: bridge
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    }
+
+    function updateDashboard() {
+        const cp = progress.checkpoint;
+        const total = getTotalSteps();
+        const done = getCompletedSteps(cp);
+        let pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        pct = Math.min(100, pct);
+
+        const runCount = progress.fullRunCount || 0;
+        document.getElementById('run-count-num').innerText = runCount;
+
+        const resumeEl = document.getElementById('resume-info');
+        const btnStart = document.getElementById('btn-start-mission');
+        const btnRestart = document.getElementById('btn-restart');
+        const hintEl = document.getElementById('progress-hint');
+
+        if (progress.fullRunCompleted) pct = 100;
+
+        document.getElementById('overall-progress-text').innerText = pct + '%';
+        document.getElementById('overall-progress-bar').style.width = pct + '%';
+        hintEl.innerText = progress.fullRunCompleted
+            ? (runCount > 1 ? '누적 ' + runCount + '회 완주' : '이번 회차 100% 달성')
+            : (runCount > 0 ? '이번 회차 진행 중 · 완주 ' + runCount + '회' : '1회 완주 시 100%');
+
+        if (progress.fullRunCompleted) {
+            document.getElementById('today-badge').innerText = '🎉 1회 완주!';
+            document.getElementById('today-targets').innerText = '전체 스크립트 1회를 마쳤습니다';
+            document.getElementById('time-estimate').innerText = '처음부터 다시 돌려 복습할 수 있습니다.';
+            resumeEl.style.display = 'none';
+            btnStart.innerHTML = '다시 1회 돌리기';
+            btnRestart.style.display = 'none';
         } else {
-            document.getElementById('today-badge').innerText = `Day ${progress.currentDay} 훈련`;
-            let t1 = progress.completedTopics;
-            let t2 = t1 + 1;
-            todaysTopics = t2 < db.length ? [t1, t2] : [t1];
-            
-            let targetNames = todaysTopics.map(i => db[i].title).join(' & ');
-            document.getElementById('today-targets').innerText = `[${targetNames}] 마스터하기`;
-            document.getElementById('time-estimate').innerText = `⏱️ 예상 소요 시간: 약 ${todaysTopics.length * 8}분`;
+            document.getElementById('today-badge').innerText = '전체 1회 훈련';
+            document.getElementById('today-targets').innerText = db.length + '개 주제 · 4단계';
+            const remainMin = Math.max(10, Math.round((total - done) * 2));
+            document.getElementById('time-estimate').innerText = '⏱️ 남은 예상: 약 ' + remainMin + '분';
+
+            if (hasResumePoint()) {
+                resumeEl.style.display = 'block';
+                resumeEl.innerText = '📍 이어하기: ' + getResumeLabel();
+                btnStart.innerHTML = '이어서 학습하기';
+                btnRestart.style.display = 'inline-block';
+            } else {
+                resumeEl.style.display = 'none';
+                btnStart.innerHTML = '학습 시작하기';
+                btnRestart.style.display = 'none';
+            }
         }
     }
 
     function resetProgress() {
         if(confirm("모든 학습 데이터가 지워집니다. 녹음 아카이브(최초·최근)도 함께 삭제됩니다. 계속할까요?")) {
+            localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem('interviewProgressV37');
-            progress = { currentDay: 1, completedTopics: 0 };
+            progress = defaultProgress();
             clearRecordingArchive();
             updateDashboard();
         }
     }
 
-    function saveProgress() {
-        progress.completedTopics++;
-        localStorage.setItem('interviewProgressV37', JSON.stringify(progress));
+    function resumeFromCheckpoint() {
+        const cp = progress.checkpoint;
+        currentTopicIndex = cp.topicIndex;
+        mPhase = cp.phase;
+        mSentIdx = cp.sentIdx || 0;
+        retryCount = 0;
+
+        if (mPhase === 1) runPhase1();
+        else if (mPhase === 2) loadCurrentSentence();
+        else if (mPhase === 3) runPhase3();
+        else if (mPhase === 4) runPhase4(cp.bridge);
     }
 
-    async function startDailyMission() {
-        if(todaysTopics.length === 0) return;
-        await initAudioStream(); 
+    async function startMission(fromBeginning) {
+        if (fromBeginning && (hasResumePoint() || progress.fullRunCompleted)) {
+            if (!confirm('저장된 진행 위치가 사라지고 처음부터 시작합니다. 계속할까요?')) return;
+            progress = defaultProgress();
+            persistProgress();
+        }
+        progress.fullRunCompleted = false;
+        persistProgress();
+        await initAudioStream();
         elDash.style.display = 'none';
         elMission.style.display = 'block';
-        currentTopicIndex = todaysTopics[0];
-        runPhase1();
+        if (fromBeginning || !hasResumePoint()) {
+            currentTopicIndex = 0;
+            runPhase1();
+        } else {
+            resumeFromCheckpoint();
+        }
     }
 
     function updateStepper(phase) {
@@ -722,7 +844,8 @@
     }
 
     function runPhase1() {
-        mPhase = 1; retryCount = 0;
+        mPhase = 1; mSentIdx = 0; retryCount = 0;
+        persistProgress();
         let data = db[currentTopicIndex];
         updateUI(data.question, data.kor, formatEngForDisplay(data.sentences.map(s=>s[1]).join(' / '), true));
         document.getElementById('ui-eng-text').className = 'english-text'; 
@@ -747,6 +870,7 @@
 
         updateUI(data.question, sentKor, formatEngForDisplay(sentEng, false));
         document.getElementById('ui-eng-text').className = 'english-text';
+        persistProgress();
         speakText(sentEng, 'en');
     }
 
@@ -758,19 +882,22 @@
         
         updateUI(data.question, data.kor, formatEngForDisplay(currentTargetEng, true));
         document.getElementById('ui-eng-text').className = 'english-text mode-blur';
+        persistProgress();
         speakText("Now, speak the whole script.", 'en');
     }
 
-    function runPhase4() {
+    function runPhase4(bridgeText) {
         mPhase = 4; retryCount = 0;
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
-        let randBridge = bridges[Math.floor(Math.random() * bridges.length)];
+        let randBridge = bridgeText || bridges[Math.floor(Math.random() * bridges.length)];
+        progress.checkpoint.bridge = randBridge;
         currentTargetEng = randBridge + data.sentences.map(s=>s[1]).join(' '); 
         
         updateUI(data.altQuestion, "스크립트 완전 숨김 상태", "👀 브릿지로 시작하여 스크립트로 자연스럽게 이어가세요.", true);
         document.getElementById('ui-bridge-box').innerHTML = `<b>[추천 브릿지]</b> <br><span style="color:#B45309">"${randBridge}"</span>`;
-        document.getElementById('ui-eng-text').className = 'english-text mode-blur'; 
+        document.getElementById('ui-eng-text').className = 'english-text mode-blur';
+        persistProgress();
         speakText(data.altQuestion, 'en');
     }
 
@@ -784,19 +911,11 @@
     function updateAzureStatusLabel(ok) {
         const el = document.getElementById('azure-status');
         if (!el) return;
-        const s = window.INTERVIEW_SETTINGS || {};
-        if (!s.useAzurePronunciation) {
-            el.className = 'azure-status';
-            el.textContent = '브라우저 단어 매칭 모드';
-            return;
-        }
-        if (ok) {
-            el.className = 'azure-status ok';
-            el.textContent = 'Azure 발음 평가 연결됨';
-        } else {
-            el.className = 'azure-status warn';
-            el.textContent = 'Azure 미연결 — speech-server 폴더에서 npm start 후 새로고침';
-        }
+        const msg = typeof AzureSpeech !== 'undefined' && AzureSpeech.getAzureStatusMessage
+            ? AzureSpeech.getAzureStatusMessage()
+            : (ok ? 'Azure 발음 평가 연결됨' : 'Azure 미연결');
+        el.className = ok ? 'azure-status ok' : 'azure-status warn';
+        el.textContent = msg;
     }
 
     function evaluateAnswerFromAzure(assessment) {
@@ -921,6 +1040,7 @@
         } else if (mPhase === 4) {
             runPhase3();
         }
+        persistProgress();
     }
 
     function forceNextPhase() { 
@@ -934,6 +1054,7 @@
         }
         else if(mPhase === 3) runPhase4();
         else if(mPhase === 4) handleTopicComplete();
+        persistProgress();
     }
     
     function retryCurrentPhase() {
@@ -941,7 +1062,7 @@
         stopRecordingSilently();
         if(mPhase === 2) loadCurrentSentence();
         else if(mPhase === 3) runPhase3();
-        else if(mPhase === 4) runPhase4();
+        else if(mPhase === 4) runPhase4(progress.checkpoint.bridge);
     }
 
     function handleTopicCompleteByForce() {
@@ -950,16 +1071,20 @@
     }
 
     function handleTopicComplete() {
-        saveProgress();
-        todaysTopics.shift();
-        if(todaysTopics.length > 0) {
-            alert("👏 첫 번째 주제를 마쳤습니다! 바로 다음 주제로 넘어갑니다.");
-            currentTopicIndex = todaysTopics[0];
+        const nextTopic = currentTopicIndex + 1;
+        if (nextTopic < db.length) {
+            currentTopicIndex = nextTopic;
+            progress.checkpoint = { topicIndex: nextTopic, phase: 1, sentIdx: 0, bridge: null };
+            persistProgress();
             runPhase1();
         } else {
-            alert("🎉 오늘의 목표량을 달성하셨습니다! 수고하셨습니다.");
+            const newCount = (progress.fullRunCount || 0) + 1;
+            progress = defaultProgress();
+            progress.fullRunCount = newCount;
+            progress.fullRunCompleted = true;
+            persistProgress();
+            alert('🎉 전체 스크립트 1회 완료! (누적 ' + newCount + '회)');
             goHome();
-            updateDashboard();
         }
     }
 
@@ -1315,11 +1440,16 @@
             stopRecordingSilently();
         }
         stopAllPlayback();
+        persistProgress();
         elReviewPage.style.display = 'none';
         elDash.style.display = 'block';
         elMission.style.display = 'none';
         updateDashboard();
     }
+
+    window.addEventListener('beforeunload', function() {
+        if (elMission.style.display === 'block') persistProgress();
+    });
 
     hydrateArchiveFromIdb().then(function() {
         updateDashboard();
