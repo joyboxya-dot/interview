@@ -49,8 +49,13 @@
         const paW = w.PronunciationAssessment || w.pronunciationAssessment || {};
         return {
             word: w.Word || w.word || '',
-            accuracyScore: paW.AccuracyScore != null ? paW.AccuracyScore : w.accuracyScore,
-            errorType: paW.ErrorType || w.errorType || 'None',
+            accuracyScore:
+                paW.AccuracyScore != null
+                    ? paW.AccuracyScore
+                    : w.AccuracyScore != null
+                      ? w.AccuracyScore
+                      : w.accuracyScore,
+            errorType: paW.ErrorType || w.ErrorType || w.errorType || 'None',
             offsetMs: ticksToMs(w.Offset != null ? w.Offset : w.offset),
             durationMs: ticksToMs(w.Duration != null ? w.Duration : w.duration),
             phonemes: (w.Phonemes || w.phonemes || []).map(normalizePhoneme),
@@ -160,60 +165,10 @@
         );
     }
 
-    function buildIssueWordCards(issueWords) {
-        if (!issueWords.length) return '';
-        const cards = issueWords.map(function (w) {
-            const meta = ERROR_LABELS[w.errorType] || ERROR_LABELS.Mispronunciation;
-            const acc = w.accuracyScore != null ? Math.round(w.accuracyScore) : '—';
-            const time = w.offsetMs != null ? '@' + (w.offsetMs / 1000).toFixed(1) + 's' : '';
-            let phonHtml = '';
-            const weakPhonemes = (w.phonemes || []).filter(function (p) {
-                return p.accuracyScore != null && Math.round(p.accuracyScore) < 70;
-            });
-            if (weakPhonemes.length) {
-                phonHtml =
-                    '<div class="pa-phoneme-row">' +
-                    weakPhonemes
-                        .map(function (p) {
-                            const pAcc = Math.round(p.accuracyScore);
-                            return (
-                                '<span class="pa-phoneme pa-phoneme-weak" title="음소 ' + escapeHtml(p.phoneme) + ' · ' + pAcc + '">' +
-                                escapeHtml(p.phoneme) + '<small>' + pAcc + '</small></span>'
-                            );
-                        })
-                        .join('') +
-                    '</div>';
-            }
-            return (
-                '<div class="pa-word-card ' + meta.cls + '">' +
-                '<div class="pa-word-head">' +
-                '<strong>' + escapeHtml(w.word) + '</strong>' +
-                '<span class="pa-word-badge">' + escapeHtml(meta.label) + '</span>' +
-                '<span class="pa-word-acc">' + acc + '</span>' +
-                '<span class="pa-word-time">' + escapeHtml(time) + '</span>' +
-                '</div>' +
-                phonHtml +
-                '</div>'
-            );
-        }).join('');
-        return '<div class="pa-issue-list">' + cards + '</div>';
-    }
-
-    /** 점수 막대·상세 헤더 없음. 오류 단어만 목록(스크롤 없음). */
+    /** 타임라인만 (점수·오류 카드는 피드백 상단·숫자 버튼에서 표시) */
     function buildHtml(detail) {
         if (!detail || !detail.words.length) return '';
-
-        const issueWords = detail.issueWords || getIssueWords(detail.words);
-        let html = '<div class="pa-viz">';
-        html += buildTimeline(detail.words, detail.totalDurationMs);
-
-        if (issueWords.length) {
-            html += '<div class="pa-issue-title">발음·운율 오류</div>';
-            html += buildIssueWordCards(issueWords);
-        }
-
-        html += '</div>';
-        return html;
+        return '<div class="pa-viz">' + buildTimeline(detail.words, detail.totalDurationMs) + '</div>';
     }
 
     global.PronunciationViz = {

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { assessShortAudioPronunciation } from './pronunciation-rest.js';
 
 dotenv.config();
 
@@ -18,9 +19,9 @@ if (!SPEECH_KEY) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
-/** 브라우저용 10분짜리 Speech 토큰 (구독 키는 서버에만 둠) */
+/** 브라우저용 Speech 토큰 (레거시·선택) */
 app.get('/api/speech-token', async (_req, res) => {
   try {
     const tokenRes = await fetch(
@@ -45,15 +46,67 @@ app.get('/api/speech-token', async (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, region: SPEECH_REGION });
+  res.json({ ok: true, region: SPEECH_REGION, mode: 'short-audio-rest' });
 });
 
-// index.html 을 http://localhost:3001/ 로 열 수 있게 (file:// CORS 방지)
+/**
+ * 2단계 문장별 발음 평가 — Azure Short Audio REST (저렴·Miscue·운율)
+ * Body: WAV PCM 16kHz mono
+ * Header: X-Reference-Text (encodeURIComponent 된 영어 스크립트)
+ */
+app.post(
+  '/api/pronounce-assess',
+  express.raw({ type: ['audio/wav', 'application/octet-stream', 'audio/*'], limit: '4mb' }),
+  async (req, res) => {
+    try {
+      const refHeader = req.headers['x-reference-text'];
+      const referenceText = refHeader
+        ? decodeURIComponent(String(refHeader))
+        : '';
+      if (!referenceText.trim()) {
+        return res.status(400).json({ ok: false, error: 'missing_reference_text' });
+      }
+      if (!req.body || !req.body.length) {
+        return res.status(400).json({ ok: false, error: 'missing_audio' });
+      }
+
+      const result = await assessShortAudioPronunciation({
+        speechKey: SPEECH_KEY,
+        region: SPEECH_REGION,
+        referenceText,
+        audioBuffer: req.body,
+      });
+
+      if (!result.ok) {
+        return res.status(result.httpStatus && result.httpStatus >= 400 ? result.httpStatus : 502).json({
+          ok: false,
+          error: result.message || 'assessment_failed',
+          detail: result.detail,
+        });
+      }
+
+      res.json({
+        ok: true,
+        text: result.text,
+        accuracyScore: result.accuracyScore,
+        fluencyScore: result.fluencyScore,
+        completenessScore: result.completenessScore,
+        prosodyScore: result.prosodyScore,
+        pronunciationScore: result.pronunciationScore,
+        words: result.words,
+      });
+    } catch (err) {
+      console.error('pronounce-assess', err);
+      res.status(500).json({ ok: false, error: 'server_error', detail: String(err) });
+    }
+  }
+);
+
 const parentDir = path.join(__dirname, '..');
 app.use(express.static(parentDir));
 
 app.listen(PORT, () => {
-  console.log(`Speech token server: http://localhost:${PORT}`);
-  console.log(`앱 열기: http://localhost:${PORT}/index.html`);
-  console.log(`토큰 테스트: http://localhost:${PORT}/api/health`);
+  console.log(`Speech server: http://localhost:${PORT}`);
+  console.log(`앱: http://localhost:${PORT}/index.html`);
+  console.log(`2단계 발음: POST /api/pronounce-assess (Short Audio REST)`);
 });

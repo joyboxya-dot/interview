@@ -5,8 +5,10 @@ window.INTERVIEW_SETTINGS = {
     /** true: 서버 켜져 있으면 Azure 발음 평가 / false: 예전 방식(단어 맞추기) */
     useAzurePronunciation: true,
 
-    /** 토큰 API (speech-server npm start 기본 주소) */
-    tokenUrl: '/api/speech-token',
+    /** speech-server (npm start) */
+    healthUrl: '/api/health',
+    /** 2단계 Short Audio REST 발음 평가 */
+    pronounceAssessUrl: '/api/pronounce-assess',
 };
 
 /** 2단계 Azure 합격선 프리셋 (난이도) */
@@ -64,5 +66,5 @@ window.getPassThresholds = function () {
 
 window.formatPassThresholdLine = function (t) {
     t = t || window.getPassThresholds();
-    return '정확도 ' + t.passAccuracy + ' · 유창성 ' + t.passFluency + ' · 억양 ' + t.passProsody;
+    return '정확도 ' + t.passAccuracy + ' · 유창성 ' + t.passFluency + ' · 운율 ' + t.passProsody;
 };
