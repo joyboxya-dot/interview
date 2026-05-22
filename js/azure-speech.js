@@ -39,9 +39,9 @@
         if (lastInitHint === 'disabled') return '브라우저 단어 매칭 모드';
         if (lastInitHint === 'no_server') {
             if (location.protocol === 'file:') {
-                return 'file:// 로는 불가 — npm start 후 http://localhost:3001/index.html';
+                return 'file:// 로는 불가 — 서버 주소로 열기 (로컬: localhost:3001 / 배포: Render URL)';
             }
-            return '토큰 서버 없음 — Node 서버 필요 (로컬: npm start / 배포: Render)';
+            return '서버 미연결 — 로컬 npm start 또는 Render 배포 URL로 접속';
         }
         return 'Azure 미연결 — speech-server 확인';
     }
@@ -82,20 +82,51 @@
         return null;
     }
 
+    function blobToBase64(blob) {
+        return new Promise(function (resolve, reject) {
+            const reader = new FileReader();
+            reader.onload = function () {
+                const dataUrl = reader.result || '';
+                const comma = String(dataUrl).indexOf(',');
+                resolve(comma >= 0 ? String(dataUrl).slice(comma + 1) : '');
+            };
+            reader.onerror = function () {
+                reject(new Error('audio_read_failed'));
+            };
+            reader.readAsDataURL(blob);
+        });
+    }
+
     async function assessWavBlob(wavBlob, referenceText) {
         const url = settings().pronounceAssessUrl || '/api/pronounce-assess';
         const ref = (referenceText || '').replace(/\s+/g, ' ').trim();
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'audio/wav',
-                'X-Reference-Text': encodeURIComponent(ref),
-            },
-            body: wavBlob,
-        });
-        const data = await res.json();
+        const audioBase64 = await blobToBase64(wavBlob);
+        const controller = new AbortController();
+        const timer = setTimeout(function () {
+            controller.abort();
+        }, 90000);
+        let res;
+        try {
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ referenceText: ref, audioBase64: audioBase64 }),
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timer);
+        }
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            if (e && e.name === 'AbortError') throw new Error('assess_timeout');
+            throw new Error('assess_bad_response');
+        }
         if (!res.ok || !data.ok) {
-            throw new Error(data.message || data.error || 'assess_failed');
+            const parts = [data.error || data.message || 'assess_failed'];
+            if (data.detail) parts.push(String(data.detail).slice(0, 200));
+            throw new Error(parts.join(': '));
         }
         return {
             text: data.text || '',

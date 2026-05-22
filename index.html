@@ -743,29 +743,56 @@
         return globalAudioStream;
     }
 
+    function hasRecognizedSpeech(text, words) {
+        if (/[a-zA-Z]{2,}/.test((text || '').replace(/\s+/g, ''))) return true;
+        if (!words || !words.length) return false;
+        return words.some(function (w) {
+            const err = w.errorType || w.ErrorType || 'None';
+            const acc = w.accuracyScore != null ? w.accuracyScore : w.AccuracyScore;
+            return err === 'None' || (acc != null && acc > 0);
+        });
+    }
+
     function stopMediaRecorderAndGetWav() {
         return new Promise(function (resolve, reject) {
-            if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+            if (!mediaRecorder) {
                 reject(new Error('not_recording'));
                 return;
             }
             const chunks = audioChunks.slice();
             const mime = mediaRecorder.mimeType || 'audio/webm';
-            mediaRecorder.onstop = async function () {
-                saveRecordingToArchive();
+
+            async function finalizeWav() {
                 try {
                     if (typeof AudioWav === 'undefined') throw new Error('no_audio_wav');
                     const blob = new Blob(chunks, { type: mime });
+                    if (!blob.size) throw new Error('empty_audio');
                     const wav = await AudioWav.blobTo16kMonoWav(blob);
                     resolve(wav);
                 } catch (err) {
                     reject(err);
                 }
-            };
-            try {
-                mediaRecorder.stop();
-            } catch (err) {
-                reject(err);
+            }
+
+            if (mediaRecorder.state === 'recording') {
+                mediaRecorder.onstop = async function () {
+                    await new Promise(function (r) { setTimeout(r, 80); });
+                    saveRecordingToArchive();
+                    await finalizeWav();
+                };
+                try {
+                    if (typeof mediaRecorder.requestData === 'function') {
+                        mediaRecorder.requestData();
+                    }
+                    mediaRecorder.stop();
+                } catch (err) {
+                    reject(err);
+                }
+            } else if (chunks.length) {
+                saveRecordingToArchive();
+                finalizeWav();
+            } else {
+                reject(new Error('not_recording'));
             }
         });
     }
@@ -1165,8 +1192,10 @@
     }
 
     function evaluateAnswerFromAzure(assessment) {
-        if (!assessment || !assessment.text.trim()) {
-            alert('음성이 감지되지 않았습니다. Enter를 눌러 다시 시도하세요.');
+        if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) {
+            fbBox.style.display = 'block';
+            fbBox.className = 'feedback fail';
+            fbRes.innerHTML = '음성이 감지되지 않았습니다. Enter를 눌러 다시 시도하세요.';
             return;
         }
 
@@ -1545,14 +1574,31 @@
             try {
                 const wav = await stopMediaRecorderAndGetWav();
                 const assessment = await AzureSpeech.assessWavBlob(wav, currentTargetEng);
-                if (!assessment || !assessment.text.trim()) {
-                    alert('음성이 감지되지 않았습니다. Enter를 눌러 다시 시도하세요.');
+                if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) {
+                    fbBox.className = 'feedback fail';
+                    fbRes.innerHTML = '음성이 감지되지 않았습니다. 문장을 끝까지 말한 뒤 Enter로 다시 시도하세요.';
                     return;
                 }
                 evaluateAnswerFromAzure(assessment);
             } catch (e) {
                 console.warn('Short Audio assess failed', e);
-                alert('Azure 채점에 실패했습니다. 서버·마이크를 확인한 뒤 다시 시도하세요.');
+                const detail = (e && e.message) ? e.message : String(e);
+                fbBox.className = 'feedback fail';
+                fbRes.innerHTML =
+                    'Azure 채점 실패: ' + detail +
+                    '<br><span style="font-weight:500;font-size:12px;">' +
+                    '같은 사이트 주소로 열었는지, 마이크 허용·1초 이상 녹음 후 종료했는지 확인하세요.</span>';
+                if (detail === 'empty_audio' || detail === 'not_recording') {
+                    alert('녹음 데이터가 비었습니다. 말하기를 시작한 뒤 1~2초 이상 말하고 Enter로 종료하세요.');
+                } else if (detail === 'assess_timeout') {
+                    alert('채점 시간이 초과되었습니다. Render 첫 요청은 30초 걸릴 수 있어요. 잠시 후 다시 시도하세요.');
+                } else if (detail.indexOf('InitialSilenceTimeout') !== -1 || detail.indexOf('말소리') !== -1) {
+                    alert('마이크에 소리가 들어가지 않았습니다. 1~2초 이상 크게 말한 뒤 종료하세요.');
+                } else if (detail.indexOf('Failed to fetch') !== -1 || detail === 'assess_bad_response') {
+                    alert('서버에 연결되지 않습니다. 페이지를 새로고침한 뒤 다시 시도하세요.');
+                } else {
+                    alert('Azure 채점 실패: ' + detail);
+                }
             }
             return;
         }
@@ -1587,7 +1633,7 @@
                     mediaRecorder.ondataavailable = function (e) {
                         if (e.data.size > 0) audioChunks.push(e.data);
                     };
-                    mediaRecorder.start();
+                    mediaRecorder.start(250);
                     btnMic.innerHTML = "🛑 말하는 중... (클릭/Enter로 종료)";
                     btnMic.classList.add('recording');
                     isRecording = true;
@@ -1615,7 +1661,7 @@
                     mediaRecorder.onstop = function () {
                         saveRecordingToArchive();
                     };
-                    mediaRecorder.start();
+                    mediaRecorder.start(250);
                 }
                 startBrowserRecognition();
             }
