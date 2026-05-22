@@ -623,6 +623,8 @@
 
     let mediaRecorder = null;
     let audioChunks = [];
+    /** 녹음 시작 시점의 슬롯 키 (onstop이 늦을 때 단계가 바뀌어 다른 키로 저장되는 것 방지) */
+    let recordingSaveKey = null;
     let userAudioUrl = null;
     let everFirstAudioUrl = null;
     let activeAudio = null;
@@ -655,7 +657,143 @@
         const t = topicIdx !== undefined ? topicIdx : currentTopicIndex;
         const p = phase !== undefined ? phase : mPhase;
         if (p === 2) return `${t}-2-${sentIdx !== undefined ? sentIdx : mSentIdx}`;
+        if (p >= 3) return `${t}-full`;
         return `${t}-${p}`;
+    }
+
+    function isLegacyParagraphRecordingKey(key) {
+        const parts = String(key).split('-');
+        return parts.length === 2 && (parts[1] === '3' || parts[1] === '4' || parts[1] === '5' || parts[1] === '6');
+    }
+
+    async function idbDeleteRecording(key) {
+        try {
+            const db = await openRecordingDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(RECORDING_IDB_STORE, 'readwrite');
+                tx.objectStore(RECORDING_IDB_STORE).delete(key);
+                tx.oncomplete = function() { resolve(); };
+                tx.onerror = function() { reject(tx.error); };
+            });
+        } catch (e) {}
+    }
+
+    /** 예전 3~6단계별 키 → 주제별 `{t}-full` 한 슬롯으로 IDB 병합 */
+    async function migrateLegacyParagraphKeysFromIdbRows(rows) {
+        const byTopic = {};
+        rows.forEach(function(row) {
+            if (!row.data) return;
+            const parts = String(row.key).split('-');
+            if (parts.length !== 2) return;
+            const t = parts[0];
+            if (parts[1] === 'full') {
+                if (!byTopic[t]) byTopic[t] = { legacy: [], full: null };
+                byTopic[t].full = row;
+            } else if (isLegacyParagraphRecordingKey(row.key)) {
+                if (!byTopic[t]) byTopic[t] = { legacy: [], full: null };
+                byTopic[t].legacy.push(row);
+            }
+        });
+        const topics = Object.keys(byTopic);
+        for (let i = 0; i < topics.length; i++) {
+            const t = topics[i];
+            const group = byTopic[t];
+            if (!group.legacy.length) continue;
+
+            let everBlob = group.full && group.full.data ? group.full.data.everFirst : null;
+            let latestBlob = group.full && group.full.data ? group.full.data.latest : null;
+            const sorted = group.legacy.slice().sort(function(a, b) {
+                return parseInt(a.key.split('-')[1], 10) - parseInt(b.key.split('-')[1], 10);
+            });
+            if (!everBlob) {
+                for (let j = 0; j < sorted.length; j++) {
+                    const d = sorted[j].data;
+                    if (d && (d.everFirst || d.latest)) {
+                        everBlob = d.everFirst || d.latest;
+                        break;
+                    }
+                }
+            }
+            for (let j = sorted.length - 1; j >= 0; j--) {
+                const d = sorted[j].data;
+                if (d && d.latest) {
+                    latestBlob = d.latest;
+                    break;
+                }
+            }
+            if (!latestBlob) latestBlob = everBlob;
+            if (!everBlob && !latestBlob) continue;
+
+            await idbPutRecording(t + '-full', {
+                everFirst: everBlob || latestBlob,
+                latest: latestBlob || everBlob,
+            });
+            for (let j = 0; j < group.legacy.length; j++) {
+                await idbDeleteRecording(group.legacy[j].key);
+            }
+        }
+    }
+
+    function mergeLegacyParagraphKeysInMemory() {
+        const topics = {};
+        Object.keys(recordingArchive).forEach(function(key) {
+            if (!isLegacyParagraphRecordingKey(key)) return;
+            const t = key.split('-')[0];
+            if (!topics[t]) topics[t] = [];
+            topics[t].push(key);
+        });
+        Object.keys(topics).forEach(function(t) {
+            const fullKey = t + '-full';
+            const legacyKeys = topics[t].sort(function(a, b) {
+                return parseInt(a.split('-')[1], 10) - parseInt(b.split('-')[1], 10);
+            });
+            let ever = recordingArchive[fullKey] ? recordingArchive[fullKey].everFirst : null;
+            let latest = recordingArchive[fullKey] ? recordingArchive[fullKey].latest : null;
+            let everBlob = recordingArchive[fullKey] ? recordingArchive[fullKey]._everBlob : null;
+            let latestBlob = recordingArchive[fullKey] ? recordingArchive[fullKey]._latestBlob : null;
+
+            if (!ever) {
+                for (let i = 0; i < legacyKeys.length; i++) {
+                    const slot = recordingArchive[legacyKeys[i]];
+                    if (slot && slot.everFirst) {
+                        ever = slot.everFirst;
+                        everBlob = slot._everBlob;
+                        break;
+                    }
+                }
+            }
+            for (let i = legacyKeys.length - 1; i >= 0; i--) {
+                const slot = recordingArchive[legacyKeys[i]];
+                if (slot && slot.latest) {
+                    latest = slot.latest;
+                    latestBlob = slot._latestBlob;
+                    break;
+                }
+            }
+            if (!latest) latest = ever;
+            if (!ever) ever = latest;
+
+            legacyKeys.forEach(function(k) {
+                const slot = recordingArchive[k];
+                if (!slot) return;
+                if (slot.everFirst && slot.everFirst !== ever && slot.everFirst !== latest) {
+                    URL.revokeObjectURL(slot.everFirst);
+                }
+                if (slot.latest && slot.latest !== ever && slot.latest !== latest) {
+                    URL.revokeObjectURL(slot.latest);
+                }
+                delete recordingArchive[k];
+            });
+
+            if (ever || latest) {
+                recordingArchive[fullKey] = {
+                    everFirst: ever || latest,
+                    latest: latest || ever,
+                    _everBlob: everBlob,
+                    _latestBlob: latestBlob,
+                };
+            }
+        });
     }
 
     function openRecordingDb() {
@@ -749,7 +887,9 @@
     }
 
     async function hydrateArchiveFromIdb() {
-        const rows = await idbGetAllRecordingsFixed();
+        let rows = await idbGetAllRecordingsFixed();
+        await migrateLegacyParagraphKeysFromIdbRows(rows);
+        rows = await idbGetAllRecordingsFixed();
         revokeArchiveUrls();
         recordingArchive = {};
         rows.forEach(function(row) {
@@ -758,6 +898,7 @@
             const latUrl = row.data.latest ? URL.createObjectURL(row.data.latest) : everUrl;
             recordingArchive[row.key] = { everFirst: everUrl || latUrl, latest: latUrl || everUrl };
         });
+        mergeLegacyParagraphKeysInMemory();
         syncCurrentRecordingRefs();
         updateRecordingNavUi();
     }
@@ -776,7 +917,7 @@
 
     function saveRecordingToArchive() {
         if (!audioChunks.length || mPhase < 2) return;
-        const key = getRecordingKey();
+        const key = recordingSaveKey || getRecordingKey();
         const blob = new Blob(audioChunks, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
 
@@ -788,6 +929,7 @@
             slot.latest = url;
             slot._latestBlob = blob;
         }
+        audioChunks = [];
         syncCurrentRecordingRefs();
         persistSlotToIdb(key, recordingArchive[key]);
         updateRecordingNavUi();
@@ -798,8 +940,9 @@
         const t = parseInt(parts[0], 10);
         const title = db[t] ? db[t].title : `주제 ${t}`;
         if (parts[1] === '2') return `${title} · 문장 ${parseInt(parts[2], 10) + 1}`;
-        if (parts[1] === '3') return `${title} · 통문장`;
-        if (parts[1] === '4') return `${title} · 피벗`;
+        if (parts[1] === 'full' || parts[1] === '3' || parts[1] === '4' || parts[1] === '5' || parts[1] === '6') {
+            return `${title} · 통문장`;
+        }
         return key;
     }
 
@@ -812,8 +955,8 @@
             const idx = parseInt(parts[2], 10);
             return data.sentences[idx] ? data.sentences[idx][1] : '';
         }
-        if (parts[1] === '3' || parts[1] === '4') {
-            return data.sentences.map(function(s) { return s[1]; }).join(' ');
+        if (parts[1] === 'full' || parts[1] === '3' || parts[1] === '4' || parts[1] === '5' || parts[1] === '6') {
+            return getTopicFullEng(data);
         }
         return '';
     }
@@ -1992,6 +2135,7 @@
             currentMissedWordsList = [];
             
             useAzureMic = typeof AzureSpeech !== 'undefined' && AzureSpeech.shouldUseAzureForPhase(mPhase);
+            recordingSaveKey = getRecordingKey();
 
             if (useAzureMic) {
                 try {
