@@ -15,6 +15,24 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px;
         }
         #global-progress .dash-hint { margin-bottom: 0; }
+        .global-nav {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+            margin-top: 10px; padding-top: 10px; border-top: 1px solid #E2E8F0;
+        }
+        .global-nav-btn {
+            padding: 7px 12px; border-radius: 8px; border: 1px solid #E2E8F0;
+            background: #F8FAFC; color: #334155; font-size: 12px; font-weight: 700;
+            cursor: pointer; transition: 0.15s;
+        }
+        .global-nav-btn:hover { border-color: var(--primary); color: var(--primary); background: #EFF6FF; }
+        .global-nav-btn.primary {
+            background: #ECFDF5; border-color: #6EE7B7; color: #047857;
+        }
+        .global-nav-btn.primary:hover { background: #D1FAE5; border-color: #34D399; }
+        .global-nav-count {
+            font-size: 11px; font-weight: 700; color: #64748B;
+            background: #F1F5F9; padding: 4px 10px; border-radius: 999px;
+        }
         .global-context-chip { display: none; background: #EFF6FF; color: var(--primary); padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
         
         .progress-pct { color: var(--primary); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 800; }
@@ -51,6 +69,15 @@
         .dash-menu-primary:hover { background: var(--secondary); border-color: var(--secondary); color: white; }
         .dash-menu-ghost { background: transparent; border-color: transparent; color: #94A3B8; font-size: 11px; font-weight: 600; padding: 6px; }
         .dash-menu-ghost:hover { color: #64748B; background: #F1F5F9; border-color: #E2E8F0; }
+        .dash-recordings-promo {
+            display: block; width: 100%; margin-top: 10px; padding: 12px 14px;
+            text-align: left; border-radius: 10px; border: 2px solid #6EE7B7;
+            background: linear-gradient(180deg, #ECFDF5 0%, #F0FDF4 100%);
+            cursor: pointer; transition: 0.15s;
+        }
+        .dash-recordings-promo:hover { border-color: #34D399; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15); }
+        .dash-recordings-promo-title { font-size: 14px; font-weight: 800; color: #047857; margin: 0 0 4px; }
+        .dash-recordings-promo-desc { font-size: 11px; font-weight: 600; color: #059669; margin: 0; line-height: 1.4; }
         @media (max-width: 560px) {
             .dash-grid { grid-template-columns: 1fr; }
             .dash-menu { flex-direction: row; flex-wrap: wrap; }
@@ -336,6 +363,11 @@
             <div class="progress-fill" id="overall-progress-bar"></div>
         </div>
         <p class="dash-hint" id="progress-hint">1회 완주 시 100%</p>
+        <nav class="global-nav" aria-label="전역 메뉴">
+            <button type="button" class="global-nav-btn" id="btn-nav-home" style="display:none;">🏠 홈</button>
+            <button type="button" class="global-nav-btn primary" id="btn-nav-recordings">🎧 녹음 듣기</button>
+            <span class="global-nav-count" id="global-recording-count">저장 0곳</span>
+        </nav>
     </header>
 
     <div id="dashboard" class="home-panel">
@@ -348,11 +380,15 @@
                     <div class="difficulty-hint" id="difficulty-hint"></div>
                 </div>
                 <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
+                <button type="button" class="dash-recordings-promo" id="btn-dash-recordings-promo">
+                    <p class="dash-recordings-promo-title">🎧 저장된 녹음 듣기</p>
+                    <p class="dash-recordings-promo-desc" id="dash-recordings-promo-desc">최초 발음 vs 최근 발음 비교 · 문장별 재생</p>
+                </button>
             </div>
             <nav class="dash-menu" aria-label="학습 메뉴">
                 <button type="button" class="dash-menu-btn dash-menu-primary" id="btn-start-mission" onclick="startMission(false)">학습 시작하기</button>
                 <button type="button" class="dash-menu-btn" id="btn-restart" onclick="startMission(true)" style="display:none;">처음부터 다시</button>
-                <button type="button" class="dash-menu-btn" id="btn-open-recording-review">🎧 발음 비교</button>
+                <button type="button" class="dash-menu-btn" id="btn-open-recording-review">🎧 녹음 듣기</button>
                 <button type="button" class="dash-menu-btn dash-menu-ghost" onclick="resetProgress()">데이터 초기화</button>
             </nav>
         </div>
@@ -367,7 +403,8 @@
     <div id="mission-area">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
             <div style="font-weight:bold; color:var(--primary);" id="ui-topic-title">주제 제목</div>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <button type="button" class="global-nav-btn primary" id="btn-mission-recordings" style="padding:6px 10px;font-size:11px;">🎧 녹음</button>
                 <span class="mission-difficulty-badge" id="mission-difficulty-badge" title="대시보드에서 변경"></span>
                 <div style="font-size:14px; font-weight:bold; color:var(--danger);" id="retry-counter"></div>
             </div>
@@ -608,6 +645,10 @@
     const elReviewList = document.getElementById('recording-review-list');
 
     document.getElementById('btn-open-recording-review').onclick = openRecordingReviewPage;
+    document.getElementById('btn-dash-recordings-promo').onclick = openRecordingReviewPage;
+    document.getElementById('btn-nav-recordings').onclick = openRecordingReviewPage;
+    document.getElementById('btn-mission-recordings').onclick = openRecordingReviewPage;
+    document.getElementById('btn-nav-home').onclick = goHome;
     document.getElementById('btn-close-recording-review').onclick = closeRecordingReviewPage;
 
     function getRecordingKey(topicIdx, phase, sentIdx) {
@@ -693,6 +734,7 @@
         everFirstAudioUrl = null;
         userAudioUrl = null;
         idbClearRecordings();
+        updateRecordingNavUi();
     }
 
     function syncCurrentRecordingRefs() {
@@ -717,6 +759,7 @@
             recordingArchive[row.key] = { everFirst: everUrl || latUrl, latest: latUrl || everUrl };
         });
         syncCurrentRecordingRefs();
+        updateRecordingNavUi();
     }
 
     async function persistSlotToIdb(key, slot) {
@@ -747,6 +790,7 @@
         }
         syncCurrentRecordingRefs();
         persistSlotToIdb(key, recordingArchive[key]);
+        updateRecordingNavUi();
     }
 
     function parseRecordingKeyLabel(key) {
@@ -810,8 +854,30 @@
         playAudioUrl(slot[which]);
     }
 
+    function updateRecordingNavUi() {
+        const keys = Object.keys(recordingArchive);
+        const n = keys.length;
+        const countEl = document.getElementById('global-recording-count');
+        const promoDesc = document.getElementById('dash-recordings-promo-desc');
+        if (countEl) {
+            countEl.textContent = n ? '저장 ' + n + '곳' : '저장 없음';
+        }
+        if (promoDesc) {
+            promoDesc.textContent = n
+                ? '최초 vs 최근 비교 · ' + n + '곳 저장됨'
+                : '최초 발음 vs 최근 발음 · 2단계부터 자동 저장';
+        }
+        const btnNavHome = document.getElementById('btn-nav-home');
+        if (btnNavHome) {
+            const onMission = elMission.style.display === 'block';
+            const onReview = elReviewPage.style.display === 'block';
+            btnNavHome.style.display = onMission || onReview ? 'inline-block' : 'none';
+        }
+    }
+
     function renderRecordingReviewList() {
         const keys = Object.keys(recordingArchive).sort();
+        updateRecordingNavUi();
         if (!keys.length) {
             elReviewList.innerHTML = '<div class="review-empty">저장된 녹음이 없습니다.<br>문장 훈련(2단계)부터 말하면 자동 저장됩니다.</div>';
             return;
@@ -838,6 +904,10 @@
     }
 
     function openRecordingReviewPage() {
+        if (elReviewPage.style.display === 'block') {
+            renderRecordingReviewList();
+            return;
+        }
         if (elMission.style.display === 'block') {
             reviewReturnView = 'mission';
             stopRecordingSilently();
@@ -849,6 +919,7 @@
         elMission.style.display = 'none';
         elReviewPage.style.display = 'block';
         renderRecordingReviewList();
+        updateRecordingNavUi();
     }
 
     function closeRecordingReviewPage() {
@@ -859,6 +930,7 @@
         } else {
             elDash.style.display = 'block';
         }
+        updateRecordingNavUi();
     }
 
     function isRecordingReviewOpen() {
@@ -1151,6 +1223,7 @@
     }
 
     async function startMission(fromBeginning) {
+        updateRecordingNavUi();
         if (fromBeginning && (hasResumePoint() || progress.fullRunCompleted)) {
             if (!confirm('저장된 진행 위치가 사라지고 처음부터 시작합니다. 계속할까요?')) return;
             progress = defaultProgress();
@@ -1162,6 +1235,7 @@
         elDash.style.display = 'none';
         elMission.style.display = 'block';
         updateGlobalProgress();
+        updateRecordingNavUi();
         if (fromBeginning || !hasResumePoint()) {
             currentTopicIndex = 0;
             runPhase1();
@@ -2073,7 +2147,9 @@
         elReviewPage.style.display = 'none';
         elDash.style.display = 'block';
         elMission.style.display = 'none';
+        reviewReturnView = 'dash';
         updateDashboard();
+        updateRecordingNavUi();
     }
 
     window.addEventListener('beforeunload', function() {
