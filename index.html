@@ -1573,7 +1573,13 @@
             fbRes.innerHTML = '<div class="listening-hint">Azure 채점 중… (Short Audio)</div>';
             try {
                 const wav = await stopMediaRecorderAndGetWav();
-                const assessment = await AzureSpeech.assessWavBlob(wav, currentTargetEng);
+                const refForAzure = (currentTargetEng || '').replace(/\s+/g, ' ').trim();
+                if (!refForAzure) {
+                    fbBox.className = 'feedback fail';
+                    fbRes.innerHTML = '채점할 영어 문장이 없습니다. 페이지를 새로고침 후 2단계부터 다시 시도하세요.';
+                    return;
+                }
+                const assessment = await AzureSpeech.assessWavBlob(wav, refForAzure);
                 if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) {
                     fbBox.className = 'feedback fail';
                     fbRes.innerHTML = '음성이 감지되지 않았습니다. 문장을 끝까지 말한 뒤 Enter로 다시 시도하세요.';

@@ -100,7 +100,9 @@
     async function assessWavBlob(wavBlob, referenceText) {
         const url = settings().pronounceAssessUrl || '/api/pronounce-assess';
         const ref = (referenceText || '').replace(/\s+/g, ' ').trim();
+        if (!ref) throw new Error('missing_reference_text');
         const audioBase64 = await blobToBase64(wavBlob);
+        if (!audioBase64) throw new Error('missing_audio');
         const controller = new AbortController();
         const timer = setTimeout(function () {
             controller.abort();
@@ -109,7 +111,11 @@
         try {
             res = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Reference-Text': encodeURIComponent(ref),
+                },
                 body: JSON.stringify({ referenceText: ref, audioBase64: audioBase64 }),
                 signal: controller.signal,
             });

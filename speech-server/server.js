@@ -3,7 +3,10 @@ import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { assessShortAudioPronunciation } from './pronunciation-rest.js';
+import {
+  assessShortAudioPronunciation,
+  validateWav16kMono,
+} from './pronunciation-rest.js';
 
 dotenv.config();
 
@@ -49,58 +52,98 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, region: SPEECH_REGION, mode: 'short-audio-rest' });
 });
 
-/**
- * 2단계 문장별 발음 평가 — Azure Short Audio REST (저렴·Miscue·운율)
- * Body: WAV PCM 16kHz mono
- * Header: X-Reference-Text (encodeURIComponent 된 영어 스크립트)
- */
-app.post(
-  '/api/pronounce-assess',
-  express.raw({ type: ['audio/wav', 'application/octet-stream', 'audio/*'], limit: '4mb' }),
-  async (req, res) => {
+function readReferenceText(req) {
+  const refHeader = req.headers['x-reference-text'];
+  if (refHeader) {
     try {
-      const refHeader = req.headers['x-reference-text'];
-      const referenceText = refHeader
-        ? decodeURIComponent(String(refHeader))
-        : '';
-      if (!referenceText.trim()) {
-        return res.status(400).json({ ok: false, error: 'missing_reference_text' });
-      }
-      if (!req.body || !req.body.length) {
-        return res.status(400).json({ ok: false, error: 'missing_audio' });
-      }
-
-      const result = await assessShortAudioPronunciation({
-        speechKey: SPEECH_KEY,
-        region: SPEECH_REGION,
-        referenceText,
-        audioBuffer: req.body,
-      });
-
-      if (!result.ok) {
-        return res.status(result.httpStatus && result.httpStatus >= 400 ? result.httpStatus : 502).json({
-          ok: false,
-          error: result.message || 'assessment_failed',
-          detail: result.detail,
-        });
-      }
-
-      res.json({
-        ok: true,
-        text: result.text,
-        accuracyScore: result.accuracyScore,
-        fluencyScore: result.fluencyScore,
-        completenessScore: result.completenessScore,
-        prosodyScore: result.prosodyScore,
-        pronunciationScore: result.pronunciationScore,
-        words: result.words,
-      });
-    } catch (err) {
-      console.error('pronounce-assess', err);
-      res.status(500).json({ ok: false, error: 'server_error', detail: String(err) });
+      return decodeURIComponent(String(refHeader)).replace(/\s+/g, ' ').trim();
+    } catch {
+      return String(refHeader).replace(/\s+/g, ' ').trim();
     }
   }
-);
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) && req.body.referenceText) {
+    return String(req.body.referenceText).replace(/\s+/g, ' ').trim();
+  }
+  return '';
+}
+
+async function handlePronounceAssess(req, res) {
+  try {
+    let referenceText = readReferenceText(req);
+    let audioBuffer = null;
+
+    if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) && req.body.audioBase64) {
+      if (!referenceText) {
+        referenceText = String(req.body.referenceText || '').replace(/\s+/g, ' ').trim();
+      }
+      audioBuffer = Buffer.from(String(req.body.audioBase64), 'base64');
+    } else if (Buffer.isBuffer(req.body) && req.body.length) {
+      audioBuffer = req.body;
+    }
+
+    if (!referenceText) {
+      return res.status(400).json({ ok: false, error: 'missing_reference_text' });
+    }
+    if (!audioBuffer || !audioBuffer.length) {
+      return res.status(400).json({ ok: false, error: 'missing_audio' });
+    }
+
+    const wavCheck = validateWav16kMono(audioBuffer);
+    if (!wavCheck.ok) {
+      return res.status(400).json({ ok: false, error: wavCheck.error, detail: wavCheck.detail });
+    }
+
+    const result = await assessShortAudioPronunciation({
+      speechKey: SPEECH_KEY,
+      region: SPEECH_REGION,
+      referenceText,
+      audioBuffer,
+    });
+
+    if (!result.ok) {
+      console.warn('pronounce-assess azure', result.message, result.detail);
+      return res.status(result.httpStatus && result.httpStatus >= 400 ? result.httpStatus : 502).json({
+        ok: false,
+        error: result.message || 'assessment_failed',
+        detail: result.detail,
+        azureStatus: result.status,
+      });
+    }
+
+    res.json({
+      ok: true,
+      text: result.text,
+      accuracyScore: result.accuracyScore,
+      fluencyScore: result.fluencyScore,
+      completenessScore: result.completenessScore,
+      prosodyScore: result.prosodyScore,
+      pronunciationScore: result.pronunciationScore,
+      words: result.words,
+    });
+  } catch (err) {
+    console.error('pronounce-assess', err);
+    res.status(500).json({ ok: false, error: 'server_error', detail: String(err) });
+  }
+}
+
+/** Content-Type 별로 파서 하나만 사용 (json+raw 동시에 쓰면 body가 비워짐) */
+function pronounceAssessParser(req, res, next) {
+  const ct = (req.headers['content-type'] || '').toLowerCase();
+  if (ct.includes('application/json')) {
+    return express.json({ limit: '6mb' })(req, res, next);
+  }
+  return express.raw({
+    type: ['audio/wav', 'application/octet-stream', 'audio/*'],
+    limit: '4mb',
+  })(req, res, next);
+}
+
+/**
+ * 2단계 발음 평가 — Azure Short Audio REST
+ * JSON: { referenceText, audioBase64 } + X-Reference-Text(백업)
+ * 또는 raw WAV + X-Reference-Text
+ */
+app.post('/api/pronounce-assess', pronounceAssessParser, handlePronounceAssess);
 
 const parentDir = path.join(__dirname, '..');
 app.use(express.static(parentDir));
