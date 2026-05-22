@@ -147,6 +147,59 @@
             font-size: 12px; font-weight: 600; color: #64748B;
             background: #F1F5F9; padding: 4px 10px; border-radius: 999px;
         }
+        .feedback .pa-viz { font-weight: normal; margin-top: 12px; text-align: left; }
+        .pa-viz-title { font-size: 14px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
+        .pa-viz-desc, .pa-viz-note { font-size: 11px; color: #64748B; font-weight: 500; line-height: 1.45; margin: 0 0 10px; }
+        .pa-score-grid { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+        .pa-score-row { display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; gap: 8px; font-size: 12px; }
+        .pa-score-row-accent .pa-score-label { color: #7C3AED; font-weight: 800; }
+        .pa-bar { height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
+        .pa-bar-accent .pa-bar-fill { background: linear-gradient(90deg, #8B5CF6, #6366F1); }
+        .pa-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+        .pa-bar-fill-ok { background: #22C55E; }
+        .pa-bar-fill-warn { background: #F59E0B; }
+        .pa-bar-need { font-size: 11px; font-weight: 700; color: #475569; text-align: right; font-variant-numeric: tabular-nums; }
+        .pa-error-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .pa-error-ok { font-size: 11px; color: #16A34A; font-weight: 600; }
+        .pa-error-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid; }
+        .pa-timeline { margin-bottom: 10px; }
+        .pa-timeline-title { font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 4px; }
+        .pa-timeline-track { position: relative; height: 36px; background: #F1F5F9; border-radius: 6px; overflow: hidden; }
+        .pa-tl-word {
+            position: absolute; top: 4px; height: 28px; line-height: 28px; padding: 0 4px;
+            font-size: 10px; font-weight: 700; color: #fff; border-radius: 4px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;
+        }
+        .pa-timeline-axis { font-size: 10px; color: #94A3B8; margin-top: 3px; text-align: right; }
+        .pa-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; font-size: 10px; color: #64748B; }
+        .pa-legend-item i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: middle; background: #94A3B8; }
+        .pa-legend-item i.pa-err-mis { background: #EF4444; }
+        .pa-legend-item i.pa-err-omit { background: #F59E0B; }
+        .pa-legend-item i.pa-err-ins { background: #F97316; }
+        .pa-legend-item i.pa-err-break { background: #6366F1; }
+        .pa-legend-item i.pa-err-missbreak { background: #06B6D4; }
+        .pa-legend-item i.pa-err-mono { background: #A855F7; }
+        .pa-word-grid { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+        .pa-word-card { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; background: #FAFAFA; }
+        .pa-word-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+        .pa-word-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+        .pa-word-acc { font-weight: 800; color: #334155; }
+        .pa-word-time { font-size: 10px; color: #94A3B8; margin-left: auto; }
+        .pa-phoneme-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .pa-phoneme {
+            font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #E0E7FF; color: #3730A3;
+            font-family: monospace;
+        }
+        .pa-phoneme small { margin-left: 3px; opacity: 0.75; }
+        .pa-phoneme-weak { background: #FEE2E2; color: #991B1B; }
+        .pa-err-none, .pa-tl-word.pa-err-none { background: #22C55E; }
+        .pa-err-mis, .pa-tl-word.pa-err-mis, .pa-word-card.pa-err-mis .pa-word-badge { background: #FEE2E2; color: #991B1B; border-color: #FCA5A5; }
+        .pa-err-omit, .pa-tl-word.pa-err-omit { background: #FEF3C7; color: #92400E; }
+        .pa-err-ins, .pa-tl-word.pa-err-ins { background: #FFEDD5; color: #9A3412; }
+        .pa-err-break, .pa-tl-word.pa-err-break { background: #E0E7FF; color: #3730A3; }
+        .pa-err-missbreak, .pa-tl-word.pa-err-missbreak { background: #CFFAFE; color: #155E75; }
+        .pa-err-mono, .pa-tl-word.pa-err-mono { background: #F3E8FF; color: #6B21A8; }
+        .pa-word-card.pa-err-mis { border-color: #FCA5A5; }
     </style>
 </head>
 <body>
@@ -232,6 +285,7 @@
 
 <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
 <script src="js/user-settings.js"></script>
+<script src="js/pronunciation-viz.js"></script>
 <script src="js/azure-speech.js"></script>
 <script>
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -1079,7 +1133,10 @@
         const comp = Math.round(assessment.completenessScore || 0);
         const pro = assessment.prosodyScore != null ? Math.round(assessment.prosodyScore) : null;
 
-        const uniqueMissed = AzureSpeech.getWeakWords(assessment.words);
+        const weakSource = assessment.detail && assessment.detail.words
+            ? assessment.detail.words
+            : assessment.words;
+        const uniqueMissed = AzureSpeech.getWeakWords(weakSource);
         currentMissedWordsList = uniqueMissed;
 
         const th = window.getPassThresholds();
@@ -1092,7 +1149,7 @@
         }
         const scoreLine =
             `정확도 ${acc} · 유창성 ${flu} · 완성도 ${comp}` +
-            (pro != null ? ` · 억양 ${pro}` : '');
+            (pro != null ? ` · 운율 ${pro}` : '');
         const passHint = '합격선(' + th.label + '): ' + window.formatPassThresholdLine(th);
 
         const cleanSpoken = assessment.text.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
@@ -1110,6 +1167,9 @@
         let resHtml = '';
         if (!isPass) {
             resHtml = `<div class="bracket-feedback-line">${bracketLine}</div>${buildMissedWordBtnsHtml(uniqueMissed)}`;
+        }
+        if (typeof PronunciationViz !== 'undefined' && assessment.detail) {
+            resHtml += PronunciationViz.buildHtml(assessment.detail, th);
         }
 
         fbBox.style.display = 'block';
@@ -1130,7 +1190,7 @@
     function showEvalResult(isPass, passMsg, failMsg, resHtml, uniqueMissed) {
         if (isPass) {
             fbBox.className = 'feedback pass';
-            fbRes.innerHTML = '<div class="fb-status">' + passMsg + '</div>';
+            fbRes.innerHTML = '<div class="fb-status">' + passMsg + '</div>' + (resHtml || '');
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
             uiRetryCount.innerText = '';
         } else {

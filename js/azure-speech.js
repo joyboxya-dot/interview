@@ -13,6 +13,8 @@
     let azureRecording = false;
     let lastRecognizedText = '';
     let lastAssessment = null;
+    let lastRawJson = '';
+    let lastInitHint = '';
 
     async function fetchToken() {
         const url = settings().tokenUrl || '/api/speech-token';
@@ -38,6 +40,19 @@
         recognizer = null;
     }
 
+    function extractJsonFromResult(result) {
+        if (!result || !result.properties || typeof SpeechSDK === 'undefined') return '';
+        try {
+            return (
+                result.properties.getProperty(
+                    SpeechSDK.PropertyId.SpeechServiceResponse_JsonResult
+                ) || ''
+            );
+        } catch (e) {
+            return '';
+        }
+    }
+
     function buildRecognizer(referenceText) {
         if (typeof SpeechSDK === 'undefined') throw new Error('SpeechSDK not loaded');
         disposeRecognizer();
@@ -52,6 +67,7 @@
             SpeechSDK.PronunciationAssessmentGranularity.Phoneme,
             true
         );
+        paConfig.enableMiscue = true;
         paConfig.enableProsodyAssessment = true;
 
         const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
@@ -60,6 +76,7 @@
 
         lastRecognizedText = '';
         lastAssessment = null;
+        lastRawJson = '';
 
         rec.recognizing = function (_s, e) {
             const t = e.result && e.result.text;
@@ -74,6 +91,7 @@
                 e.result.text
             ) {
                 lastRecognizedText = e.result.text;
+                lastRawJson = extractJsonFromResult(e.result);
                 try {
                     lastAssessment = SpeechSDK.PronunciationAssessmentResult.fromResult(
                         e.result
@@ -92,18 +110,74 @@
         return rec;
     }
 
+    function buildAssessmentPayload(pa) {
+        const detail =
+            typeof global.PronunciationViz !== 'undefined'
+                ? global.PronunciationViz.parseFromPa(pa, lastRawJson)
+                : null;
+
+        return {
+            text: lastRecognizedText || '',
+            accuracyScore: pa ? pa.accuracyScore : 0,
+            fluencyScore: pa ? pa.fluencyScore : 0,
+            completenessScore: pa ? pa.completenessScore : 0,
+            prosodyScore: pa && pa.prosodyScore != null ? pa.prosodyScore : null,
+            pronunciationScore:
+                pa && pa.pronunciationScore != null ? pa.pronunciationScore : null,
+            words: pa && pa.words ? pa.words : [],
+            detail: detail,
+        };
+    }
+
     async function initAzureSpeech() {
         ready = false;
-        if (!settings().useAzurePronunciation) return false;
-        if (typeof SpeechSDK === 'undefined') return false;
+        lastInitHint = '';
+        if (!settings().useAzurePronunciation) {
+            lastInitHint = 'disabled';
+            return false;
+        }
+        if (typeof SpeechSDK === 'undefined') {
+            lastInitHint = 'sdk';
+            return false;
+        }
         try {
             await fetchToken();
             ready = true;
+            lastInitHint = 'ok';
         } catch (e) {
             console.warn('Azure Speech init failed', e);
             ready = false;
+            const msg = String(e.message || e);
+            if (msg.includes('token_http_401') || msg.includes('token_http_403')) {
+                lastInitHint = 'bad_key';
+            } else if (msg.includes('token_http_')) {
+                lastInitHint = 'token_api';
+            } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+                lastInitHint = 'no_server';
+            } else {
+                lastInitHint = 'unknown';
+            }
         }
         return ready;
+    }
+
+    function getAzureStatusMessage() {
+        if (lastInitHint === 'ok' || ready) return 'Azure 발음·운율 평가 연결됨';
+        if (lastInitHint === 'disabled') return '브라우저 단어 매칭 모드';
+        if (lastInitHint === 'sdk') return 'Azure SDK 로드 실패 — 새로고침';
+        if (lastInitHint === 'bad_key') {
+            return 'Azure 키 오류 — speech-server/.env 또는 배포 환경변수 확인';
+        }
+        if (lastInitHint === 'token_api') {
+            return '토큰 API 오류 — 서버 로그·SPEECH_REGION 확인';
+        }
+        if (lastInitHint === 'no_server') {
+            if (location.protocol === 'file:') {
+                return 'file:// 로는 불가 — 터미널 npm start 후 http://localhost:3001/index.html';
+            }
+            return '토큰 서버 없음 — Node 서버 필요 (로컬: npm start / 배포: Render 등 + 환경변수)';
+        }
+        return 'Azure 미연결 — npm start 또는 배포 서버 확인';
     }
 
     function isAzureReady() {
@@ -115,7 +189,7 @@
     }
 
     function shouldUseAzureForPhase(phase) {
-        return isAzureReady() && phase >= 2;
+        return isAzureReady() && phase === 2;
     }
 
     async function startAzureRecording(referenceText) {
@@ -137,14 +211,8 @@
             recognizer.stopContinuousRecognitionAsync(
                 function () {
                     const pa = lastAssessment;
-                    resolve({
-                        text: lastRecognizedText || '',
-                        accuracyScore: pa ? pa.accuracyScore : 0,
-                        fluencyScore: pa ? pa.fluencyScore : 0,
-                        completenessScore: pa ? pa.completenessScore : 0,
-                        prosodyScore: pa.prosodyScore != null ? pa.prosodyScore : null,
-                        words: pa && pa.words ? pa.words : [],
-                    });
+                    const payload = pa ? buildAssessmentPayload(pa) : null;
+                    resolve(payload);
                     disposeRecognizer();
                 },
                 function (err) {
@@ -168,10 +236,16 @@
         if (!assessmentWords || !assessmentWords.length) return [];
         const weak = [];
         assessmentWords.forEach(function (w) {
-            const word = (w.word || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const word = (w.word || w.Word || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             if (!word || word.length < 2) return;
-            const err = w.errorType || 'None';
-            const acc = w.accuracyScore != null ? w.accuracyScore : 100;
+            const paW = w.PronunciationAssessment || w.pronunciationAssessment || {};
+            const err = w.errorType || paW.ErrorType || 'None';
+            const acc =
+                w.accuracyScore != null
+                    ? w.accuracyScore
+                    : paW.AccuracyScore != null
+                      ? paW.AccuracyScore
+                      : 100;
             if (err !== 'None' || acc < 60) weak.push(word);
         });
         return [...new Set(weak)];
@@ -185,5 +259,6 @@
         stopAzureRecording: stopAzureRecording,
         stopIfActive: stopIfActive,
         getWeakWords: getWeakWords,
+        getAzureStatusMessage: getAzureStatusMessage,
     };
 })(window);
