@@ -194,7 +194,15 @@
         .azure-status.warn { color: #D97706; }
         .recall-hint { font-size: 14px; color: #64748B; font-weight: 600; margin-bottom: 10px; }
         .recall-keywords { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
-        .keyword-chip { background: #FEF3C7; color: #92400E; padding: 8px 14px; border-radius: 8px; font-size: 15px; font-weight: 700; border: 1px solid #FCD34D; }
+        .keyword-chip {
+            background: #FEF3C7; color: #92400E; padding: 6px 12px; border-radius: 8px;
+            font-size: 14px; font-weight: 700; border: 1px solid #FCD34D;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .keyword-chip .kw-idx {
+            font-size: 10px; font-weight: 800; color: #B45309; background: #FDE68A;
+            padding: 1px 5px; border-radius: 4px; line-height: 1.2;
+        }
         .eng-hidden { color: #94A3B8; font-style: italic; font-size: 15px; }
         .difficulty-panel {
             text-align: left; margin: 0; padding: 8px 10px; background: #F8FAFC;
@@ -647,7 +655,18 @@
         }
     }
 
-    const KOR_STOPWORDS = new Set(['저는', '저희', '그', '이', '저', '및', '등', '후', '때', '것', '수', '있', '하는', '했습니다', '합니다', '있습니다', '있었습니다', '하여', '으로', '에서', '까지', '한다', '했다']);
+    const KOR_STOPWORDS = new Set([
+        '저는', '저희', '그', '이', '저', '및', '등', '후', '때', '것', '수', '있', '하는', '했습니다', '합니다',
+        '있습니다', '있었습니다', '하여', '으로', '에서', '까지', '한다', '했다', '되는', '있는', '없는', '매우',
+        '그때', '이후', '직후', '결과적으로', '덕분에', '때문에', '통해', '위해', '하면서', '하면', '있어', '있고',
+        '했고', '했으며', '하며', '하여', '해서', '되는', '였습니다', '였고', '입니다', '있어', '없어'
+    ]);
+
+    const KOR_KEYWORD_GENERIC = new Set([
+        '프로젝트', '시스템', '팀', '업무', '결과', '이후', '당시', '경험', '과정', '방법', '문제', '해결', '작업'
+    ]);
+
+    const KOR_VERB_TAIL = /(?:했습니다|했고|했으며|합니다|있습니다|있었습니다|였습니다|된다|되어|하여|하고|하며|하면서|있는|없는|하는|되는|이다)$/;
 
     function defaultProgress() {
         return { checkpoint: { topicIndex: 0, phase: 1, sentIdx: 0, bridge: null }, fullRunCompleted: false, fullRunCount: 0 };
@@ -1349,17 +1368,52 @@
         return data.sentences.map(function(s) { return s[1]; }).join(' ');
     }
 
-    function getTopicKeywords(data) {
-        if (data.keywords && data.keywords.length) return data.keywords;
-        const words = data.kor.replace(/[.,]/g, ' ').split(/\s+/).filter(function(w) {
-            return w.length >= 2 && !KOR_STOPWORDS.has(w);
+    /** 문장마다 핵심 명사 1개 (한글) */
+    function extractMainKeywordFromKorSentence(korSent) {
+        const raw = String(korSent || '').replace(/[.,!?]/g, ' ').trim();
+        const tokens = raw.split(/\s+/).filter(function (w) {
+            return w.length >= 2 && !KOR_STOPWORDS.has(w) && !KOR_VERB_TAIL.test(w);
         });
-        return [...new Set(words)].slice(0, 8);
+        if (!tokens.length) return '';
+
+        let best = tokens[0];
+        let bestScore = -999;
+        tokens.forEach(function (w, idx) {
+            let score = 0;
+            if (w.length >= 3) score += 2;
+            if (w.length >= 4) score += 1;
+            if (/[0-9]/.test(w)) score += 4;
+            if (/[A-Za-z]/.test(w)) score += 3;
+            if (KOR_KEYWORD_GENERIC.has(w)) score -= 2;
+            if (KOR_VERB_TAIL.test(w)) score -= 6;
+            if (idx > 0 && idx < tokens.length - 1) score += 1;
+            if (/^(운영|문서|배치|결산|로그|모바일|증권|엔지니어|가이드|화면|스크립트|API|MTS|NPS|ETL|UI|AWS|Python)/.test(w)) {
+                score += 3;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                best = w;
+            }
+        });
+        return best;
+    }
+
+    function getTopicKeywords(data) {
+        if (data.keywords && data.sentences && data.keywords.length === data.sentences.length) {
+            return data.keywords;
+        }
+        if (!data.sentences || !data.sentences.length) return [];
+        return data.sentences.map(function (sent) {
+            return extractMainKeywordFromKorSentence(sent[0]);
+        }).filter(function (kw) { return !!kw; });
     }
 
     function formatKeywordsHtml(data) {
-        return getTopicKeywords(data).map(function(kw) {
-            return '<span class="keyword-chip">' + escapeHtml(kw) + '</span>';
+        const kws = getTopicKeywords(data);
+        if (!kws.length) return '<span class="keyword-chip">—</span>';
+        return kws.map(function (kw, i) {
+            return '<span class="keyword-chip" title="문장 ' + (i + 1) + ' 힌트">' +
+                '<span class="kw-idx">' + (i + 1) + '</span>' + escapeHtml(kw) + '</span>';
         }).join('');
     }
 
@@ -1608,7 +1662,7 @@
         currentTargetEng = getTopicFullEng(data);
         updateUI(
             data.question,
-            '<div class="recall-hint">[4단계 · 키워드 회상] 키워드만 보고 영어 스크립트 전체를 말하세요.</div><div class="recall-keywords">' + formatKeywordsHtml(data) + '</div>',
+            '<div class="recall-hint">[4단계 · 키워드 회상] 문장별 핵심어(번호)만 보고 <b>영어 통문장 전체</b>를 말하세요.</div><div class="recall-keywords">' + formatKeywordsHtml(data) + '</div>',
             '<div class="eng-hidden">영어 스크립트는 숨김 · 다 말한 뒤 Enter로 점검 · Space로 다음</div>',
             false
         );

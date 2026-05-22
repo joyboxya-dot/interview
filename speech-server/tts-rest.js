@@ -2,33 +2,38 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 
+/** 캐시 키 버전 — 속도·스타일 바꿀 때 올리면 예전 빠른 MP3 무시 */
+export const TTS_CACHE_VERSION = 'v4-practice-rate';
+
 /** 서버 TTS 프로필 (클라이언트 user-settings.js 와 맞춤) */
 export const TTS_PROFILES = {
   normal: {
     en: {
       voice: process.env.TTS_VOICE_EN || 'en-US-AriaNeural',
-      style: process.env.TTS_STYLE_EN || 'newscast-formal',
-      rate: '90%',
-      pitch: '+6%',
+      /** newscast-formal 은 너무 빠름 → empathetic + 느린 rate */
+      style: process.env.TTS_STYLE_EN || 'empathetic',
+      rate: process.env.TTS_RATE_EN || '72%',
+      pitch: '+5%',
     },
     ko: {
       voice: process.env.TTS_VOICE_KO || 'ko-KR-SunHiNeural',
-      rate: '92%',
-      pitch: '+3%',
+      rate: '78%',
+      pitch: '+2%',
     },
   },
   practice: {
     en: {
       voice: process.env.TTS_PRACTICE_VOICE_EN || process.env.TTS_VOICE_EN || 'en-US-AriaNeural',
-      style: process.env.TTS_PRACTICE_STYLE_EN || 'shouting',
-      rate: 'x-slow',
-      pitch: '+18%',
+      /** 과장 톤 — 속도는 대시보드「틀린 단어」콤보가 담당 (SSML은 너무 느리지 않게) */
+      style: process.env.TTS_PRACTICE_STYLE_EN || '',
+      rate: process.env.TTS_PRACTICE_SSML_RATE || '78%',
+      pitch: '+10%',
       emphasis: true,
     },
     ko: {
       voice: process.env.TTS_VOICE_KO || 'ko-KR-SunHiNeural',
-      rate: 'x-slow',
-      pitch: '+12%',
+      rate: '78%',
+      pitch: '+6%',
       emphasis: true,
     },
   },
@@ -71,7 +76,7 @@ export function ttsCacheKey(profile, lang, text) {
   const langKey = lang === 'ko' ? 'ko' : 'en';
   const cfg = (TTS_PROFILES[profile] || TTS_PROFILES.normal)[langKey];
   const voice = cfg ? cfg.voice : 'default';
-  const tag = profile + '|' + voice + '|' + (cfg?.style || '') + '|' + langKey;
+  const tag = TTS_CACHE_VERSION + '|' + profile + '|' + voice + '|' + (cfg?.style || '') + '|' + (cfg?.rate || '') + '|' + langKey;
   return crypto.createHash('sha256').update(`${tag}\n${text}`).digest('hex');
 }
 

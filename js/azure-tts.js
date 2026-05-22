@@ -11,7 +11,7 @@
     let currentAudio = null;
     let currentObjectUrl = null;
 
-    const TTS_CACHE_VERSION = 'v3-slow';
+    const TTS_CACHE_VERSION = 'v4-practice-rate';
 
     function cacheId(text, lang, profile) {
         return TTS_CACHE_VERSION + '|' + profile + '|' + lang + '|' + text;

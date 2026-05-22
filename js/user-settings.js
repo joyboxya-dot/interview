@@ -92,7 +92,7 @@ window.TTS_SPEED_OPTIONS = [
 window.TTS_NORMAL_SPEED_KEY = 'interviewTtsNormalSpeedV1';
 window.TTS_PRACTICE_SPEED_KEY = 'interviewTtsPracticeSpeedV1';
 window.DEFAULT_TTS_NORMAL_RATE = 0.82;
-window.DEFAULT_TTS_PRACTICE_RATE = 0.65;
+window.DEFAULT_TTS_PRACTICE_RATE = 0.82;
 
 function parseTtsRate(value, fallback) {
     const n = parseFloat(value);
@@ -155,5 +155,5 @@ window.formatTtsSpeedHint = function () {
     const pct = function (x) {
         return Math.round(x * 100) + '%';
     };
-    return '안내·모범 ' + pct(r.normal) + ' · 틀린 단어 ' + pct(r.practice) + ' · 녹음 재생 100%';
+    return '안내·모범 ' + pct(r.normal) + ' · 틀린 단어(TTS만) ' + pct(r.practice) + ' · 내 녹음(←→) 100%';
 };
