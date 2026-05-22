@@ -99,7 +99,13 @@
 
     async function assessWavBlob(wavBlob, referenceText) {
         const url = settings().pronounceAssessUrl || '/api/pronounce-assess';
-        const ref = (referenceText || '').replace(/\s+/g, ' ').trim();
+        let ref = (referenceText || '').replace(/\s+/g, ' ').trim();
+        if (!ref && typeof document !== 'undefined') {
+            const engEl = document.getElementById('ui-eng-text');
+            if (engEl && engEl.textContent) {
+                ref = engEl.textContent.replace(/\s+/g, ' ').trim();
+            }
+        }
         if (!ref) throw new Error('missing_reference_text');
         const audioBase64 = await blobToBase64(wavBlob);
         if (!audioBase64) throw new Error('missing_audio');

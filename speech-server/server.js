@@ -3,10 +3,30 @@ import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import {
-  assessShortAudioPronunciation,
-  validateWav16kMono,
-} from './pronunciation-rest.js';
+import { assessShortAudioPronunciation } from './pronunciation-rest.js';
+
+/** Deployed pronunciation-rest.js 가 오래된 경우에도 서버가 기동되도록 로컬 검증 */
+function validateWav16kMono(buffer) {
+  if (!buffer || buffer.length < 44) {
+    return { ok: false, error: 'wav_too_short', detail: '녹음이 너무 짧습니다.' };
+  }
+  if (buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
+    return { ok: false, error: 'wav_invalid', detail: 'WAV 변환 실패 — 브라우저를 새로고침 후 다시 녹음하세요.' };
+  }
+  const channels = buffer.readUInt16LE(22);
+  const sampleRate = buffer.readUInt32LE(24);
+  if (channels !== 1) {
+    return { ok: false, error: 'wav_not_mono', detail: `channels=${channels}` };
+  }
+  if (sampleRate !== 16000) {
+    return { ok: false, error: 'wav_wrong_rate', detail: `rate=${sampleRate} (need 16000)` };
+  }
+  const dataBytes = buffer.length - 44;
+  if (dataBytes < 3200) {
+    return { ok: false, error: 'wav_too_short', detail: '1초 이상 말한 뒤 종료하세요.' };
+  }
+  return { ok: true };
+}
 
 dotenv.config();
 
@@ -22,7 +42,14 @@ if (!SPEECH_KEY) {
 }
 
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+
+/** pronounce-assess 는 전용 파서(최대 6MB) 사용 — 전역 json 이 body 를 먼저 소비하면 referenceText 가 사라질 수 있음 */
+app.use((req, res, next) => {
+  if (req.method === 'POST' && req.path === '/api/pronounce-assess') {
+    return next();
+  }
+  return express.json({ limit: '1mb' })(req, res, next);
+});
 
 /** 브라우저용 Speech 토큰 (레거시·선택) */
 app.get('/api/speech-token', async (_req, res) => {
@@ -52,17 +79,28 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, region: SPEECH_REGION, mode: 'short-audio-rest' });
 });
 
+function normalizeReferenceText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
 function readReferenceText(req) {
   const refHeader = req.headers['x-reference-text'];
   if (refHeader) {
     try {
-      return decodeURIComponent(String(refHeader)).replace(/\s+/g, ' ').trim();
+      const decoded = decodeURIComponent(String(refHeader));
+      const normalized = normalizeReferenceText(decoded);
+      if (normalized) return normalized;
     } catch {
-      return String(refHeader).replace(/\s+/g, ' ').trim();
+      const normalized = normalizeReferenceText(refHeader);
+      if (normalized) return normalized;
     }
   }
+  if (req.query && req.query.referenceText) {
+    const fromQuery = normalizeReferenceText(req.query.referenceText);
+    if (fromQuery) return fromQuery;
+  }
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) && req.body.referenceText) {
-    return String(req.body.referenceText).replace(/\s+/g, ' ').trim();
+    return normalizeReferenceText(req.body.referenceText);
   }
   return '';
 }

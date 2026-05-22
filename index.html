@@ -1573,7 +1573,11 @@
             fbRes.innerHTML = '<div class="listening-hint">Azure 채점 중… (Short Audio)</div>';
             try {
                 const wav = await stopMediaRecorderAndGetWav();
-                const refForAzure = (currentTargetEng || '').replace(/\s+/g, ' ').trim();
+                let refForAzure = (currentTargetEng || '').replace(/\s+/g, ' ').trim();
+                if (!refForAzure && evalPhase === 2 && db[currentTopicIndex]) {
+                    const sent = db[currentTopicIndex].sentences[mSentIdx];
+                    refForAzure = (sent && sent[1] ? sent[1] : getSentenceTextForKey(getRecordingKey())).replace(/\s+/g, ' ').trim();
+                }
                 if (!refForAzure) {
                     fbBox.className = 'feedback fail';
                     fbRes.innerHTML = '채점할 영어 문장이 없습니다. 페이지를 새로고침 후 2단계부터 다시 시도하세요.';
