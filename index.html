@@ -125,6 +125,28 @@
         .recall-keywords { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
         .keyword-chip { background: #FEF3C7; color: #92400E; padding: 8px 14px; border-radius: 8px; font-size: 15px; font-weight: 700; border: 1px solid #FCD34D; }
         .eng-hidden { color: #94A3B8; font-style: italic; font-size: 15px; }
+        .difficulty-panel {
+            text-align: left; max-width: 400px; margin: 0 auto 20px;
+            padding: 14px 16px; background: #F8FAFC; border-radius: 10px;
+            border: 1px solid #E2E8F0;
+        }
+        .difficulty-title { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 10px; }
+        .difficulty-options { display: flex; gap: 8px; flex-wrap: wrap; }
+        .difficulty-btn {
+            flex: 1; min-width: 72px; padding: 10px 8px; border-radius: 8px;
+            border: 2px solid #CBD5E1; background: white; cursor: pointer;
+            font-size: 13px; font-weight: 700; color: #475569; transition: 0.15s;
+        }
+        .difficulty-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .difficulty-btn.active {
+            border-color: var(--primary); background: #EFF6FF; color: var(--primary);
+            box-shadow: 0 0 0 2px #DBEAFE;
+        }
+        .difficulty-hint { margin-top: 10px; font-size: 12px; color: #64748B; line-height: 1.5; }
+        .mission-difficulty-badge {
+            font-size: 12px; font-weight: 600; color: #64748B;
+            background: #F1F5F9; padding: 4px 10px; border-radius: 999px;
+        }
     </style>
 </head>
 <body>
@@ -152,7 +174,11 @@
         <h2 id="today-targets">10개 주제 · 6단계 완주</h2>
         <p id="resume-info" style="color:var(--primary); font-weight:bold; margin:10px 0 0; display:none;"></p>
         <div class="time-estimate" id="time-estimate">⏱️ 전체 1회 예상: 약 2~3시간</div>
-        <br>
+        <div class="difficulty-panel" id="difficulty-panel">
+            <div class="difficulty-title">2단계 발음 합격 난이도 <span style="font-weight:500;color:#94A3B8;">(전역·저장됨)</span></div>
+            <div class="difficulty-options" id="difficulty-options"></div>
+            <div class="difficulty-hint" id="difficulty-hint"></div>
+        </div>
         <button class="mission-btn" id="btn-start-mission" onclick="startMission(false)">학습 시작하기</button>
         <br>
         <button id="btn-restart" onclick="startMission(true)" style="margin-top:12px; background:none; border:none; color:#666; text-decoration:underline; cursor:pointer; font-size:13px; display:none;">처음부터 다시 시작</button>
@@ -168,9 +194,12 @@
     </div>
 
     <div id="mission-area">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
             <div style="font-weight:bold; color:var(--primary);" id="ui-topic-title">주제 제목</div>
-            <div style="font-size:14px; font-weight:bold; color:var(--danger);" id="retry-counter"></div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="mission-difficulty-badge" id="mission-difficulty-badge" title="대시보드에서 변경"></span>
+                <div style="font-size:14px; font-weight:bold; color:var(--danger);" id="retry-counter"></div>
+            </div>
         </div>
         
         <div class="stepper" id="stepper">
@@ -291,6 +320,40 @@
 
     const STORAGE_KEY = 'interviewProgressV38';
     const PHASE_LABELS = ['의미 수용', '문장 훈련', '한글 회상', '키워드 회상', '질문 회상', '피벗 방어'];
+
+    function updateMissionDifficultyBadge() {
+        const el = document.getElementById('mission-difficulty-badge');
+        if (!el || typeof window.getPassThresholds !== 'function') return;
+        const t = window.getPassThresholds();
+        el.textContent = '난이도 ' + t.label + ' (' + window.formatPassThresholdLine(t) + ')';
+    }
+
+    function renderDifficultyPanel() {
+        const container = document.getElementById('difficulty-options');
+        const hint = document.getElementById('difficulty-hint');
+        if (!container || !window.DIFFICULTY_PRESETS) return;
+        const current = window.getSavedDifficultyId();
+        container.innerHTML = '';
+        Object.keys(window.DIFFICULTY_PRESETS).forEach(function (key) {
+            const p = window.DIFFICULTY_PRESETS[key];
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'difficulty-btn' + (key === current ? ' active' : '');
+            btn.textContent = p.label;
+            btn.title = window.formatPassThresholdLine(p);
+            btn.onclick = function () {
+                window.setSavedDifficultyId(key);
+                renderDifficultyPanel();
+                updateMissionDifficultyBadge();
+            };
+            container.appendChild(btn);
+        });
+        const t = window.getPassThresholds();
+        if (hint) {
+            hint.innerHTML = '<strong>' + t.label + '</strong> · ' + window.formatPassThresholdLine(t) +
+                '<br>' + (t.summary || '') + ' · 2단계에서만 적용됩니다.';
+        }
+    }
     const KOR_STOPWORDS = new Set(['저는', '저희', '그', '이', '저', '및', '등', '후', '때', '것', '수', '있', '하는', '했습니다', '합니다', '있습니다', '있었습니다', '하여', '으로', '에서', '까지', '한다', '했다']);
 
     function defaultProgress() {
@@ -653,7 +716,7 @@
                     forceNextPhase();
                 } else if (btnForcePass && btnForcePass.style.display === 'block') {
                     forceNextPhase();
-                } else if (btnSkip.style.display !== 'none') {
+                } else if (mPhase !== 2 && btnSkip.style.display !== 'none') {
                     forceNextPhase();
                 }
             } 
@@ -874,12 +937,18 @@
         fbBtnGroup.innerHTML = '';
         
         updateStepper(mPhase);
+        updateMissionDifficultyBadge();
         
         if(mPhase === 1) {
             btnMic.style.display = 'none';
+            btnSkip.style.display = 'flex';
             btnSkip.style.flex = "3";
+        } else if (mPhase === 2) {
+            btnMic.style.display = 'flex';
+            btnSkip.style.display = 'none';
         } else {
             btnMic.style.display = 'flex';
+            btnSkip.style.display = 'flex';
             btnSkip.style.flex = "1";
         }
         btnMic.innerHTML = "🎤 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
@@ -1005,7 +1074,6 @@
             return;
         }
 
-        const cfg = window.INTERVIEW_SETTINGS || {};
         const acc = Math.round(assessment.accuracyScore || 0);
         const flu = Math.round(assessment.fluencyScore || 0);
         const comp = Math.round(assessment.completenessScore || 0);
@@ -1014,15 +1082,18 @@
         const uniqueMissed = AzureSpeech.getWeakWords(assessment.words);
         currentMissedWordsList = uniqueMissed;
 
-        let isPass =
-            acc >= (cfg.passAccuracy ?? 70) &&
-            flu >= (cfg.passFluency ?? 55);
+        const th = window.getPassThresholds();
+        const needAcc = th.passAccuracy;
+        const needFlu = th.passFluency;
+        const needPro = th.passProsody;
+        let isPass = acc >= needAcc && flu >= needFlu;
         if (pro != null) {
-            isPass = isPass && pro >= (cfg.passProsody ?? 55);
+            isPass = isPass && pro >= needPro;
         }
         const scoreLine =
             `정확도 ${acc} · 유창성 ${flu} · 완성도 ${comp}` +
             (pro != null ? ` · 억양 ${pro}` : '');
+        const passHint = '합격선(' + th.label + '): ' + window.formatPassThresholdLine(th);
 
         const cleanSpoken = assessment.text.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
         const bracketLine = buildBracketFeedbackHtml(currentTargetEng, cleanSpoken);
@@ -1047,7 +1118,13 @@
             fbBtnGroup.innerHTML += `<button class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">0</span></button>`;
         }
 
-        showEvalResult(isPass, '✅ ' + scoreLine + ' · Space로 다음', '❌ ' + scoreLine, resHtml, uniqueMissed);
+        showEvalResult(
+            isPass,
+            '✅ ' + scoreLine + ' · Space로 다음',
+            '❌ ' + scoreLine + '<div style="font-size:12px;font-weight:600;margin-top:4px;">' + passHint + ' · Enter로 재연습</div>',
+            resHtml,
+            uniqueMissed
+        );
     }
 
     function showEvalResult(isPass, passMsg, failMsg, resHtml, uniqueMissed) {
@@ -1061,7 +1138,10 @@
             uiRetryCount.innerText = '재도전: ' + retryCount + ' / 20';
             if (retryCount >= 20) {
                 fbBox.className = 'feedback fail';
-                fbRes.innerHTML = '<div class="fb-status">⚠️ 재도전 초과 · Space로 다음</div>' + (resHtml || '');
+                const overMsg = mPhase === 2
+                    ? '⚠️ 재도전 20회 · 합격할 때까지 Enter로 재연습'
+                    : '⚠️ 재도전 초과 · Space로 다음';
+                fbRes.innerHTML = '<div class="fb-status">' + overMsg + '</div>' + (resHtml || '');
             } else {
                 fbBox.className = 'feedback fail';
                 fbRes.innerHTML = '<div class="fb-status">' + failMsg + '</div>' + (resHtml || '');
@@ -1531,6 +1611,8 @@
     });
 
     hydrateArchiveFromIdb().then(function() {
+        renderDifficultyPanel();
+        updateMissionDifficultyBadge();
         updateDashboard();
         if (typeof AzureSpeech !== 'undefined') {
             AzureSpeech.initAzureSpeech().then(updateAzureStatusLabel);
