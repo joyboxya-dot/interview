@@ -251,6 +251,7 @@
                 '🔊 발음 <span class="shortcut-key">' +
                 shortcut +
                 '</span></button>';
+            const scoreLow = w.accuracyScore != null && Math.round(w.accuracyScore) < 80;
             let phonHtml = '';
             const weakPhonemes = (w.phonemes || []).filter(function (p) {
                 return p.accuracyScore != null && Math.round(p.accuracyScore) < 70;
@@ -288,20 +289,22 @@
                 '<div class="pa-word-card ' +
                 meta.cls +
                 '">' +
-                '<div class="pa-word-head">' +
-                '<strong>' +
+                '<div class="pa-word-top">' +
+                '<span class="pa-word-name">' +
                 escapeHtml(w.word) +
-                '</strong>' +
+                '</span>' +
+                '<span class="pa-word-score' +
+                (scoreLow ? ' pa-word-score-low' : '') +
+                '">' +
+                acc +
+                '점</span>' +
+                speakBtn +
+                '</div>' +
+                '<div class="pa-word-meta">' +
                 '<span class="pa-word-badge">' +
                 escapeHtml(meta.label) +
                 '</span>' +
-                '<span class="pa-word-acc">' +
-                acc +
-                '</span>' +
-                '<span class="pa-word-time">' +
-                escapeHtml(time) +
-                '</span>' +
-                speakBtn +
+                (time ? '<span class="pa-word-time">' + escapeHtml(time) + '</span>' : '') +
                 '</div>' +
                 stressSnippet +
                 prosodyHtml +
@@ -322,13 +325,18 @@
 
         const issueWords = detail.issueWords || getIssueWords(detail.words);
         let html = '<div class="pa-viz">';
-        html += buildTimeline(detail.words, detail.totalDurationMs);
 
         if (issueWords.length) {
-            html += '<div class="pa-issue-title">발음 오류 <span class="pa-issue-hint">🔊·숫자 1~9 듣기</span></div>';
-            html += buildIssueWordCards(issueWords);
+            html +=
+                '<div class="pa-issues-block">' +
+                '<div class="pa-issue-title">발음 오류 ' +
+                issueWords.length +
+                '개<span class="pa-issue-hint">숫자 키 1~9 = 🔊 발음 듣기 · Enter = 전체 다시 말하기</span></div>' +
+                buildIssueWordCards(issueWords) +
+                '</div>';
         }
 
+        html += buildTimeline(detail.words, detail.totalDurationMs);
         html += '</div>';
         return html;
     }

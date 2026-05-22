@@ -190,8 +190,111 @@
             font-size: 12px; font-weight: 600; color: #64748B;
             background: #F1F5F9; padding: 4px 10px; border-radius: 999px;
         }
+        .reading-guide {
+            margin-bottom: 10px; padding: 12px 14px;
+            background: linear-gradient(180deg, #FFFBEB 0%, #FFF7ED 100%);
+            border: 2px solid #FCD34D; border-radius: 10px;
+        }
+        .reading-guide-title {
+            font-size: 13px; font-weight: 800; color: #92400E; margin: 0 0 8px;
+        }
+        .reading-guide-legend {
+            font-size: 10px; font-weight: 600; color: #B45309; margin: 0 0 10px; line-height: 1.45;
+        }
+        .reading-chunks { display: flex; flex-direction: column; gap: 8px; }
+        .reading-chunk {
+            display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px;
+            padding: 10px 12px; background: #fff; border-radius: 8px;
+            border: 1px solid #FDE68A; line-height: 1.55;
+        }
+        .rg-glue {
+            font-size: 13px; font-weight: 500; color: #94A3B8;
+        }
+        .rg-beat {
+            font-size: 19px; font-weight: 800; color: #0F172A; letter-spacing: 0.02em;
+        }
+        .rg-beat .syllable-weak { font-size: 0.78em; }
+        .rg-beat .syllable-stress { font-size: 1.05em; }
+        .reading-pause {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 6px 10px; font-size: 12px; font-weight: 800; color: #B91C1C;
+            background: #FEE2E2; border: 2px dashed #F87171; border-radius: 8px;
+        }
+        .reading-pause::before, .reading-pause::after {
+            content: ''; flex: 1; height: 2px; background: #FCA5A5; max-width: 48px;
+        }
+        .reading-pause-inline {
+            display: inline; padding: 2px 8px; margin: 0 4px;
+            font-size: 11px; font-weight: 800; color: #B91C1C;
+            background: #FEE2E2; border: 1px dashed #F87171; border-radius: 4px;
+        }
+
         .feedback .pa-viz { font-weight: normal; margin-top: 12px; text-align: left; }
-        .pa-timeline { margin-bottom: 10px; }
+        .pa-issues-block {
+            margin-bottom: 12px; padding: 12px 12px 10px;
+            background: #FFF5F5; border: 2px solid #FCA5A5; border-radius: 10px;
+        }
+        .pa-issue-title {
+            font-size: 15px; font-weight: 800; color: #991B1B; margin: 0 0 10px;
+        }
+        .pa-issue-hint {
+            display: block; font-size: 11px; font-weight: 600; color: #B91C1C;
+            margin-top: 2px;
+        }
+        .pa-issue-more { font-size: 11px; color: #991B1B; margin: 8px 0 0; font-weight: 600; }
+        .pa-issue-list { display: flex; flex-direction: column; gap: 10px; }
+        .pa-word-card {
+            background: #fff; border-radius: 10px; padding: 12px 14px;
+            border: 1px solid #FECACA; border-left: 5px solid #DC2626;
+            box-shadow: 0 1px 3px rgba(220, 38, 38, 0.12);
+        }
+        .pa-word-card.pa-err-break { border-left-color: #4F46E5; }
+        .pa-word-card.pa-err-omit, .pa-word-card.pa-err-ins { border-left-color: #D97706; }
+        .pa-word-top {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+            margin-bottom: 6px;
+        }
+        .pa-word-name {
+            font-size: 18px; font-weight: 900; color: #0F172A;
+            letter-spacing: 0.02em;
+        }
+        .pa-word-score {
+            font-size: 15px; font-weight: 800; color: #DC2626;
+            background: #FEE2E2; padding: 2px 10px; border-radius: 6px;
+        }
+        .pa-word-speak-btn {
+            margin-left: auto; flex-shrink: 0;
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; border-radius: 8px; border: none;
+            background: #2563EB; color: #fff; font-size: 13px; font-weight: 800;
+            cursor: pointer; line-height: 1.2;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.35);
+        }
+        .pa-word-speak-btn:hover { background: #1D4ED8; }
+        .pa-word-speak-btn .shortcut-key {
+            min-width: auto; margin: 0; padding: 2px 7px; font-size: 12px;
+            background: rgba(0,0,0,0.25); color: #fff;
+        }
+        .pa-word-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+        .pa-word-badge {
+            font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 6px;
+            background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5;
+        }
+        .pa-word-card.pa-err-break .pa-word-badge { background: #E0E7FF; color: #3730A3; border-color: #A5B4FC; }
+        .pa-word-time { font-size: 11px; color: #64748B; font-weight: 600; }
+        .pa-stress-snippet {
+            font-size: 14px; margin-top: 6px; padding: 6px 8px;
+            background: #F8FAFC; border-radius: 6px; line-height: 1.5;
+        }
+        .pa-prosody-line { font-size: 12px; color: #6D28D9; font-weight: 700; margin-top: 6px; }
+        .pa-phoneme-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .pa-phoneme {
+            font-size: 13px; padding: 4px 8px; border-radius: 6px; font-family: monospace;
+            font-weight: 700;
+        }
+        .pa-phoneme small { margin-left: 4px; opacity: 0.9; }
+        .pa-phoneme-weak { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+        .pa-timeline { margin-bottom: 10px; margin-top: 4px; }
         .pa-timeline-title { font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 4px; }
         .pa-timeline-track { position: relative; height: 36px; background: #F1F5F9; border-radius: 6px; overflow: hidden; }
         .pa-tl-word {
@@ -200,32 +303,6 @@
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;
         }
         .pa-timeline-axis { font-size: 10px; color: #94A3B8; margin-top: 3px; text-align: right; }
-        .pa-issue-title { font-size: 12px; font-weight: 800; color: #475569; margin: 8px 0 6px; }
-        .pa-issue-hint { font-size: 10px; font-weight: 600; color: #94A3B8; margin-left: 6px; }
-        .pa-issue-more { font-size: 10px; color: #94A3B8; margin: 4px 0 0; }
-        .pa-issue-list { display: flex; flex-direction: column; gap: 6px; }
-        .pa-word-speak-btn {
-            margin-left: auto; flex-shrink: 0;
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 3px 8px; border-radius: 5px; border: 1px solid #93C5FD;
-            background: #EFF6FF; color: #1D4ED8; font-size: 10px; font-weight: 700;
-            cursor: pointer; line-height: 1.2;
-        }
-        .pa-word-speak-btn:hover { background: #DBEAFE; }
-        .pa-word-speak-btn .shortcut-key {
-            min-width: auto; margin: 0; padding: 1px 4px; font-size: 10px;
-            background: #1E40AF;
-        }
-        .pa-word-card { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; background: #FAFAFA; }
-        .pa-word-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
-        .pa-word-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-        .pa-word-acc { font-weight: 800; color: #334155; }
-        .pa-word-time { font-size: 10px; color: #94A3B8; margin-left: auto; }
-        .pa-prosody-line { font-size: 10px; color: #7C3AED; font-weight: 600; margin-top: 4px; }
-        .pa-phoneme-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-        .pa-phoneme { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-        .pa-phoneme small { margin-left: 3px; opacity: 0.75; }
-        .pa-phoneme-weak { background: #FEE2E2; color: #991B1B; }
         .pa-viz + .missed-word-btns { margin-top: 10px; }
         .pa-err-none, .pa-tl-word.pa-err-none { background: #22C55E; }
         .pa-err-mis, .pa-tl-word.pa-err-mis, .pa-word-card.pa-err-mis .pa-word-badge { background: #FEE2E2; color: #991B1B; }
@@ -309,6 +386,7 @@
         <div class="bridge-box" id="ui-bridge-box"></div>
 
         <div class="korean-text" id="ui-kor-text"></div>
+        <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
         <div class="english-text" id="ui-eng-text"></div>
         
         <div id="feedback-box" class="feedback">
@@ -1115,6 +1193,7 @@
         document.getElementById('ui-question-box').innerText = "Q. " + question;
         document.getElementById('ui-kor-text').innerHTML = kor;
         document.getElementById('ui-eng-text').innerHTML = eng;
+        setReadingGuideVisible(false);
         document.getElementById('ui-bridge-box').style.display = showBridge ? 'block' : 'none';
         
         fbBox.style.display = 'none';
@@ -1167,8 +1246,9 @@
         let sentEng = data.sentences[mSentIdx][1];
         currentTargetEng = sentEng;
 
+        setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
         const engHtml = formatEngForDisplay(sentEng, false, { syllableDots: true }) +
-            '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 사전에 있는 단어는 음절·강세 표시</p>';
+            '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 아래 노란 「읽기 지도」= 말하기 전 리듬</p>';
         updateUI(data.question, sentKor, engHtml);
         document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
         persistProgress();
@@ -1560,6 +1640,96 @@
     }
 
     const IGNORE_ALIGN = new Set(['a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by', 'that', 'this']);
+
+    const GLUE_WORDS = new Set([
+        'a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by', 'that', 'this',
+        'i', 'my', 'our', 'we', 'he', 'she', 'they', 'me', 'us', 'him', 'her', 'them',
+        'after', 'before', 'when', 'while', 'then', 'than', 'so', 'if', 'not', 'also', 'just', 'only',
+        'into', 'from', 'up', 'down', 'out', 'about', 'over', 'under', 'again', 'there', 'here',
+        'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'can', 'could',
+        'am', 'its', 'his', 'her', 'their', 'your', 'our'
+    ]);
+
+    function setReadingGuideVisible(show, html) {
+        const el = document.getElementById('ui-reading-guide');
+        if (!el) return;
+        if (show && html) {
+            el.innerHTML = html;
+            el.style.display = 'block';
+        } else {
+            el.innerHTML = '';
+            el.style.display = 'none';
+        }
+    }
+
+    function isGlueWord(clean) {
+        if (!clean) return true;
+        if (GLUE_WORDS.has(clean)) return true;
+        if (clean.length <= 2 && clean !== 'nps') return true;
+        return false;
+    }
+
+    function renderReadingGuideBeatWord(token) {
+        const m = token.match(/^([^A-Za-z]*)([A-Za-z]+)([^A-Za-z]*)$/);
+        if (!m) return escapeHtml(token);
+        const clean = m[2].toLowerCase();
+        const inner = stressDict[clean]
+            ? stressHtmlToSyllableDisplay(stressDict[clean], true)
+            : escapeHtml(m[2]);
+        return escapeHtml(m[1]) + inner + escapeHtml(m[3]);
+    }
+
+    function buildReadingGuideChunkHtml(chunkText) {
+        const tokens = chunkText.trim().split(/\s+/).filter(Boolean);
+        if (!tokens.length) return '';
+        let html = '';
+        let i = 0;
+        while (i < tokens.length) {
+            const clean = tokens[i].replace(/[^a-zA-Z]/g, '').toLowerCase();
+            const glue = isGlueWord(clean);
+            let j = i + 1;
+            while (j < tokens.length) {
+                const cj = tokens[j].replace(/[^a-zA-Z]/g, '').toLowerCase();
+                if (isGlueWord(cj) !== glue) break;
+                j++;
+            }
+            const group = tokens.slice(i, j);
+            if (glue) {
+                html += '<span class="rg-glue">' + group.map(function (t) { return escapeHtml(t); }).join(' ') + '</span>';
+            } else {
+                html +=
+                    '<span class="rg-beat">' +
+                    group.map(renderReadingGuideBeatWord).join(' ') +
+                    '</span>';
+            }
+            if (j < tokens.length) html += ' ';
+            i = j;
+        }
+        return '<div class="reading-chunk">' + html + '</div>';
+    }
+
+    function buildReadingGuideHtml(sentEng) {
+        const marked = addPauseSlashes(sentEng);
+        const rawChunks = marked.split(/\s+\/\s+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        const chunks = rawChunks.length ? rawChunks : [marked.trim()];
+        let body = '<div class="reading-chunks">';
+        chunks.forEach(function (chunk, idx) {
+            if (idx > 0) {
+                body += '<div class="reading-pause" title="여기서 1초 쉬기">⏸ 1.0초 쉼</div>';
+            }
+            body += buildReadingGuideChunkHtml(chunk);
+        });
+        body += '</div>';
+        return (
+            '<div class="reading-guide-title">📖 읽기 지도 (말하기 전)</div>' +
+            '<p class="reading-guide-legend">' +
+            '<span class="rg-glue">작·회색</span> = 빠르게 지나가기 · ' +
+            '<span class="rg-beat">크·굵게</span> = 세게·길게 · ' +
+            '<span class="reading-pause-inline">⏸</span> = 1초 멈춤' +
+            '</p>' +
+            body
+        );
+    }
 
     function buildBracketFeedbackHtml(targetStr, cleanSpokenArr) {
         const tokens = targetStr.split(/\s+/).filter(Boolean);
