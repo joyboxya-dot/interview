@@ -148,20 +148,6 @@
             background: #F1F5F9; padding: 4px 10px; border-radius: 999px;
         }
         .feedback .pa-viz { font-weight: normal; margin-top: 12px; text-align: left; }
-        .pa-viz-title { font-size: 14px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
-        .pa-viz-desc, .pa-viz-note { font-size: 11px; color: #64748B; font-weight: 500; line-height: 1.45; margin: 0 0 10px; }
-        .pa-score-grid { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-        .pa-score-row { display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; gap: 8px; font-size: 12px; }
-        .pa-score-row-accent .pa-score-label { color: #7C3AED; font-weight: 800; }
-        .pa-bar { height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
-        .pa-bar-accent .pa-bar-fill { background: linear-gradient(90deg, #8B5CF6, #6366F1); }
-        .pa-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
-        .pa-bar-fill-ok { background: #22C55E; }
-        .pa-bar-fill-warn { background: #F59E0B; }
-        .pa-bar-need { font-size: 11px; font-weight: 700; color: #475569; text-align: right; font-variant-numeric: tabular-nums; }
-        .pa-error-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-        .pa-error-ok { font-size: 11px; color: #16A34A; font-weight: 600; }
-        .pa-error-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid; }
         .pa-timeline { margin-bottom: 10px; }
         .pa-timeline-title { font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 4px; }
         .pa-timeline-track { position: relative; height: 36px; background: #F1F5F9; border-radius: 6px; overflow: hidden; }
@@ -171,15 +157,8 @@
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;
         }
         .pa-timeline-axis { font-size: 10px; color: #94A3B8; margin-top: 3px; text-align: right; }
-        .pa-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; font-size: 10px; color: #64748B; }
-        .pa-legend-item i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: middle; background: #94A3B8; }
-        .pa-legend-item i.pa-err-mis { background: #EF4444; }
-        .pa-legend-item i.pa-err-omit { background: #F59E0B; }
-        .pa-legend-item i.pa-err-ins { background: #F97316; }
-        .pa-legend-item i.pa-err-break { background: #6366F1; }
-        .pa-legend-item i.pa-err-missbreak { background: #06B6D4; }
-        .pa-legend-item i.pa-err-mono { background: #A855F7; }
-        .pa-word-grid { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+        .pa-issue-title { font-size: 12px; font-weight: 800; color: #475569; margin: 8px 0 6px; }
+        .pa-issue-list { display: flex; flex-direction: column; gap: 6px; }
         .pa-word-card { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; background: #FAFAFA; }
         .pa-word-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
         .pa-word-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
@@ -1169,7 +1148,8 @@
             resHtml = `<div class="bracket-feedback-line">${bracketLine}</div>${buildMissedWordBtnsHtml(uniqueMissed)}`;
         }
         if (typeof PronunciationViz !== 'undefined' && assessment.detail) {
-            resHtml += PronunciationViz.buildHtml(assessment.detail, th);
+            const vizHtml = PronunciationViz.buildHtml(assessment.detail);
+            if (vizHtml) resHtml += vizHtml;
         }
 
         fbBox.style.display = 'block';
