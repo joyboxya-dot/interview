@@ -72,6 +72,7 @@
                         ErrorType: w.errorType,
                         Phonemes: w.phonemes,
                         Syllables: w.syllables,
+                        Feedback: w.prosodyFeedback ? { Prosody: w.prosodyFeedback } : undefined,
                     };
                 }),
             },

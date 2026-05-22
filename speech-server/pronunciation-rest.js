@@ -7,7 +7,7 @@ export function buildPronunciationHeader(referenceText) {
   const params = {
     ReferenceText: (referenceText || '').replace(/\s+/g, ' ').trim(),
     GradingSystem: 'HundredMark',
-    Granularity: 'Word',
+    Granularity: 'Phoneme',
     Dimension: 'Comprehensive',
     EnableMiscue: 'True',
     EnableProsodyAssessment: 'True',
@@ -78,6 +78,7 @@ export function parseShortAudioResponse(json) {
     duration: w.Duration,
     phonemes: w.Phonemes || [],
     syllables: w.Syllables || [],
+    prosodyFeedback: w.Feedback?.Prosody || null,
   }));
 
   return {
