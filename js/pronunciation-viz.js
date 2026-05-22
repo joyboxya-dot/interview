@@ -4,6 +4,9 @@
 (function (global) {
     const PROSODY_CONF_THRESHOLD = 0.75;
 
+    /** Azure 운율 린터 중 UI·재연습 대상에서 제외 (운율 총점·부적절한 멈춤은 유지) */
+    const IGNORED_PROSODY_LINT = new Set(['MissingBreak', 'Monotone']);
+
     const ERROR_LABELS = {
         None: { label: '정상', cls: 'pa-err-none' },
         Mispronunciation: { label: '오발음', cls: 'pa-err-mis' },
@@ -49,6 +52,16 @@
         };
     }
 
+    function isIgnoredProsodyLint(errorType) {
+        return IGNORED_PROSODY_LINT.has(errorType);
+    }
+
+    /** 타임라인·오류 목록용 (멈춤 누락·단조로움 → 정상 처리) */
+    function displayErrorType(errorType) {
+        const et = errorType || 'None';
+        return isIgnoredProsodyLint(et) ? 'None' : et;
+    }
+
     function collectProsodyIssues(prosody) {
         const issues = [];
         if (!prosody) return issues;
@@ -56,30 +69,22 @@
         if (br) {
             const ub = br.UnexpectedBreak && br.UnexpectedBreak.Confidence;
             if (ub != null && ub > PROSODY_CONF_THRESHOLD) issues.push('부적절한 멈춤');
-            const mb = br.MissingBreak && br.MissingBreak.Confidence;
-            if (mb != null && mb > PROSODY_CONF_THRESHOLD) issues.push('멈춤 누락');
             if (br.ErrorTypes && br.ErrorTypes.length) {
                 br.ErrorTypes.forEach(function (et) {
-                    if (et && et !== 'None' && ERROR_LABELS[et]) issues.push(ERROR_LABELS[et].label);
+                    if (et && et !== 'None' && !isIgnoredProsodyLint(et) && ERROR_LABELS[et]) {
+                        issues.push(ERROR_LABELS[et].label);
+                    }
                 });
             }
-        }
-        const inton = prosody.Intonation;
-        if (inton) {
-            if (inton.ErrorTypes && inton.ErrorTypes.indexOf('Monotone') >= 0) issues.push('단조로움');
-            const mono = inton.Monotone && inton.Monotone.Confidence;
-            if (mono != null && mono > PROSODY_CONF_THRESHOLD) issues.push('단조로움');
         }
         return [...new Set(issues)];
     }
 
     function mergeProsodyErrorType(errorType, prosodyIssues) {
-        if (errorType && errorType !== 'None') return errorType;
-        if (!prosodyIssues.length) return errorType || 'None';
+        if (errorType && errorType !== 'None' && !isIgnoredProsodyLint(errorType)) return errorType;
+        if (!prosodyIssues.length) return displayErrorType(errorType);
         if (prosodyIssues.indexOf('부적절한 멈춤') >= 0) return 'UnexpectedBreak';
-        if (prosodyIssues.indexOf('멈춤 누락') >= 0) return 'MissingBreak';
-        if (prosodyIssues.indexOf('단조로움') >= 0) return 'Monotone';
-        return errorType || 'None';
+        return displayErrorType(errorType);
     }
 
     function normalizeDetailWord(w) {
@@ -96,7 +101,7 @@
                     : w.AccuracyScore != null
                       ? w.AccuracyScore
                       : w.accuracyScore,
-            errorType: errorType,
+            errorType: displayErrorType(errorType),
             offsetMs: ticksToMs(w.Offset != null ? w.Offset : w.offset),
             durationMs: ticksToMs(w.Duration != null ? w.Duration : w.duration),
             phonemes: (w.Phonemes || w.phonemes || []).map(normalizePhoneme),
@@ -110,7 +115,7 @@
         return {
             word: w.word || '',
             accuracyScore: w.accuracyScore,
-            errorType: mergeProsodyErrorType(w.errorType || 'None', prosodyIssues),
+            errorType: displayErrorType(mergeProsodyErrorType(w.errorType || 'None', prosodyIssues)),
             offsetMs: ticksToMs(w.offset),
             durationMs: ticksToMs(w.duration),
             phonemes: (w.phonemes || []).map(normalizePhoneme),
@@ -133,9 +138,17 @@
 
     function getIssueWords(words) {
         return (words || []).filter(function (w) {
-            const et = w.errorType || 'None';
-            return et !== 'None';
+            const et = displayErrorType(w.errorType);
+            if (et !== 'None') return true;
+            const acc = w.accuracyScore != null ? Math.round(w.accuracyScore) : 100;
+            return acc < 80;
         });
+    }
+
+    function issueWordSpeakLabel(w) {
+        const et = displayErrorType(w.errorType);
+        if (et !== 'None') return (ERROR_LABELS[et] || { label: et }).label;
+        return '발음 점수 낮음';
     }
 
     function parseFromPa(pa, rawJson) {
@@ -160,7 +173,8 @@
 
         const errorCounts = {};
         words.forEach(function (w) {
-            const et = w.errorType || 'None';
+            const et = displayErrorType(w.errorType);
+            if (et === 'None') return;
             errorCounts[et] = (errorCounts[et] || 0) + 1;
         });
 
@@ -223,10 +237,20 @@
 
     function buildIssueWordCards(issueWords) {
         if (!issueWords.length) return '';
-        const cards = issueWords.map(function (w) {
-            const meta = ERROR_LABELS[w.errorType] || ERROR_LABELS.Mispronunciation;
+        const cards = issueWords.slice(0, 9).map(function (w, idx) {
+            const et = displayErrorType(w.errorType);
+            const meta = et !== 'None' ? ERROR_LABELS[et] : { label: issueWordSpeakLabel(w), cls: 'pa-err-mis' };
             const acc = w.accuracyScore != null ? Math.round(w.accuracyScore) : '—';
             const time = w.offsetMs != null ? '@' + (w.offsetMs / 1000).toFixed(1) + 's' : '';
+            const safeWord = String(w.word || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const shortcut = idx + 1;
+            const speakBtn =
+                '<button type="button" class="pa-word-speak-btn" onclick="speakExaggeratedWord(\'' +
+                safeWord +
+                '\')" title="느리게 듣기">' +
+                '🔊 발음 <span class="shortcut-key">' +
+                shortcut +
+                '</span></button>';
             let phonHtml = '';
             const weakPhonemes = (w.phonemes || []).filter(function (p) {
                 return p.accuracyScore != null && Math.round(p.accuracyScore) < 70;
@@ -256,6 +280,10 @@
             if (w.prosodyIssues && w.prosodyIssues.length) {
                 prosodyHtml = '<div class="pa-prosody-line">' + escapeHtml(w.prosodyIssues.join(' · ')) + '</div>';
             }
+            let stressSnippet = '';
+            if (typeof global.renderStressSnippet === 'function') {
+                stressSnippet = global.renderStressSnippet(w.word);
+            }
             return (
                 '<div class="pa-word-card ' +
                 meta.cls +
@@ -273,13 +301,19 @@
                 '<span class="pa-word-time">' +
                 escapeHtml(time) +
                 '</span>' +
+                speakBtn +
                 '</div>' +
+                stressSnippet +
                 prosodyHtml +
                 phonHtml +
                 '</div>'
             );
         }).join('');
-        return '<div class="pa-issue-list">' + cards + '</div>';
+        const more =
+            issueWords.length > 9
+                ? '<p class="pa-issue-more">+' + (issueWords.length - 9) + '개 — 카드에서 🔊 발음 버튼 사용</p>'
+                : '';
+        return '<div class="pa-issue-list">' + cards + more + '</div>';
     }
 
     /** 점수 막대·상세 헤더 없음. 오류 단어만 목록(스크롤 없음). */
@@ -291,7 +325,7 @@
         html += buildTimeline(detail.words, detail.totalDurationMs);
 
         if (issueWords.length) {
-            html += '<div class="pa-issue-title">발음·운율 오류</div>';
+            html += '<div class="pa-issue-title">발음 오류 <span class="pa-issue-hint">🔊·숫자 1~9 듣기</span></div>';
             html += buildIssueWordCards(issueWords);
         }
 
@@ -303,6 +337,17 @@
         parseFromPa: parseFromPa,
         buildHtml: buildHtml,
         getIssueWords: getIssueWords,
+        getIssueWordKeys: function (detail) {
+            if (!detail) return [];
+            const list = detail.issueWords || getIssueWords(detail.words || []);
+            return list.slice(0, 9).map(function (w) {
+                return String(w.word || '')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/g, '');
+            }).filter(Boolean);
+        },
+        isIgnoredProsodyLint: isIgnoredProsodyLint,
+        displayErrorType: displayErrorType,
         ERROR_LABELS: ERROR_LABELS,
     };
 })(window);

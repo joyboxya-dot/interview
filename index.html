@@ -114,7 +114,27 @@
         }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .syllable-stress { font-weight: 900; color: var(--danger); text-decoration: underline; }
+        .word-stress { white-space: nowrap; }
+        .syllable-weak {
+            font-size: 0.82em; font-weight: 500; color: #94A3B8;
+            letter-spacing: 0.01em;
+        }
+        .syllable-stress {
+            font-size: 1.12em; font-weight: 900; color: #B91C1C;
+            text-decoration: underline; text-underline-offset: 2px;
+            letter-spacing: 0.02em;
+        }
+        .syllable-dot {
+            font-size: 0.75em; font-weight: 800; color: #CBD5E1;
+            margin: 0 1px; user-select: none;
+        }
+        .eng-stress-legend {
+            font-size: 10px; font-weight: 600; color: #94A3B8;
+            margin: 6px 0 0; line-height: 1.4;
+        }
+        .eng-stress-legend .syllable-stress { font-size: 1em; }
+        .eng-stress-legend .syllable-weak { font-size: 0.95em; }
+        .pa-stress-snippet { font-size: 11px; margin-top: 4px; line-height: 1.45; }
 
         #recording-review-page {
             display: none; background: white; padding: 16px 20px 24px;
@@ -181,7 +201,21 @@
         }
         .pa-timeline-axis { font-size: 10px; color: #94A3B8; margin-top: 3px; text-align: right; }
         .pa-issue-title { font-size: 12px; font-weight: 800; color: #475569; margin: 8px 0 6px; }
+        .pa-issue-hint { font-size: 10px; font-weight: 600; color: #94A3B8; margin-left: 6px; }
+        .pa-issue-more { font-size: 10px; color: #94A3B8; margin: 4px 0 0; }
         .pa-issue-list { display: flex; flex-direction: column; gap: 6px; }
+        .pa-word-speak-btn {
+            margin-left: auto; flex-shrink: 0;
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 8px; border-radius: 5px; border: 1px solid #93C5FD;
+            background: #EFF6FF; color: #1D4ED8; font-size: 10px; font-weight: 700;
+            cursor: pointer; line-height: 1.2;
+        }
+        .pa-word-speak-btn:hover { background: #DBEAFE; }
+        .pa-word-speak-btn .shortcut-key {
+            min-width: auto; margin: 0; padding: 1px 4px; font-size: 10px;
+            background: #1E40AF;
+        }
         .pa-word-card { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; background: #FAFAFA; }
         .pa-word-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
         .pa-word-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
@@ -361,7 +395,18 @@
         "syntax": "<span class='syllable-stress'>syn</span>tax",
         "immediately": "im<span class='syllable-stress'>me</span>diately",
         "stability": "sta<span class='syllable-stress'>bil</span>ity",
-        "official": "of<span class='syllable-stress'>fi</span>cial"
+        "official": "of<span class='syllable-stress'>fi</span>cial",
+        "project": "<span class='syllable-stress'>pro</span>ject",
+        "projects": "<span class='syllable-stress'>pro</span>jects",
+        "joined": "<span class='syllable-stress'>joined</span>",
+        "joining": "<span class='syllable-stress'>join</span>ing",
+        "settle": "<span class='syllable-stress'>set</span>tle",
+        "settled": "<span class='syllable-stress'>set</span>tled",
+        "financial": "fi<span class='syllable-stress'>nan</span>cial",
+        "securities": "se<span class='syllable-stress'>cu</span>rities",
+        "mobile": "<span class='syllable-stress'>mo</span>bile",
+        "system": "<span class='syllable-stress'>sys</span>tem",
+        "systems": "<span class='syllable-stress'>sys</span>tems"
     };
 
     const db = [
@@ -1122,8 +1167,10 @@
         let sentEng = data.sentences[mSentIdx][1];
         currentTargetEng = sentEng;
 
-        updateUI(data.question, sentKor, formatEngForDisplay(sentEng, false));
-        document.getElementById('ui-eng-text').className = 'english-text';
+        const engHtml = formatEngForDisplay(sentEng, false, { syllableDots: true }) +
+            '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 사전에 있는 단어는 음절·강세 표시</p>';
+        updateUI(data.question, sentKor, engHtml);
+        document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
         persistProgress();
         speakText(sentEng, 'en');
     }
@@ -1220,7 +1267,6 @@
             ? assessment.detail.words
             : assessment.words;
         const uniqueMissed = AzureSpeech.getWeakWords(weakSource);
-        currentMissedWordsList = uniqueMissed;
 
         const th = window.getPassThresholds();
         const needAcc = th.passAccuracy;
@@ -1244,12 +1290,18 @@
         }
 
         let resHtml = '';
+        let practiceWords = uniqueMissed;
         if (typeof PronunciationViz !== 'undefined' && assessment.detail) {
             const vizHtml = PronunciationViz.buildHtml(assessment.detail);
             if (vizHtml) resHtml += vizHtml;
+            if (PronunciationViz.getIssueWordKeys) {
+                const issueKeys = PronunciationViz.getIssueWordKeys(assessment.detail);
+                if (issueKeys.length) practiceWords = issueKeys;
+            }
         }
-        if (!isPass && uniqueMissed.length) {
-            resHtml += buildMissedWordBtnsHtml(uniqueMissed);
+        currentMissedWordsList = practiceWords;
+        if (!isPass && practiceWords.length && !resHtml.includes('pa-word-speak-btn')) {
+            resHtml += buildMissedWordBtnsHtml(practiceWords);
         }
 
         fbBox.style.display = 'block';
@@ -1409,8 +1461,64 @@
         }
     }
 
+    function stressHtmlToSyllableDisplay(html, useDots) {
+        const segments = [];
+        let remain = html;
+        const spanRe = /<span class=['"]syllable-stress['"]>([^<]*)<\/span>/i;
+        while (remain.length) {
+            const m = remain.match(spanRe);
+            if (!m) {
+                if (remain) segments.push({ text: remain, stress: false });
+                break;
+            }
+            const idx = m.index;
+            if (idx > 0) {
+                const before = remain.slice(0, idx);
+                if (before) segments.push({ text: before, stress: false });
+            }
+            segments.push({ text: m[1], stress: true });
+            remain = remain.slice(idx + m[0].length);
+        }
+        return segments
+            .map(function (seg, i) {
+                const dot = useDots && i > 0 ? '<span class="syllable-dot">·</span>' : '';
+                if (seg.stress) {
+                    return (
+                        dot +
+                        '<span class="syllable-stress">' +
+                        escapeHtml(seg.text.toUpperCase()) +
+                        '</span>'
+                    );
+                }
+                return dot + '<span class="syllable-weak">' + escapeHtml(seg.text) + '</span>';
+            })
+            .join('');
+    }
+
+    function renderStressedWordToken(token, useDots) {
+        const m = token.match(/^([^A-Za-z]*)([A-Za-z]+)([^A-Za-z]*)$/);
+        if (!m) return escapeHtml(token);
+        const prefix = m[1];
+        const letters = m[2];
+        const suffix = m[3];
+        const clean = letters.toLowerCase();
+        if (!stressDict[clean]) return escapeHtml(token);
+        const inner = stressHtmlToSyllableDisplay(stressDict[clean], useDots);
+        return escapeHtml(prefix) + '<span class="word-stress">' + inner + '</span>' + escapeHtml(suffix);
+    }
+
+    window.renderStressSnippet = function (word) {
+        const clean = String(word || '')
+            .toLowerCase()
+            .replace(/[^a-z]/g, '');
+        if (!clean || !stressDict[clean]) return '';
+        return '<div class="pa-stress-snippet">' + stressHtmlToSyllableDisplay(stressDict[clean], true) + '</div>';
+    };
+
     function stressHtmlToCaps(htmlFrag) {
-        return htmlFrag.replace(/<span class='syllable-stress'>([^<]*)<\/span>/gi, function(_, s) { return s.toUpperCase(); });
+        return htmlFrag.replace(/<span class=['"]syllable-stress['"]>([^<]*)<\/span>/gi, function (_, s) {
+            return s.toUpperCase();
+        });
     }
 
     function wordToStressCaps(word) {
@@ -1431,17 +1539,15 @@
             .replace(/;\s*/g, ' / ');
     }
 
-    function formatEngForDisplay(text, multiSentence) {
+    function formatEngForDisplay(text, multiSentence, options) {
+        const opts = options || {};
         let t = multiSentence ? text : addPauseSlashes(text);
-        return applyStress(t);
+        return applyStress(t, !!opts.syllableDots);
     }
 
-    function applyStress(text) {
-        let words = text.split(' ');
-        return words.map(w => {
-            let clean = w.replace(/[^a-zA-Z]/g, '').toLowerCase();
-            if(stressDict[clean]) return w.replace(/[a-zA-Z]+/, stressDict[clean]);
-            return w;
+    function applyStress(text, useDots) {
+        return text.split(/\s+/).map(function (w) {
+            return renderStressedWordToken(w, useDots);
         }).join(' ');
     }
 
