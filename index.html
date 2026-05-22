@@ -629,6 +629,26 @@
     let userAudioUrl = null;
     let everFirstAudioUrl = null;
     let activeAudio = null;
+    let missedWordPlayTimers = [];
+
+    window.registerActiveAudio = function(audio) {
+        if (activeAudio && activeAudio !== audio) {
+            try {
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio.removeAttribute('src');
+                activeAudio.load();
+            } catch (e) {}
+            activeAudio.onended = null;
+            activeAudio.onerror = null;
+        }
+        activeAudio = audio;
+    };
+
+    window.clearMissedWordPlayTimers = function() {
+        missedWordPlayTimers.forEach(function(t) { clearTimeout(t); });
+        missedWordPlayTimers = [];
+    };
     let globalAudioStream = null;
     let recordingArchive = {};
     let reviewReturnView = 'dash';
@@ -964,9 +984,17 @@
 
     function stopAllPlayback() {
         speechSynthesis.cancel();
+        clearMissedWordPlayTimers();
+        if (typeof AzureTts !== 'undefined' && AzureTts.stopPlayback) {
+            AzureTts.stopPlayback();
+        }
         if (activeAudio) {
-            activeAudio.pause();
-            activeAudio.currentTime = 0;
+            try {
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio.removeAttribute('src');
+                activeAudio.load();
+            } catch (e) {}
             activeAudio.onended = null;
             activeAudio.onerror = null;
             activeAudio = null;
@@ -2020,7 +2048,7 @@
     }
 
     function speakTextBrowser(text, lang, callback, exaggerated) {
-        stopAllPlayback();
+        speechSynthesis.cancel();
         const safeText = lang === 'en' ? sanitizeForTTS(text) : text;
         const utter = new SpeechSynthesisUtterance(safeText);
         if (lang === 'en') {
@@ -2058,18 +2086,30 @@
             AzureTts.speakPractice(word, callback || null);
             return;
         }
+        stopAllPlayback();
         speakTextBrowser(word, 'en', callback || null, true);
     }
 
-    function autoPlayMissedWords(wordsArray) {
-        wordsArray.forEach(function (word, idx) {
-            setTimeout(function () {
-                speakPracticeWord(word);
-            }, idx * 1400);
+    function playMissedWordsOneByOne(words, index) {
+        if (index >= words.length) return;
+        speakPracticeWord(words[index], function () {
+            if (index + 1 < words.length) {
+                const t = setTimeout(function () {
+                    playMissedWordsOneByOne(words, index + 1);
+                }, 400);
+                missedWordPlayTimers.push(t);
+            }
         });
     }
 
+    function autoPlayMissedWords(wordsArray) {
+        clearMissedWordPlayTimers();
+        if (!wordsArray || !wordsArray.length) return;
+        playMissedWordsOneByOne(wordsArray, 0);
+    }
+
     window.speakExaggeratedWord = function(word) {
+        clearMissedWordPlayTimers();
         speakPracticeWord(word);
     }
 

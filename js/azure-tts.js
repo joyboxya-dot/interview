@@ -1,5 +1,5 @@
 /**
- * Azure Neural TTS — 서버 디스크 캐시 + 브라우저 IndexedDB (문구·프로필당 1회 합성)
+ * Azure Neural TTS — 서버·IDB 캐시, 동시 재생 1개만 (겹침 방지)
  */
 (function (global) {
     const settings = () => global.INTERVIEW_SETTINGS || {};
@@ -7,6 +7,9 @@
     const TTS_STORE = 'clips';
 
     let ready = false;
+    let playSessionId = 0;
+    let currentAudio = null;
+    let currentObjectUrl = null;
 
     function cacheId(text, lang, profile) {
         return profile + '|' + lang + '|' + text;
@@ -85,6 +88,45 @@
         return typeof r === 'number' && r > 0 && r <= 1.5 ? r : 0.7;
     }
 
+    /** 실제 오디오만 멈춤 (세션 ID는 유지) */
+    function stopTtsAudioOnly() {
+        if (currentAudio) {
+            try {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio.removeAttribute('src');
+                currentAudio.load();
+            } catch (e) {}
+            currentAudio.onended = null;
+            currentAudio.onerror = null;
+            currentAudio = null;
+        }
+        if (currentObjectUrl) {
+            try {
+                URL.revokeObjectURL(currentObjectUrl);
+            } catch (e) {}
+            currentObjectUrl = null;
+        }
+        if (global.speechSynthesis) {
+            global.speechSynthesis.cancel();
+        }
+    }
+
+    /** 새 재생 시작 — 이전 TTS·브라우저 음성 전부 끔 */
+    function beginPlaySession() {
+        playSessionId += 1;
+        stopTtsAudioOnly();
+        if (typeof global.clearMissedWordPlayTimers === 'function') {
+            global.clearMissedWordPlayTimers();
+        }
+        return playSessionId;
+    }
+
+    function stopPlayback() {
+        playSessionId += 1;
+        stopTtsAudioOnly();
+    }
+
     async function fetchMp3FromServer(text, lang, profile) {
         const url = settings().ttsUrl || '/api/tts';
         const res = await fetch(url, {
@@ -110,76 +152,90 @@
         return blob;
     }
 
-    function cancelPlayback() {
-        if (typeof global.stopAllPlayback === 'function') {
-            global.stopAllPlayback();
-        } else if (global.speechSynthesis) {
-            global.speechSynthesis.cancel();
-        }
+    function playMp3Blob(blob, playbackRate, callback, sessionId) {
+        return new Promise(function (resolve) {
+            if (sessionId !== playSessionId) {
+                resolve();
+                return;
+            }
+            stopTtsAudioOnly();
+
+            const url = URL.createObjectURL(blob);
+            currentObjectUrl = url;
+            const audio = new Audio(url);
+            currentAudio = audio;
+            audio.playbackRate = playbackRate || 1;
+
+            if (typeof global.registerActiveAudio === 'function') {
+                global.registerActiveAudio(audio);
+            }
+
+            function finish() {
+                if (currentAudio === audio) currentAudio = null;
+                if (currentObjectUrl === url) {
+                    URL.revokeObjectURL(url);
+                    currentObjectUrl = null;
+                }
+                if (callback) callback();
+                resolve();
+            }
+
+            audio.onended = finish;
+            audio.onerror = finish;
+            audio.play().catch(finish);
+        });
     }
 
-    async function playMp3Blob(blob, playbackRate, callback) {
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.playbackRate = playbackRate || 1;
-        audio.onended = function () {
-            URL.revokeObjectURL(url);
-            if (callback) callback();
-        };
-        audio.onerror = function () {
-            URL.revokeObjectURL(url);
-            if (callback) callback();
-        };
-        await audio.play();
-        return audio;
-    }
-
-    /**
-     * 안내·모범 발음 — 여성 Neural, 강세·운율 강조 (newscast-formal)
-     */
     async function speak(text, lang, callback) {
         const safe = String(text || '').trim();
         if (!safe) {
             if (callback) callback();
             return;
         }
+        const sessionId = beginPlaySession();
         if (!isTtsReady()) {
-            return speakBrowserFallback(safe, lang, callback, false);
+            return speakBrowserFallback(safe, lang, callback, false, sessionId);
         }
         try {
-            cancelPlayback();
             const blob = await getCachedMp3Blob(safe, lang === 'ko' ? 'ko' : 'en', 'normal');
-            await playMp3Blob(blob, 1, callback);
+            if (sessionId !== playSessionId) return;
+            await playMp3Blob(blob, 1, callback, sessionId);
         } catch (e) {
             console.warn('Azure TTS speak failed', e);
-            speakBrowserFallback(safe, lang, callback, false);
+            if (sessionId === playSessionId) {
+                speakBrowserFallback(safe, lang, callback, false, sessionId);
+            }
         }
     }
 
-    /**
-     * 틀린 단어 교정용 — 과장 합성(shouting) + 재생 0.7배속
-     */
     async function speakPractice(word, callback) {
         const safe = String(word || '').trim();
         if (!safe) {
             if (callback) callback();
             return;
         }
+        const sessionId = beginPlaySession();
         const rate = practicePlaybackRate();
         if (!isTtsReady()) {
-            return speakBrowserFallback(safe, 'en', callback, true);
+            return speakBrowserFallback(safe, 'en', callback, true, sessionId);
         }
         try {
-            cancelPlayback();
             const blob = await getCachedMp3Blob(safe, 'en', 'practice');
-            await playMp3Blob(blob, rate, callback);
+            if (sessionId !== playSessionId) return;
+            await playMp3Blob(blob, rate, callback, sessionId);
         } catch (e) {
             console.warn('Azure TTS practice failed', e);
-            speakBrowserFallback(safe, 'en', callback, true);
+            if (sessionId === playSessionId) {
+                speakBrowserFallback(safe, 'en', callback, true, sessionId);
+            }
         }
     }
 
-    function speakBrowserFallback(text, lang, callback, exaggerated) {
+    function speakBrowserFallback(text, lang, callback, exaggerated, sessionId) {
+        if (sessionId != null && sessionId !== playSessionId) {
+            if (callback) callback();
+            return;
+        }
         if (typeof global.speakTextBrowser === 'function') {
             global.speakTextBrowser(text, lang, callback, exaggerated);
         } else if (callback) {
@@ -192,6 +248,7 @@
         isTtsReady: isTtsReady,
         speak: speak,
         speakPractice: speakPractice,
+        stopPlayback: stopPlayback,
         practicePlaybackRate: practicePlaybackRate,
     };
 })(window);
