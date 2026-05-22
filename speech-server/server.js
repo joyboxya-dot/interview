@@ -4,6 +4,12 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { assessShortAudioPronunciation } from './pronunciation-rest.js';
+import {
+  readCachedMp3,
+  synthesizeToMp3,
+  ttsCacheKey,
+  writeCachedMp3,
+} from './tts-rest.js';
 
 /** Deployed pronunciation-rest.js 가 오래된 경우에도 서버가 기동되도록 로컬 검증 */
 function validateWav16kMono(buffer) {
@@ -75,8 +81,47 @@ app.get('/api/speech-token', async (_req, res) => {
   }
 });
 
+const TTS_CACHE_DIR = path.join(__dirname, 'tts-cache');
+
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, region: SPEECH_REGION, mode: 'short-audio-rest' });
+  res.json({ ok: true, region: SPEECH_REGION, mode: 'short-audio-rest', tts: true });
+});
+
+app.post('/api/tts', async (req, res) => {
+  try {
+    const text = normalizeReferenceText(req.body && req.body.text);
+    const lang = (req.body && req.body.lang) === 'ko' ? 'ko' : 'en';
+    const profile = req.body && req.body.profile === 'practice' ? 'practice' : 'normal';
+    if (!text) {
+      return res.status(400).json({ ok: false, error: 'missing_text' });
+    }
+    if (text.length > 8000) {
+      return res.status(400).json({ ok: false, error: 'text_too_long' });
+    }
+    const key = ttsCacheKey(profile, lang, text);
+    let mp3 = await readCachedMp3(TTS_CACHE_DIR, key);
+    if (!mp3) {
+      const syn = await synthesizeToMp3({
+        speechKey: SPEECH_KEY,
+        region: SPEECH_REGION,
+        text,
+        profile,
+        lang,
+      });
+      if (!syn.ok) {
+        return res.status(502).json({ ok: false, error: 'tts_failed', detail: syn.detail });
+      }
+      mp3 = syn.buffer;
+      await writeCachedMp3(TTS_CACHE_DIR, key, mp3);
+    }
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Tts-Cache', 'hit-or-miss');
+    res.send(mp3);
+  } catch (err) {
+    console.error('tts', err);
+    res.status(500).json({ ok: false, error: 'server_error', detail: String(err) });
+  }
 });
 
 function normalizeReferenceText(value) {
@@ -190,4 +235,5 @@ app.listen(PORT, () => {
   console.log(`Speech server: http://localhost:${PORT}`);
   console.log(`앱: http://localhost:${PORT}/index.html`);
   console.log(`2단계 발음: POST /api/pronounce-assess (Short Audio REST)`);
+  console.log(`TTS 캐시: POST /api/tts → ${TTS_CACHE_DIR}`);
 });

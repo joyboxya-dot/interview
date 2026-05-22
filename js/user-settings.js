@@ -5,10 +5,24 @@ window.INTERVIEW_SETTINGS = {
     /** true: 서버 켜져 있으면 Azure 발음 평가 / false: 예전 방식(단어 맞추기) */
     useAzurePronunciation: true,
 
+    /** true: Azure Neural TTS (서버·브라우저 캐시, 문구당 1회 합성) */
+    useAzureTts: true,
+    /**
+     * 여성 Neural · 강세·운율 강조 (서버 SSML과 동일 프로필)
+     * normal: Aria + newscast-formal / practice: Aria + shouting + 재생 0.7배속
+     */
+    ttsVoiceEn: 'en-US-AriaNeural',
+    ttsVoiceKo: 'ko-KR-SunHiNeural',
+    ttsStyleEn: 'newscast-formal',
+    /** 틀린 단어 듣기: 합성은 과장, 재생 속도 */
+    ttsPracticePlaybackRate: 0.7,
+
     /** speech-server (npm start) */
     healthUrl: '/api/health',
     /** 2단계 Short Audio REST 발음 평가 */
     pronounceAssessUrl: '/api/pronounce-assess',
+    /** TTS 합성 (디스크 캐시) */
+    ttsUrl: '/api/tts',
 };
 
 /** 2단계 Azure 합격선 프리셋 (난이도) */

@@ -443,6 +443,7 @@
 <script src="js/audio-wav.js"></script>
 <script src="js/pronunciation-viz.js"></script>
 <script src="js/azure-speech.js"></script>
+<script src="js/azure-tts.js"></script>
 <script>
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     let useAzureMic = false;
@@ -1231,6 +1232,19 @@
         return steps;
     }
 
+    /** 3~6단계: 통문장 회상 — 말을 다 한 뒤 Enter로만 점검 (자동 종료 없음) */
+    function isRecallManualEndPhase() {
+        return mPhase >= 3;
+    }
+
+    function getRecordingMaxWaitMs() {
+        const targetWordCount = currentTargetEng.split(/\s+/).filter(Boolean).length;
+        if (isRecallManualEndPhase()) {
+            return Math.min(300000, Math.max(90000, targetWordCount * 2500));
+        }
+        return Math.min(30000, Math.max(15000, targetWordCount * 2000));
+    }
+
     function getTopicFullEng(data) {
         return data.sentences.map(function(s) { return s[1]; }).join(' ');
     }
@@ -1480,7 +1494,7 @@
         updateUI(
             data.question,
             '<div class="recall-hint">[3단계 · 한글 회상] 아래 한글을 보고 영어 스크립트 전체를 말하세요.</div>' + escapeHtml(data.kor),
-            '<div class="eng-hidden">영어 스크립트는 숨김 · 말한 뒤 Space로 다음</div>',
+            '<div class="eng-hidden">영어 스크립트는 숨김 · 다 말한 뒤 Enter로 점검 · Space로 다음</div>',
             false
         );
         document.getElementById('ui-eng-text').className = 'english-text';
@@ -1495,7 +1509,7 @@
         updateUI(
             data.question,
             '<div class="recall-hint">[4단계 · 키워드 회상] 키워드만 보고 영어 스크립트 전체를 말하세요.</div><div class="recall-keywords">' + formatKeywordsHtml(data) + '</div>',
-            '<div class="eng-hidden">영어 스크립트는 숨김 · 말한 뒤 Space로 다음</div>',
+            '<div class="eng-hidden">영어 스크립트는 숨김 · 다 말한 뒤 Enter로 점검 · Space로 다음</div>',
             false
         );
         document.getElementById('ui-eng-text').className = 'english-text';
@@ -1510,7 +1524,7 @@
         updateUI(
             data.question,
             '<div class="recall-hint">[5단계 · 질문 회상] 질문만 보고 영어 답변 전체를 말하세요.</div>',
-            '<div class="eng-hidden">한글·영어 힌트 숨김 · 말한 뒤 Space로 다음</div>',
+            '<div class="eng-hidden">한글·영어 힌트 숨김 · 다 말한 뒤 Enter로 점검 · Space로 다음</div>',
             false
         );
         document.getElementById('ui-kor-text').innerHTML = '';
@@ -1528,7 +1542,7 @@
         updateUI(
             data.altQuestion,
             '<div class="recall-hint">[6단계 · 피벗] 브릿지로 시작해 스크립트로 이어가세요.</div>',
-            '👀 영어 스크립트 숨김',
+            '👀 영어 스크립트 숨김 · 다 말한 뒤 Enter로 점검',
             true
         );
         document.getElementById('ui-bridge-box').innerHTML = '<b>[추천 브릿지]</b><br><span style="color:#B45309">"' + escapeHtml(randBridge) + '"</span>';
@@ -1599,6 +1613,10 @@
         currentMissedWordsList = practiceWords;
         if (!isPass && practiceWords.length && !resHtml.includes('pa-word-speak-btn')) {
             resHtml += buildMissedWordBtnsHtml(practiceWords);
+        }
+        if (window._azureAssessTrimNote) {
+            resHtml = '<div style="font-size:12px;color:#64748B;margin-bottom:8px;">' + window._azureAssessTrimNote + '</div>' + resHtml;
+            window._azureAssessTrimNote = '';
         }
 
         fbBox.style.display = 'block';
@@ -2001,38 +2019,58 @@
         return result;
     }
 
-    function speakText(text, lang='en', callback=null) {
+    function speakTextBrowser(text, lang, callback, exaggerated) {
         stopAllPlayback();
         const safeText = lang === 'en' ? sanitizeForTTS(text) : text;
         const utter = new SpeechSynthesisUtterance(safeText);
-        
-        if(lang === 'en') {
-            utter.lang = 'en-US'; utter.rate = 0.95; utter.pitch = 1.05; 
-            if(femaleEngVoice) utter.voice = femaleEngVoice;
+        if (lang === 'en') {
+            utter.lang = 'en-US';
+            if (exaggerated) {
+                utter.rate = 0.28;
+                utter.pitch = 1.35;
+                utter.volume = 1;
+            } else {
+                utter.rate = 0.92;
+                utter.pitch = 1.12;
+            }
+            if (femaleEngVoice) utter.voice = femaleEngVoice;
         } else {
-            utter.lang = 'ko-KR'; utter.rate = 0.95; utter.pitch = 0.9; 
-            if(femaleKorVoice) utter.voice = femaleKorVoice;
+            utter.lang = 'ko-KR';
+            utter.rate = exaggerated ? 0.3 : 0.92;
+            utter.pitch = exaggerated ? 1.2 : 0.95;
+            if (femaleKorVoice) utter.voice = femaleKorVoice;
         }
-        if(callback) utter.onend = callback;
+        if (callback) utter.onend = callback;
         speechSynthesis.speak(utter);
     }
 
+    function speakText(text, lang, callback) {
+        lang = lang || 'en';
+        if (typeof AzureTts !== 'undefined' && AzureTts.isTtsReady()) {
+            AzureTts.speak(text, lang, callback || null);
+            return;
+        }
+        speakTextBrowser(text, lang, callback || null);
+    }
+
+    function speakPracticeWord(word, callback) {
+        if (typeof AzureTts !== 'undefined' && AzureTts.speakPractice) {
+            AzureTts.speakPractice(word, callback || null);
+            return;
+        }
+        speakTextBrowser(word, 'en', callback || null, true);
+    }
+
     function autoPlayMissedWords(wordsArray) {
-        stopAllPlayback();
-        wordsArray.forEach(word => {
-            const utter = new SpeechSynthesisUtterance(sanitizeForTTS(word));
-            utter.lang = 'en-US'; utter.rate = 0.4; utter.pitch = 1.0; 
-            if(femaleEngVoice) utter.voice = femaleEngVoice;
-            speechSynthesis.speak(utter);
+        wordsArray.forEach(function (word, idx) {
+            setTimeout(function () {
+                speakPracticeWord(word);
+            }, idx * 1400);
         });
     }
 
     window.speakExaggeratedWord = function(word) {
-        stopAllPlayback();
-        const utter = new SpeechSynthesisUtterance(sanitizeForTTS(word));
-        utter.lang = 'en-US'; utter.rate = 0.4; utter.pitch = 1.0; 
-        if(femaleEngVoice) utter.voice = femaleEngVoice;
-        speechSynthesis.speak(utter);
+        speakPracticeWord(word);
     }
 
     function appendRecordingPlaybackButtons() {
@@ -2072,12 +2110,13 @@
             }
         }
 
-        if (wasAzure && evalPhase === 2 && typeof AzureSpeech !== 'undefined') {
+        if (wasAzure && evalPhase >= 2 && evalPhase <= 6 && typeof AzureSpeech !== 'undefined') {
             fbBox.style.display = 'block';
             fbBox.className = 'feedback';
             fbRes.innerHTML = '<div class="listening-hint">Azure 채점 중… (Short Audio)</div>';
+            window._azureAssessTrimNote = '';
             try {
-                const wav = await stopMediaRecorderAndGetWav();
+                let wav = await stopMediaRecorderAndGetWav();
                 let refForAzure = (currentTargetEng || '').replace(/\s+/g, ' ').trim();
                 if (!refForAzure && evalPhase === 2 && db[currentTopicIndex]) {
                     const sent = db[currentTopicIndex].sentences[mSentIdx];
@@ -2087,6 +2126,16 @@
                     fbBox.className = 'feedback fail';
                     fbRes.innerHTML = '채점할 영어 문장이 없습니다. 페이지를 새로고침 후 2단계부터 다시 시도하세요.';
                     return;
+                }
+                if (typeof AudioWav !== 'undefined' && AudioWav.getWavDurationSec && evalPhase >= 3) {
+                    const dur = await AudioWav.getWavDurationSec(wav);
+                    const AZURE_PRONOUNCE_MAX_SEC = 30;
+                    if (dur > AZURE_PRONOUNCE_MAX_SEC + 0.5) {
+                        wav = await AudioWav.trimWavToMaxSeconds(wav, AZURE_PRONOUNCE_MAX_SEC);
+                        window._azureAssessTrimNote =
+                            '통문장 녹음은 전체 저장 · Azure 발음 채점은 앞 ' + AZURE_PRONOUNCE_MAX_SEC +
+                            '초만 적용됩니다. (Azure Short Audio 한도)';
+                    }
                 }
                 const assessment = await AzureSpeech.assessWavBlob(wav, refForAzure);
                 if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) {
@@ -2155,10 +2204,12 @@
                     isRecording = true;
                     fbBox.style.display = 'block';
                     fbBox.className = 'feedback';
-                    fbRes.innerHTML = '<div class="listening-hint">듣는 중… 끝나면 Enter · Azure Short Audio 채점</div>';
+                    const azureHint = isRecallManualEndPhase()
+                        ? '듣는 중… 통문장을 <b>다 말한 뒤 Enter</b> · Azure 채점 (통문장 30초 초과 시 앞 30초만)'
+                        : '듣는 중… 끝나면 <b>Enter</b> · Azure Short Audio 채점';
+                    fbRes.innerHTML = '<div class="listening-hint">' + azureHint + '</div>';
                     clearTimeout(recordTimer);
-                    let targetWordCount = currentTargetEng.split(' ').length;
-                    let maxWaitTime = Math.min(30000, Math.max(15000, targetWordCount * 2000));
+                    const maxWaitTime = getRecordingMaxWaitMs();
                     recordTimer = setTimeout(function () {
                         if (isRecording) stopRecordingAndEvaluate('');
                     }, maxWaitTime);
@@ -2190,15 +2241,34 @@
             btnMic.innerHTML = "🛑 말하는 중... (클릭/Enter로 종료)";
             btnMic.classList.add('recording');
             isRecording = true;
-            fbBox.style.display = 'none';
             clearTimeout(recordTimer);
-            let targetWordCount = currentTargetEng.split(' ').length;
-            let maxWaitTime = Math.max(15000, targetWordCount * 2000);
+            const maxWaitTime = getRecordingMaxWaitMs();
             recordTimer = setTimeout(function() {
                 if (isRecording) stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
             }, maxWaitTime);
+            if (isRecallManualEndPhase()) {
+                fbBox.style.display = 'block';
+                fbBox.className = 'feedback';
+                fbRes.innerHTML = '<div class="listening-hint">듣는 중… 통문장을 <b>다 말한 뒤 Enter</b>로 점검 (최대 ' +
+                    Math.round(maxWaitTime / 60000) + '분)</div>';
+            } else {
+                fbBox.style.display = 'none';
+            }
         } catch(e) {
             alert("마이크 권한이 필요합니다. 브라우저 설정을 확인해주세요.");
+        }
+    }
+
+    function restartRecognitionIfRecallRecording() {
+        if (!isRecording || useAzureMic || !isRecallManualEndPhase()) return;
+        try {
+            recognition.start();
+        } catch (e) {
+            setTimeout(function() {
+                if (isRecording && !useAzureMic && isRecallManualEndPhase()) {
+                    try { recognition.start(); } catch (e2) {}
+                }
+            }, 250);
         }
     }
 
@@ -2214,20 +2284,34 @@
         let fullSpoken = finalTranscript + interim;
         fbBox.style.display = 'block';
         fbBox.className = 'feedback';
-        fbRes.innerHTML = `<div class="listening-hint">듣는 중…</div>`;
-        
+
         let targetWords = currentTargetEng.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
         let spokenWords = fullSpoken.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
         let lastTargetWord = targetWords[targetWords.length - 1];
         
         if (useAzureMic) return;
+
+        if (isRecallManualEndPhase()) {
+            const pct = targetWords.length
+                ? Math.min(100, Math.round((spokenWords.length / targetWords.length) * 100))
+                : 0;
+            fbRes.innerHTML = '<div class="listening-hint">듣는 중… 약 ' + spokenWords.length + ' / ' + targetWords.length +
+                ' 단어 (' + pct + '%) · <b>다 말한 뒤 Enter</b>로 점검</div>';
+            return;
+        }
+
+        fbRes.innerHTML = '<div class="listening-hint">듣는 중…</div>';
         if (spokenWords.length >= targetWords.length * 0.8 && spokenWords.includes(lastTargetWord)) {
             stopRecordingAndEvaluate(fullSpoken);
         }
     };
 
     recognition.onend = function() {
-        if(!isRecording || useAzureMic) return; 
+        if (!isRecording || useAzureMic) return;
+        if (isRecallManualEndPhase()) {
+            restartRecognitionIfRecallRecording();
+            return;
+        }
         stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
     };
 
@@ -2304,9 +2388,16 @@
         renderDifficultyPanel();
         updateMissionDifficultyBadge();
         updateDashboard();
+        const inits = [];
         if (typeof AzureSpeech !== 'undefined') {
-            AzureSpeech.initAzureSpeech().then(function (ok) {
-                updateAzureStatusLabel(ok);
+            inits.push(AzureSpeech.initAzureSpeech());
+        }
+        if (typeof AzureTts !== 'undefined') {
+            inits.push(AzureTts.initAzureTts());
+        }
+        if (inits.length) {
+            Promise.all(inits).then(function (results) {
+                updateAzureStatusLabel(!!results[0]);
             });
         } else {
             updateAzureStatusLabel(false);

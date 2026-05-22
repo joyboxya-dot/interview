@@ -1,6 +1,6 @@
 /**
  * 2단계: Azure Short Audio REST (speech-server 프록시)
- * 3~6단계: 브라우저 STT (이 모듈 미사용)
+ * 3~6단계: Azure Short Audio (통문장, 녹음 30초 초과 시 앞 30초만 채점)
  */
 (function (global) {
     const settings = () => global.INTERVIEW_SETTINGS || {};
@@ -35,7 +35,9 @@
     }
 
     function getAzureStatusMessage() {
-        if (lastInitHint === 'ok' || ready) return 'Azure Short Audio 발음·운율 평가 연결됨';
+        if (lastInitHint === 'ok' || ready) {
+            return 'Azure 발음·운율(2~6단계) + Neural TTS(안내 음성) 연결됨';
+        }
         if (lastInitHint === 'disabled') return '브라우저 단어 매칭 모드';
         if (lastInitHint === 'no_server') {
             if (location.protocol === 'file:') {
@@ -51,7 +53,7 @@
     }
 
     function shouldUseAzureForPhase(phase) {
-        return isAzureReady() && phase === 2;
+        return isAzureReady() && phase >= 2 && phase <= 6;
     }
 
     function buildDetailFromAssessment(parsed) {
@@ -156,10 +158,19 @@
     function getWeakWords(assessmentWords) {
         if (!assessmentWords || !assessmentWords.length) return [];
         const weak = [];
+        const displayEt =
+            typeof global.PronunciationViz !== 'undefined' && global.PronunciationViz.displayErrorType
+                ? function (et) {
+                      return global.PronunciationViz.displayErrorType(et);
+                  }
+                : function (et) {
+                      const t = et || 'None';
+                      return t === 'MissingBreak' || t === 'Monotone' ? 'None' : t;
+                  };
         assessmentWords.forEach(function (w) {
             const word = (w.word || w.Word || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             if (!word || word.length < 2) return;
-            const err = w.errorType || w.ErrorType || 'None';
+            const err = displayEt(w.errorType || w.ErrorType || 'None');
             const acc =
                 w.accuracyScore != null
                     ? w.accuracyScore

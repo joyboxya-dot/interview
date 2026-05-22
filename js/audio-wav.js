@@ -90,8 +90,47 @@
         return audioBufferTo16kWavBlob(audioBuffer);
     }
 
+    function getWavDurationSec(wavBlob) {
+        return wavBlob.arrayBuffer().then(function (ab) {
+            const view = new DataView(ab);
+            if (ab.byteLength < 44) return 0;
+            if (String.fromCharCode(view.getUint8(8), view.getUint8(9), view.getUint8(10), view.getUint8(11)) !== 'WAVE') {
+                return 0;
+            }
+            const byteRate = view.getUint32(28, true);
+            const dataSize = view.getUint32(40, true);
+            if (!byteRate) return 0;
+            return dataSize / byteRate;
+        });
+    }
+
+    async function trimWavToMaxSeconds(wavBlob, maxSec) {
+        const ab = await wavBlob.arrayBuffer();
+        const view = new DataView(ab);
+        if (ab.byteLength < 44) return wavBlob;
+        const sampleRate = view.getUint32(24, true);
+        const byteRate = view.getUint32(28, true);
+        const dataSize = view.getUint32(40, true);
+        const maxDataBytes = Math.floor(byteRate * maxSec);
+        if (dataSize <= maxDataBytes) return wavBlob;
+
+        const newDataSize = maxDataBytes - (maxDataBytes % 2);
+        const newSize = 44 + newDataSize;
+        const out = new ArrayBuffer(newSize);
+        const outView = new DataView(out);
+        const srcBytes = new Uint8Array(ab);
+        const dstBytes = new Uint8Array(out);
+        dstBytes.set(srcBytes.slice(0, 44));
+        outView.setUint32(4, 36 + newDataSize, true);
+        outView.setUint32(40, newDataSize, true);
+        dstBytes.set(srcBytes.slice(44, 44 + newDataSize), 44);
+        return new Blob([out], { type: 'audio/wav' });
+    }
+
     global.AudioWav = {
         blobTo16kMonoWav: blobTo16kMonoWav,
+        getWavDurationSec: getWavDurationSec,
+        trimWavToMaxSeconds: trimWavToMaxSeconds,
         TARGET_SAMPLE_RATE: TARGET_RATE,
     };
 })(window);
