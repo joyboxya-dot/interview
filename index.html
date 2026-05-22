@@ -212,6 +212,22 @@
             border-color: var(--primary); background: #EFF6FF; color: var(--primary);
         }
         .difficulty-hint { margin-top: 6px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
+        .tts-speed-panel {
+            text-align: left; margin: 8px 0 0; padding: 8px 10px; background: #F8FAFC;
+            border-radius: 8px; border: 1px solid #E2E8F0;
+        }
+        .tts-speed-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end;
+        }
+        .tts-speed-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .tts-speed-label { font-size: 10px; font-weight: 700; color: #64748B; }
+        .tts-speed-select {
+            width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid #CBD5E1;
+            background: white; font-size: 12px; font-weight: 600; color: #334155;
+            cursor: pointer; appearance: auto;
+        }
+        .tts-speed-select:focus { outline: 2px solid #BFDBFE; border-color: var(--primary); }
+        .tts-speed-hint { margin-top: 6px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
         #dashboard .azure-status { margin-top: 6px; font-size: 11px; }
         .mission-difficulty-badge {
             font-size: 12px; font-weight: 600; color: #64748B;
@@ -378,6 +394,20 @@
                     <div class="difficulty-title">2단계 발음 난이도</div>
                     <div class="difficulty-options" id="difficulty-options"></div>
                     <div class="difficulty-hint" id="difficulty-hint"></div>
+                </div>
+                <div class="tts-speed-panel" id="tts-speed-panel">
+                    <div class="difficulty-title">음성 재생 속도</div>
+                    <div class="tts-speed-row">
+                        <div class="tts-speed-field">
+                            <label class="tts-speed-label" for="tts-speed-normal">안내·모범</label>
+                            <select class="tts-speed-select" id="tts-speed-normal" aria-label="안내·모범 음성 속도"></select>
+                        </div>
+                        <div class="tts-speed-field">
+                            <label class="tts-speed-label" for="tts-speed-practice">틀린 단어</label>
+                            <select class="tts-speed-select" id="tts-speed-practice" aria-label="틀린 단어 음성 속도"></select>
+                        </div>
+                    </div>
+                    <p class="tts-speed-hint" id="tts-speed-hint"></p>
                 </div>
                 <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
                 <button type="button" class="dash-recordings-promo" id="btn-dash-recordings-promo">
@@ -548,6 +578,47 @@
         if (!el || typeof window.getPassThresholds !== 'function') return;
         const t = window.getPassThresholds();
         el.textContent = '난이도 ' + t.label + ' (' + window.formatPassThresholdLine(t) + ')';
+    }
+
+    function fillTtsSpeedSelect(selectEl, selectedRate) {
+        if (!selectEl || !window.TTS_SPEED_OPTIONS) return;
+        selectEl.innerHTML = '';
+        window.TTS_SPEED_OPTIONS.forEach(function (opt) {
+            const o = document.createElement('option');
+            o.value = String(opt.rate);
+            o.textContent = opt.label;
+            selectEl.appendChild(o);
+        });
+        const snapped = typeof window.closestTtsOptionRate === 'function'
+            ? window.closestTtsOptionRate(selectedRate)
+            : selectedRate;
+        selectEl.value = String(snapped);
+    }
+
+    function renderTtsSpeedPanel() {
+        const selNormal = document.getElementById('tts-speed-normal');
+        const selPractice = document.getElementById('tts-speed-practice');
+        const hint = document.getElementById('tts-speed-hint');
+        if (!selNormal || !selPractice || !window.getSavedTtsNormalRate) return;
+
+        fillTtsSpeedSelect(selNormal, window.getSavedTtsNormalRate());
+        fillTtsSpeedSelect(selPractice, window.getSavedTtsPracticeRate());
+
+        if (!selNormal.dataset.bound) {
+            selNormal.dataset.bound = '1';
+            selNormal.onchange = function () {
+                window.setSavedTtsNormalRate(parseFloat(selNormal.value));
+                if (hint) hint.textContent = window.formatTtsSpeedHint();
+            };
+        }
+        if (!selPractice.dataset.bound) {
+            selPractice.dataset.bound = '1';
+            selPractice.onchange = function () {
+                window.setSavedTtsPracticeRate(parseFloat(selPractice.value));
+                if (hint) hint.textContent = window.formatTtsSpeedHint();
+            };
+        }
+        if (hint) hint.textContent = window.formatTtsSpeedHint();
     }
 
     function renderDifficultyPanel() {
@@ -1005,6 +1076,7 @@
         if (!url) { if (onDone) onDone(); return; }
         stopAllPlayback();
         const audio = new Audio(url);
+        audio.playbackRate = 1;
         activeAudio = audio;
         audio.onended = function() {
             if (activeAudio === audio) activeAudio = null;
@@ -2049,22 +2121,25 @@
 
     function speakTextBrowser(text, lang, callback, exaggerated) {
         speechSynthesis.cancel();
+        const ttsRates = typeof window.getTtsPlaybackRates === 'function'
+            ? window.getTtsPlaybackRates()
+            : { browserNormal: 0.78, browserPractice: 0.22 };
         const safeText = lang === 'en' ? sanitizeForTTS(text) : text;
         const utter = new SpeechSynthesisUtterance(safeText);
         if (lang === 'en') {
             utter.lang = 'en-US';
             if (exaggerated) {
-                utter.rate = 0.28;
-                utter.pitch = 1.35;
+                utter.rate = ttsRates.browserPractice;
+                utter.pitch = 1.25;
                 utter.volume = 1;
             } else {
-                utter.rate = 0.92;
-                utter.pitch = 1.12;
+                utter.rate = ttsRates.browserNormal;
+                utter.pitch = 1.08;
             }
             if (femaleEngVoice) utter.voice = femaleEngVoice;
         } else {
             utter.lang = 'ko-KR';
-            utter.rate = exaggerated ? 0.3 : 0.92;
+            utter.rate = exaggerated ? ttsRates.browserPractice : ttsRates.browserNormal;
             utter.pitch = exaggerated ? 1.2 : 0.95;
             if (femaleKorVoice) utter.voice = femaleKorVoice;
         }
@@ -2426,6 +2501,7 @@
 
     hydrateArchiveFromIdb().then(function() {
         renderDifficultyPanel();
+        renderTtsSpeedPanel();
         updateMissionDifficultyBadge();
         updateDashboard();
         const inits = [];

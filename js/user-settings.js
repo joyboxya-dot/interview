@@ -7,15 +7,10 @@ window.INTERVIEW_SETTINGS = {
 
     /** true: Azure Neural TTS (서버·브라우저 캐시, 문구당 1회 합성) */
     useAzureTts: true,
-    /**
-     * 여성 Neural · 강세·운율 강조 (서버 SSML과 동일 프로필)
-     * normal: Aria + newscast-formal / practice: Aria + shouting + 재생 0.7배속
-     */
+    /** 여성 Neural (Aria) — 서버 SSML과 맞춤, newscast-formal 은 너무 빠름 */
     ttsVoiceEn: 'en-US-AriaNeural',
     ttsVoiceKo: 'ko-KR-SunHiNeural',
-    ttsStyleEn: 'newscast-formal',
-    /** 틀린 단어 듣기: 합성은 과장, 재생 속도 */
-    ttsPracticePlaybackRate: 0.7,
+    ttsStyleEn: 'empathetic',
 
     /** speech-server (npm start) */
     healthUrl: '/api/health',
@@ -81,4 +76,84 @@ window.getPassThresholds = function () {
 window.formatPassThresholdLine = function (t) {
     t = t || window.getPassThresholds();
     return '정확도 ' + t.passAccuracy + ' · 유창성 ' + t.passFluency + ' · 운율 ' + t.passProsody;
+};
+
+/** TTS·안내 음성 재생 속도 (대시보드 콤보, localStorage) — 녹음본(←→)은 항상 100% */
+window.TTS_SPEED_OPTIONS = [
+    { rate: 0.5, label: '50% · 아주 느림' },
+    { rate: 0.55, label: '55%' },
+    { rate: 0.65, label: '65%' },
+    { rate: 0.72, label: '72%' },
+    { rate: 0.82, label: '82% · 기본' },
+    { rate: 0.92, label: '92%' },
+    { rate: 1.0, label: '100% · 원속' },
+];
+
+window.TTS_NORMAL_SPEED_KEY = 'interviewTtsNormalSpeedV1';
+window.TTS_PRACTICE_SPEED_KEY = 'interviewTtsPracticeSpeedV1';
+window.DEFAULT_TTS_NORMAL_RATE = 0.82;
+window.DEFAULT_TTS_PRACTICE_RATE = 0.65;
+
+function parseTtsRate(value, fallback) {
+    const n = parseFloat(value);
+    if (!isNaN(n) && n >= 0.4 && n <= 1.2) return n;
+    return fallback;
+}
+
+function closestTtsOptionRate(rate) {
+    const opts = window.TTS_SPEED_OPTIONS;
+    let best = opts[0].rate;
+    let diff = Math.abs(rate - best);
+    opts.forEach(function (o) {
+        const d = Math.abs(rate - o.rate);
+        if (d < diff) {
+            diff = d;
+            best = o.rate;
+        }
+    });
+    return best;
+}
+
+window.getSavedTtsNormalRate = function () {
+    const saved = localStorage.getItem(window.TTS_NORMAL_SPEED_KEY);
+    if (saved != null) return closestTtsOptionRate(parseTtsRate(saved, window.DEFAULT_TTS_NORMAL_RATE));
+    const legacy = window.INTERVIEW_SETTINGS && window.INTERVIEW_SETTINGS.ttsNormalPlaybackRate;
+    return closestTtsOptionRate(parseTtsRate(legacy, window.DEFAULT_TTS_NORMAL_RATE));
+};
+
+window.getSavedTtsPracticeRate = function () {
+    const saved = localStorage.getItem(window.TTS_PRACTICE_SPEED_KEY);
+    if (saved != null) return closestTtsOptionRate(parseTtsRate(saved, window.DEFAULT_TTS_PRACTICE_RATE));
+    const legacy = window.INTERVIEW_SETTINGS && window.INTERVIEW_SETTINGS.ttsPracticePlaybackRate;
+    return closestTtsOptionRate(parseTtsRate(legacy, window.DEFAULT_TTS_PRACTICE_RATE));
+};
+
+window.setSavedTtsNormalRate = function (rate) {
+    localStorage.setItem(window.TTS_NORMAL_SPEED_KEY, String(closestTtsOptionRate(rate)));
+};
+
+window.setSavedTtsPracticeRate = function (rate) {
+    localStorage.setItem(window.TTS_PRACTICE_SPEED_KEY, String(closestTtsOptionRate(rate)));
+};
+
+/** @returns {{ normal: number, practice: number, browserNormal: number, browserPractice: number }} */
+window.getTtsPlaybackRates = function () {
+    const normal = window.getSavedTtsNormalRate();
+    const practice = window.getSavedTtsPracticeRate();
+    return {
+        normal: normal,
+        practice: practice,
+        browserNormal: Math.min(1, normal * 0.92),
+        browserPractice: Math.min(0.5, practice * 0.34),
+    };
+};
+
+window.closestTtsOptionRate = closestTtsOptionRate;
+
+window.formatTtsSpeedHint = function () {
+    const r = window.getTtsPlaybackRates();
+    const pct = function (x) {
+        return Math.round(x * 100) + '%';
+    };
+    return '안내·모범 ' + pct(r.normal) + ' · 틀린 단어 ' + pct(r.practice) + ' · 녹음 재생 100%';
 };

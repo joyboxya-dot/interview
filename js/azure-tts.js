@@ -11,8 +11,10 @@
     let currentAudio = null;
     let currentObjectUrl = null;
 
+    const TTS_CACHE_VERSION = 'v3-slow';
+
     function cacheId(text, lang, profile) {
-        return profile + '|' + lang + '|' + text;
+        return TTS_CACHE_VERSION + '|' + profile + '|' + lang + '|' + text;
     }
 
     function openTtsDb() {
@@ -83,9 +85,16 @@
         return settings().useAzureTts !== false && ready;
     }
 
+    function normalPlaybackRate() {
+        if (typeof global.getSavedTtsNormalRate === 'function') return global.getSavedTtsNormalRate();
+        const r = settings().ttsNormalPlaybackRate;
+        return typeof r === 'number' && r > 0 && r <= 1.5 ? r : 0.82;
+    }
+
     function practicePlaybackRate() {
+        if (typeof global.getSavedTtsPracticeRate === 'function') return global.getSavedTtsPracticeRate();
         const r = settings().ttsPracticePlaybackRate;
-        return typeof r === 'number' && r > 0 && r <= 1.5 ? r : 0.7;
+        return typeof r === 'number' && r > 0 && r <= 1.5 ? r : 0.65;
     }
 
     /** 실제 오디오만 멈춤 (세션 ID는 유지) */
@@ -199,7 +208,7 @@
         try {
             const blob = await getCachedMp3Blob(safe, lang === 'ko' ? 'ko' : 'en', 'normal');
             if (sessionId !== playSessionId) return;
-            await playMp3Blob(blob, 1, callback, sessionId);
+            await playMp3Blob(blob, normalPlaybackRate(), callback, sessionId);
         } catch (e) {
             console.warn('Azure TTS speak failed', e);
             if (sessionId === playSessionId) {
