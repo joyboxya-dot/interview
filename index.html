@@ -277,6 +277,31 @@
             display: inline-block; font-size: 11px; font-weight: 800; color: #B91C1C;
             background: #FEE2E2; padding: 4px 10px; border-radius: 999px; margin-top: 6px;
         }
+        .practice-track-panel {
+            text-align: left; margin: 0 0 12px; padding: 12px 14px;
+            background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
+            border-radius: 10px; border: 1px solid #BFDBFE;
+        }
+        .practice-track-panel .difficulty-title { margin-bottom: 8px; color: #1E40AF; }
+        .practice-track-options { display: flex; gap: 8px; flex-wrap: wrap; }
+        .practice-track-btn {
+            flex: 1; min-width: 120px; padding: 10px 12px; border-radius: 8px;
+            border: 2px solid #CBD5E1; background: white; cursor: pointer; text-align: left;
+        }
+        .practice-track-btn.active {
+            border-color: var(--primary); background: #DBEAFE; box-shadow: 0 0 0 1px var(--primary);
+        }
+        .practice-track-btn-title { display: block; font-size: 14px; font-weight: 800; color: #1E293B; }
+        .practice-track-btn-sub { display: block; font-size: 10px; font-weight: 600; color: #64748B; margin-top: 2px; }
+        .practice-track-hint { margin: 8px 0 0; font-size: 11px; color: #475569; line-height: 1.4; }
+        .cloze-blank {
+            display: inline-block; min-width: 2.2em; padding: 0 4px; margin: 0 1px;
+            border-bottom: 2px solid #F59E0B; color: #B45309; font-weight: 800;
+            vertical-align: baseline;
+        }
+        .cloze-level-tag {
+            font-size: 11px; font-weight: 700; color: #B45309; margin-bottom: 6px;
+        }
         .dash-check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; margin-top: 6px; }
         .content-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
         .content-actions button {
@@ -525,6 +550,11 @@
         <div class="dash-grid">
             <div class="dash-main">
                 <p id="resume-info" class="dash-resume"></p>
+                <div class="practice-track-panel" id="practice-track-panel">
+                    <div class="difficulty-title">연습 트랙</div>
+                    <div class="practice-track-options" id="practice-track-options"></div>
+                    <p class="practice-track-hint" id="practice-track-hint"></p>
+                </div>
                 <details class="dash-settings-fold" id="dash-settings-fold">
                     <summary>⚙️ 설정</summary>
                     <div class="dash-settings-body">
@@ -544,7 +574,7 @@
                     <p class="tts-speed-hint" id="l2-speed-hint"></p>
                 </div>
                 <div class="mastery-dash-panel" id="mastery-dash-panel">
-                    <div class="difficulty-title">숙달 모드</div>
+                    <div class="difficulty-title">숙달 모드 <span id="mastery-panel-sub" style="font-weight:600;color:#94A3B8"></span></div>
                     <label class="dash-check-row">
                         <input type="checkbox" id="mastery-mode-check" checked />
                         못 외운 항목은 큐에서 무한 반복 (넘어가기 제한)
@@ -552,7 +582,7 @@
                     <div class="mastery-queue-badge" id="mastery-queue-badge">약점 큐 0개</div>
                 </div>
                 <div class="tts-speed-panel" id="tts-speed-panel">
-                    <div class="difficulty-title">음성 재생 속도</div>
+                    <div class="difficulty-title">음성 재생 속도 (영어 모범 = L2 말하기 속도)</div>
                     <div class="tts-speed-row">
                         <div class="tts-speed-field">
                             <label class="tts-speed-label" for="tts-speed-normal">안내·모범</label>
@@ -686,7 +716,9 @@
 </div>
 
 <script src="js/user-settings.js"></script>
+<script src="js/practice-track.js"></script>
 <script src="js/dashboard-settings.js"></script>
+<script src="js/cloze-hint.js"></script>
 <script src="js/topic-store.js"></script>
 <script src="js/content-loader.js"></script>
 <script src="js/script-ai.js"></script>
@@ -694,6 +726,7 @@
 <script src="js/l2-fluency.js"></script>
 <script src="js/mastery-engine.js"></script>
 <script src="js/reading-guide.js"></script>
+<script src="js/comic-generator-fallback.js"></script>
 <script src="js/comic-hint.js"></script>
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js"></script>
@@ -834,7 +867,68 @@
         return null;
     }
 
+    function isInterviewPracticeTrack() {
+        return typeof PracticeTrack !== 'undefined' && PracticeTrack.isInterviewTrack();
+    }
+
+    function getClozeStorageKey() {
+        if (typeof ClozeHint === 'undefined') return null;
+        if (mPhase === 2) return ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
+        if (mPhase === 4) return ClozeHint.fullKey(currentTopicIndex);
+        return null;
+    }
+
+    function bumpClozeAfterPass() {
+        if (!isInterviewPracticeTrack() || typeof ClozeHint === 'undefined') return;
+        const key = getClozeStorageKey();
+        if (!key) return;
+        const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
+        ClozeHint.bumpLevel(key, wc);
+    }
+
+    function isInterviewSpeechPass(spokenText, targetText) {
+        const cleanSpoken = String(spokenText || '')
+            .toLowerCase()
+            .replace(/-/g, ' ')
+            .replace(/[^a-z0-9\s]/g, '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        const cleanTarget = String(targetText || '')
+            .toLowerCase()
+            .replace(/-/g, ' ')
+            .replace(/[^a-z0-9\s]/g, '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        if (!cleanTarget.length) return cleanSpoken.length >= 2;
+        const minWords = Math.max(2, Math.floor(cleanTarget.length * 0.35));
+        if (cleanSpoken.length < minWords) return false;
+        let matchCount = 0;
+        const temp = cleanSpoken.slice();
+        cleanTarget.forEach(function (word) {
+            const idx = temp.indexOf(word);
+            if (idx !== -1) {
+                matchCount++;
+                temp.splice(idx, 1);
+            }
+        });
+        const matchRate = Math.round((matchCount / cleanTarget.length) * 100);
+        return matchRate >= 40;
+    }
+
+    function isInterviewAzurePass(assessment, refText) {
+        if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) return false;
+        const comp = assessment.completenessScore != null ? assessment.completenessScore : 0;
+        if (comp >= 35) return true;
+        return isInterviewSpeechPass(assessment.text, refText);
+    }
+
     function canSkipCurrentPhase() {
+        if (isInterviewPracticeTrack()) {
+            if (tormentActive) return false;
+            return true;
+        }
         if (!MasteryEngine || !MasteryEngine.isMasteryMode()) return true;
         if (tormentActive) return false;
         if (mPhase < 2) return true;
@@ -849,6 +943,10 @@
     }
 
     function getSkipBlockReason() {
+        if (isInterviewPracticeTrack()) {
+            if (tormentActive) return '약점 숙달 연습 중입니다.';
+            return '';
+        }
         if (!MasteryEngine || !MasteryEngine.isMasteryMode()) return '';
         if (tormentActive) {
             return '약점 숙달 연습 중입니다. 이 항목을 L2·발음 기준으로 통과해야 합니다.';
@@ -953,6 +1051,14 @@
 
     function applyMasteryAfterEval(contentPass) {
         const key = tormentActive && tormentKey ? tormentKey : getCurrentMasteryKey();
+        if (isInterviewPracticeTrack()) {
+            if (key && typeof MasteryEngine !== 'undefined') {
+                const metrics = buildFluencyMetrics(contentPass);
+                MasteryEngine.recordAttempt(key, contentPass, metrics);
+                updateMasteryQueueBadge();
+            }
+            return { pass: contentPass, fluHint: '' };
+        }
         if (!key || typeof MasteryEngine === 'undefined') {
             return { pass: contentPass, fluHint: '' };
         }
@@ -1008,6 +1114,7 @@
     }
 
     function drainTormentForTopic(topicIdx) {
+        if (typeof PracticeTrack !== 'undefined' && !PracticeTrack.shouldDrainTormentAtTopicEnd()) return false;
         if (typeof MasteryEngine === 'undefined' || !MasteryEngine.isMasteryMode()) return false;
         const key = MasteryEngine.pickNextQueueKey(topicIdx);
         if (!key) return false;
@@ -1063,7 +1170,19 @@
             if (addN) extra += ' · 추가 ' + addN;
             if (delN) extra += ' · 숨김 ' + delN;
         }
-        el.textContent = db.length + '개 스크립트' + ver + extra;
+        let comicNote = '';
+        if (typeof ComicHint !== 'undefined') {
+            let comicN = 0;
+            db.forEach(function (t) {
+                if (ComicHint.getTopicComic(t)) comicN += 1;
+            });
+            comicNote = ' · 4컷 ' + comicN + '/' + db.length;
+            if (comicN < db.length) {
+                el.style.color = '#B45309';
+                comicNote += ' (없는 주제는 학습 시 자동 생성)';
+            }
+        }
+        el.textContent = db.length + '개 스크립트' + ver + extra + comicNote;
     }
 
     function renderL2SpeedPanel() {
@@ -1081,13 +1200,26 @@
             sel.value = L2Fluency.getPresetId();
             sel.onchange = function () {
                 L2Fluency.setPresetId(sel.value);
-                if (hint) hint.textContent = L2Fluency.getPreset().label + ' · L2 면접 속도 기준';
+                if (hint) {
+                    hint.textContent =
+                        L2Fluency.getPreset().label +
+                        ' · 영어 모범 TTS ' +
+                        Math.round(L2Fluency.getModelEnglishTtsRate() * 100) +
+                        '%';
+                }
+                if (typeof renderTtsSpeedPanel === 'function') renderTtsSpeedPanel();
                 if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
             };
         } else {
             sel.value = L2Fluency.getPresetId();
         }
-        if (hint) hint.textContent = L2Fluency.getPreset().label + ' · 시작 지연·말하기 길이로 숙달 판정 (3단계+)';
+        if (hint) {
+            hint.textContent =
+                L2Fluency.getPreset().label +
+                ' · 영어 모범 TTS ' +
+                Math.round(L2Fluency.getModelEnglishTtsRate() * 100) +
+                '% · 3단계+ 숙달 판정';
+        }
     }
 
     function renderMasteryDashPanel() {
@@ -1145,10 +1277,66 @@
 
     function updateMissionDifficultyBadge() {
         const el = document.getElementById('mission-difficulty-badge');
-        if (!el || typeof window.getPassThresholds !== 'function') return;
+        if (!el) return;
+        if (isInterviewPracticeTrack()) {
+            el.textContent = '면접 답 트랙 · cloze · 발음 참고';
+            el.title = '건너뛰기 가능 · L2·숙달 차단 없음';
+            return;
+        }
+        if (typeof window.getPassThresholds !== 'function') return;
         const t = window.getPassThresholds();
-        el.textContent = '난이도 ' + t.label + ' (' + window.formatPassThresholdLine(t) + ')';
+        el.textContent = '발음·숙달 · ' + t.label + ' (' + window.formatPassThresholdLine(t) + ')';
+        el.title = '대시보드에서 변경';
     }
+
+    function updateMasteryPanelForTrack() {
+        const sub = document.getElementById('mastery-panel-sub');
+        const chk = document.getElementById('mastery-mode-check');
+        const panel = document.getElementById('mastery-dash-panel');
+        if (!sub || !chk) return;
+        if (isInterviewPracticeTrack()) {
+            sub.textContent = '(심화 트랙에서 적용)';
+            chk.disabled = true;
+            if (panel) panel.style.opacity = '0.65';
+        } else {
+            sub.textContent = '';
+            chk.disabled = false;
+            if (panel) panel.style.opacity = '1';
+        }
+    }
+
+    function renderPracticeTrackPanel() {
+        const container = document.getElementById('practice-track-options');
+        const hint = document.getElementById('practice-track-hint');
+        if (!container || typeof PracticeTrack === 'undefined') return;
+        const current = PracticeTrack.getTrackId();
+        container.innerHTML = '';
+        Object.keys(PracticeTrack.TRACKS).forEach(function (key) {
+            const t = PracticeTrack.TRACKS[key];
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'practice-track-btn' + (key === current ? ' active' : '');
+            btn.dataset.id = key;
+            btn.innerHTML =
+                '<span class="practice-track-btn-title">' +
+                t.label +
+                '</span><span class="practice-track-btn-sub">' +
+                t.short +
+                '</span>';
+            btn.onclick = function () {
+                PracticeTrack.setTrackId(key);
+                renderPracticeTrackPanel();
+                updateMasteryPanelForTrack();
+                updateMissionDifficultyBadge();
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
+            };
+            container.appendChild(btn);
+        });
+        const active = PracticeTrack.TRACKS[current];
+        if (hint && active) hint.textContent = active.hint;
+        updateMasteryPanelForTrack();
+    }
+    window.renderPracticeTrackPanel = renderPracticeTrackPanel;
 
     function fillTtsSpeedSelect(selectEl, selectedRate) {
         if (!selectEl || !window.TTS_SPEED_OPTIONS) return;
@@ -1832,6 +2020,14 @@
     }
 
     document.addEventListener('keydown', function(event) {
+        if (isKeyboardTypingTarget(event)) return;
+
+        if (event.code === 'Backspace') {
+            event.preventDefault();
+            navigateToPreviousPage();
+            return;
+        }
+
         if (event.code === 'Escape' && isRecordingReviewOpen()) {
             event.preventDefault();
             closeRecordingReviewPage();
@@ -1885,10 +2081,9 @@
                     speakExaggeratedWord(currentMissedWordsList[idx]);
                 }
             }
-            else if (event.code === 'Backspace') {
+            else if (event.code === 'ArrowUp') {
                 event.preventDefault();
-                if (isRecording) return;
-                goPreviousSentence();
+                if (!isRecording) goPreviousSentence();
             }
         }
     });
@@ -2206,7 +2401,12 @@
             btnSkip.style.flex = "3";
         } else if (mPhase === 2) {
             btnMic.style.display = 'flex';
-            btnSkip.style.display = 'none';
+            if (typeof PracticeTrack !== 'undefined' && PracticeTrack.phase2ShowsSkip()) {
+                btnSkip.style.display = 'flex';
+                btnSkip.style.flex = '1';
+            } else {
+                btnSkip.style.display = 'none';
+            }
         } else {
             btnMic.style.display = 'flex';
             if (canSkipCurrentPhase()) {
@@ -2221,26 +2421,36 @@
         btnMic.classList.remove('recording');
     }
 
-    function runPhase1() {
+    async function runPhase1() {
         mPhase = 1; mSentIdx = 0; retryCount = 0;
         persistProgress();
         let data = db[currentTopicIndex];
-        updateUI(
-            data.question,
-            getTopicDisplayKor(data),
-            formatEngForDisplay(getTopicFullEng(data).replace(/ /g, ' / '), true)
-        );
+        const minimal = typeof PracticeTrack !== 'undefined' && PracticeTrack.isMinimalPhase1();
+        const korHint = minimal
+            ? '<div class="recall-hint">[1단계 · 맥락] 4컷과 질문만 듣고 다음으로. (통문장 TTS 생략)</div>' +
+              escapeHtml(getTopicDisplayKor(data).slice(0, 280)) +
+              (getTopicDisplayKor(data).length > 280 ? '…' : '')
+            : getTopicDisplayKor(data);
+        const engHint = minimal
+            ? '<div class="eng-hidden">면접 답 트랙 · 영어 통문장은 2단계부터</div>'
+            : formatEngForDisplay(getTopicFullEng(data).replace(/ /g, ' / '), true);
+        updateUI(data.question, korHint, engHint);
         document.getElementById('ui-eng-text').className = 'english-text';
         if (window.ComicHint) {
-            ComicHint.showForPhase(data, 1);
+            data = await ComicHint.showForPhase(data, 1);
+            db[currentTopicIndex] = data;
             ComicHint.preloadTopicComic(data);
         }
 
-        speakText(getTopicDisplayKor(data), 'ko', () => {
-            speakText(getTopicFullEng(data), 'en', () => {
-                setTimeout(forceNextPhase, 1500);
+        if (minimal) {
+            speakText(data.question, 'en');
+        } else {
+            speakText(getTopicDisplayKor(data), 'ko', () => {
+                speakText(getTopicFullEng(data), 'en', () => {
+                    setTimeout(forceNextPhase, 1500);
+                });
             });
-        });
+        }
     }
 
     function runPhase2() {
@@ -2248,7 +2458,7 @@
         loadCurrentSentence();
     }
 
-    function loadCurrentSentence() {
+    async function loadCurrentSentence() {
         retryCount = 0;
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
@@ -2262,11 +2472,34 @@
         onCueShown();
 
         setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
-        const engHtml = formatEngForDisplay(sentEng, false, { syllableDots: true }) +
-            '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 아래 노란 「읽기 지도」= 말하기 전 리듬</p>';
+        let engHtml;
+        if (isInterviewPracticeTrack() && typeof ClozeHint !== 'undefined') {
+            const ck = ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
+            const clozeLvl = ClozeHint.getLevel(ck);
+            if (clozeLvl > 0) {
+                engHtml =
+                    '<div class="cloze-level-tag">가리기 L' +
+                    clozeLvl +
+                    ' · 말하기 통과 시 더 많이 가려집니다</div>' +
+                    '<div class="english-text">' +
+                    ClozeHint.renderPlain(sentEng, clozeLvl) +
+                    '</div>';
+            } else {
+                engHtml =
+                    formatEngForDisplay(sentEng, false, { syllableDots: true }) +
+                    '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 통과 후 단어가 가려집니다</p>';
+            }
+        } else {
+            engHtml =
+                formatEngForDisplay(sentEng, false, { syllableDots: true }) +
+                '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 아래 노란 「읽기 지도」= 말하기 전 리듬</p>';
+        }
         updateUI(data.question, sentKor, engHtml);
         document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
-        if (window.ComicHint) ComicHint.showForPhase(data, 2);
+        if (window.ComicHint) {
+            data = await ComicHint.showForPhase(data, 2);
+            db[currentTopicIndex] = data;
+        }
         persistProgress();
         speakText(sentEng, 'en');
     }
@@ -2279,7 +2512,7 @@
         loadPhase3Sentence(false);
     }
 
-    function loadPhase3Sentence(isTorment) {
+    async function loadPhase3Sentence(isTorment) {
         retryCount = 0;
         syncCurrentRecordingRefs();
         mPhase = 3;
@@ -2305,7 +2538,10 @@
             false
         );
         document.getElementById('ui-eng-text').className = 'english-text';
-        if (window.ComicHint) ComicHint.showForPhase(data, 3);
+        if (window.ComicHint) {
+            data = await ComicHint.showForPhase(data, 3);
+            db[currentTopicIndex] = data;
+        }
         persistProgress();
     }
 
@@ -2316,13 +2552,34 @@
         let data = db[currentTopicIndex];
         currentTargetEng = getTopicFullEng(data);
         onCueShown();
-        updateUI(
-            data.question,
-            (isTorment ? tormentBannerHtml() : '') +
-            '<div class="recall-hint">[4단계 · 키워드 회상] 문장별 핵심어(번호)만 보고 <b>영어 통문장 전체</b>를 말하세요.</div><div class="recall-keywords">' + formatKeywordsHtml(data) + '</div>',
-            '<div class="eng-hidden">영어 스크립트는 숨김 · 다 말한 뒤 Enter로 점검 · Space로 다음</div>',
-            false
-        );
+        let korHtml = isTorment ? tormentBannerHtml() : '';
+        let engHtml = '<div class="eng-hidden">영어 스크립트는 숨김 · 다 말한 뒤 Enter로 점검 · Space로 다음</div>';
+        if (typeof PracticeTrack !== 'undefined' && PracticeTrack.phase4UsesCloze() && typeof ClozeHint !== 'undefined') {
+            const ck = ClozeHint.fullKey(currentTopicIndex);
+            const clozeLvl = ClozeHint.getLevel(ck);
+            if (clozeLvl > 0) {
+                korHtml +=
+                    '<div class="recall-hint">[4단계 · 통문장 cloze] 빈칸을 채우며 <b>영어 통문장 전체</b>를 말하세요.</div>' +
+                    '<div class="cloze-level-tag">가리기 L' +
+                    clozeLvl +
+                    '</div>';
+                engHtml =
+                    '<div class="english-text mode-blur" style="filter:none;opacity:1">' +
+                    ClozeHint.renderPlain(currentTargetEng, clozeLvl) +
+                    '</div>';
+            } else {
+                korHtml +=
+                    '<div class="recall-hint">[4단계 · 키워드 → cloze] 핵심어로 말한 뒤, 통과하면 단어가 가려집니다.</div><div class="recall-keywords">' +
+                    formatKeywordsHtml(data) +
+                    '</div>';
+            }
+        } else {
+            korHtml +=
+                '<div class="recall-hint">[4단계 · 키워드 회상] 문장별 핵심어(번호)만 보고 <b>영어 통문장 전체</b>를 말하세요.</div><div class="recall-keywords">' +
+                formatKeywordsHtml(data) +
+                '</div>';
+        }
+        updateUI(data.question, korHtml, engHtml, false);
         document.getElementById('ui-eng-text').className = 'english-text';
         persistProgress();
     }
@@ -2404,9 +2661,14 @@
         const needAcc = th.passAccuracy;
         const needFlu = th.passFluency;
         const needPro = th.passProsody;
+        const refText = (currentTargetEng || '').replace(/\s+/g, ' ').trim();
         let isPass = acc >= needAcc && flu >= needFlu;
         if (pro != null) {
             isPass = isPass && pro >= needPro;
+        }
+        const azureStrictPass = isPass;
+        if (isInterviewPracticeTrack()) {
+            isPass = isInterviewAzurePass(assessment, refText);
         }
         const scoreLine =
             `정확도 ${acc} · 유창성 ${flu} · 완성도 ${comp}` +
@@ -2449,9 +2711,14 @@
         if (mastery.fluHint) {
             resHtml += '<div style="font-size:12px;color:#B45309;margin-top:8px;">' + escapeHtml(mastery.fluHint) + '</div>';
         }
+        const passLabel = isInterviewPracticeTrack()
+            ? (azureStrictPass
+                  ? '✅ 말하기 OK · ' + scoreLine
+                  : '✅ 말하기 OK (발음 참고: ' + scoreLine + ')')
+            : '✅ ' + scoreLine;
         showEvalResult(
             isPass,
-            '✅ ' + scoreLine + ' · Space로 다음',
+            passLabel + ' · Space로 다음',
             '❌ ' + scoreLine + ' · Enter로 재연습',
             resHtml,
             uniqueMissed
@@ -2460,6 +2727,7 @@
 
     function showEvalResult(isPass, passMsg, failMsg, resHtml, uniqueMissed) {
         if (isPass) {
+            bumpClozeAfterPass();
             fbBox.className = 'feedback pass';
             fbRes.innerHTML = '<div class="fb-status">' + passMsg + '</div>' + (resHtml || '');
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
@@ -2469,9 +2737,14 @@
             uiRetryCount.innerText = '재도전: ' + retryCount + ' / 20';
             if (retryCount >= 20) {
                 fbBox.className = 'feedback fail';
-                const overMsg = mPhase === 2
-                    ? '⚠️ 재도전 20회 · 합격할 때까지 Enter로 재연습'
-                    : '⚠️ 재도전 초과 · Space로 다음';
+                const overMsg =
+                    isInterviewPracticeTrack() && mPhase >= 5
+                        ? '⚠️ 재도전 초과 · Space로 다음'
+                        : mPhase === 2 && !isInterviewPracticeTrack()
+                          ? '⚠️ 재도전 20회 · 합격할 때까지 Enter로 재연습'
+                          : isInterviewPracticeTrack()
+                            ? '⚠️ 재도전 초과 · Space로 다음'
+                            : '⚠️ 재도전 초과 · Space로 다음';
                 fbRes.innerHTML = '<div class="fb-status">' + overMsg + '</div>' + (resHtml || '');
             } else {
                 fbBox.className = 'feedback fail';
@@ -2500,6 +2773,9 @@
         const matchRate = cleanTarget.length ? Math.round((matchCount / cleanTarget.length) * 100) : 0;
         const minWords = Math.max(3, Math.floor(cleanTarget.length * 0.35));
         let isPass = cleanSpoken.length >= minWords || matchRate >= 45;
+        if (isInterviewPracticeTrack()) {
+            isPass = isInterviewSpeechPass(spokenText, currentTargetEng);
+        }
         const mastery = applyMasteryAfterEval(isPass);
         isPass = mastery.pass;
 
@@ -2623,7 +2899,11 @@
     }
 
     function handleTopicComplete() {
-        if (drainTormentForTopic(currentTopicIndex)) {
+        if (
+            typeof PracticeTrack !== 'undefined' &&
+            PracticeTrack.shouldDrainTormentAtTopicEnd() &&
+            drainTormentForTopic(currentTopicIndex)
+        ) {
             persistProgress();
             return;
         }
@@ -2907,7 +3187,7 @@
                 utter.pitch = 1.25;
                 utter.volume = 1;
             } else {
-                utter.rate = ttsRates.browserNormal;
+                utter.rate = ttsRates.browserModelEnglish != null ? ttsRates.browserModelEnglish : ttsRates.browserNormal;
                 utter.pitch = 1.08;
             }
             if (femaleEngVoice) utter.voice = femaleEngVoice;
@@ -3238,6 +3518,9 @@
         currentMissedWordsList = uniqueMissed; 
 
         let isPass = (matchRate >= threshold) && (uniqueMissed.length === 0);
+        if (isInterviewPracticeTrack()) {
+            isPass = isInterviewSpeechPass(spokenText, currentTargetEng);
+        }
 
         function buildMissedWordBtnsHtml(words) {
             if (!words.length) return '';
@@ -3263,7 +3546,10 @@
         if (mastery.fluHint) {
             resHtml += '<div style="font-size:12px;color:#B45309;margin-top:8px;">' + escapeHtml(mastery.fluHint) + '</div>';
         }
-        showEvalResult(isPass, '✅ 완벽합니다 · Space로 다음', '❌ 다시 말해 보세요', resHtml, uniqueMissed);
+        const passMsg = isInterviewPracticeTrack()
+            ? '✅ 말하기 OK · Space로 다음'
+            : '✅ 완벽합니다 · Space로 다음';
+        showEvalResult(isPass, passMsg, '❌ 다시 말해 보세요', resHtml, uniqueMissed);
     }
 
     function goHome() {
@@ -3280,6 +3566,28 @@
         updateRecordingNavUi();
     }
 
+    function isKeyboardTypingTarget(event) {
+        const t = event.target;
+        if (!t || !t.tagName) return false;
+        const tag = t.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+        if (t.isContentEditable) return true;
+        return false;
+    }
+
+    /** Backspace: 녹음 검토 → 이전 화면, 학습 → 홈, 홈에서는 무시 */
+    function navigateToPreviousPage() {
+        if (isRecordingReviewOpen()) {
+            closeRecordingReviewPage();
+            return;
+        }
+        if (elMission.style.display === 'block') {
+            if (isRecording) return;
+            goHome();
+            return;
+        }
+    }
+
     window.addEventListener('beforeunload', function() {
         if (elMission.style.display === 'block') persistProgress();
         if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
@@ -3289,6 +3597,7 @@
         if (typeof DashboardSettings !== 'undefined') {
             DashboardSettings.loadAndApply();
         }
+        renderPracticeTrackPanel();
         renderDifficultyPanel();
         renderTtsSpeedPanel();
         renderL2SpeedPanel();
@@ -3296,6 +3605,7 @@
         bindContentPanelActions();
         if (typeof DashboardSettings !== 'undefined') DashboardSettings.applyToUI();
         updateMissionDifficultyBadge();
+        updateMasteryPanelForTrack();
         const inits = [bootstrapContent()];
         if (typeof AzureSpeech !== 'undefined') {
             inits.push(AzureSpeech.initAzureSpeech());
