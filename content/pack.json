@@ -1,0 +1,264 @@
+{
+  "version": 1,
+  "updated": "2026-05-23",
+  "topics": [
+    {
+      "id": "topic-00",
+      "title": "업무 효율화 경험",
+      "question": "Tell me about a time you improved an inefficient process.",
+      "altQuestion": "How do you handle repetitive tasks?",
+      "kor": "NPS 고도화 프로젝트 이후 저는 운영 엔지니어로 합류했습니다. 그 당시 ETL 로그 확인은 매우 비효율적이었습니다. 팀원들은 이 이중 확인을 당연시 여겼지만 저는 비효율을 싫어합니다. 퇴근 후 개인 시간을 써서 레거시 쉘 스크립트를 수정했고, 읽기 전용 로그 화면을 메인 UI에 직접 추가했습니다. 결과적으로 이중 접속을 없애고 많은 시간을 절약했습니다.",
+      "sentences": [
+        [
+          "NPS 고도화 프로젝트 이후 저는 운영 엔지니어로 합류했습니다.",
+          "After the NPS modernization project, I joined as an operations engineer."
+        ],
+        [
+          "그 당시 ETL 로그 확인은 매우 비효율적이었습니다.",
+          "At that time, checking ETL logs was very inefficient."
+        ],
+        [
+          "팀원들은 이 이중 확인을 당연시 여겼지만 저는 비효율을 싫어합니다.",
+          "The team accepted this dual-check as normal, but I hate inefficiency."
+        ],
+        [
+          "퇴근 후 개인 시간을 써서 레거시 쉘 스크립트를 수정했습니다.",
+          "After work, I used my personal time to modify the legacy shell scripts."
+        ],
+        [
+          "읽기 전용 로그 화면을 메인 UI에 직접 추가했습니다.",
+          "I built a read-only log screen and added it directly to the main UI."
+        ],
+        [
+          "결과적으로 이중 접속을 없애고 많은 시간을 절약했습니다.",
+          "As a result, we stopped the dual-system check and saved a lot of time."
+        ]
+      ]
+    },
+    {
+      "id": "topic-01",
+      "title": "문서화 부족 해결",
+      "question": "Can you share an experience dealing with a poorly documented system?",
+      "altQuestion": "What is the hardest challenge you faced recently?",
+      "kor": "NPS 고도화 직후 저희 팀은 약 800억 달러를 관리하는 거대한 시스템을 다뤘습니다. 하지만 비즈니스 로직이 문서화되어 있지 않아 일일 결산이 매우 어려웠습니다. 운영 업무 중 틈틈이 복잡한 로직을 직접 분석하여 200페이지 분량의 가이드를 작성했습니다. 팀은 이를 표준으로 사용했고, 매일의 결산을 안정화할 수 있었습니다.",
+      "sentences": [
+        [
+          "NPS 고도화 직후 저희 팀은 약 800억 달러를 관리하는 거대한 시스템을 다뤘습니다.",
+          "Right after the NPS modernization, my team handled a massive system managing about 800 billion dollars."
+        ],
+        [
+          "하지만 비즈니스 로직이 문서화되어 있지 않아 일일 결산이 매우 어려웠습니다.",
+          "However, the business logic was never documented, which made our daily settlement very difficult."
+        ],
+        [
+          "운영 업무 중 틈틈이 복잡한 로직을 직접 분석하여 200페이지 분량의 가이드를 작성했습니다.",
+          "While doing regular operations, I personally analyzed the complex logic and wrote a 200-page guide."
+        ],
+        [
+          "팀은 이를 표준으로 사용했고, 매일의 결산을 안정화할 수 있었습니다.",
+          "We used this as our team standard, which stabilized our daily settlement."
+        ]
+      ]
+    },
+    {
+      "id": "topic-02",
+      "title": "협업과 커뮤니케이션",
+      "question": "Describe a time you worked closely with another team.",
+      "altQuestion": "How do you resolve conflicts with other departments?",
+      "kor": "다올증권 입사 직후 MTS 현대화 프로젝트에 투입되어 외부 모바일 팀과 일했습니다. 그들은 빠른 전송을, 저희는 관리 부담 감소를 원했습니다. 3개월간 백엔드 파트를 리드하며 업무를 분배하고 일정을 관리했습니다. 약 50개의 새 API를 만들고 나머지는 기존 것에 매핑하여 성공적으로 새로운 MTS를 런칭했습니다.",
+      "sentences": [
+        [
+          "다올증권 입사 직후 MTS 현대화 프로젝트에 투입되어 외부 모바일 팀과 일했습니다.",
+          "Right after joining Daol Securities, I joined the MTS modernization project working with an external mobile team."
+        ],
+        [
+          "그들은 빠른 전송을, 저희는 관리 부담 감소를 원했습니다.",
+          "They wanted fast data delivery, but we wanted to reduce management burden."
+        ],
+        [
+          "3개월간 백엔드 파트를 리드하며 업무를 분배하고 일정을 관리했습니다.",
+          "Over three months, I led our back-end team, dividing tasks and managing the schedule."
+        ],
+        [
+          "약 50개의 새 API를 만들고 나머지는 기존 것에 매핑하여 성공적으로 런칭했습니다.",
+          "We created about 50 new APIs and mapped the rest, successfully launching the new MTS system."
+        ]
+      ]
+    },
+    {
+      "id": "topic-03",
+      "title": "SPOF 및 시스템 안정성",
+      "question": "How do you handle system stability and prevent SPOF?",
+      "altQuestion": "Can you explain a time you prioritized safety over speed?",
+      "kor": "모바일 팀은 모든 데이터를 한 번에 받기 위해 하나의 큰 API를 원했습니다. 하지만 한 부분이 실패하면 앱 전체가 죽기 때문에 위험하다고 말했습니다. 대신 데이터를 사용자, 계좌, 시세 등 40개의 작은 API로 나눴습니다. 이렇게 하면 뉴스 API가 실패해도 주식 매매는 가능하므로 훨씬 안전합니다.",
+      "sentences": [
+        [
+          "모바일 팀은 모든 데이터를 한 번에 받기 위해 하나의 큰 API를 원했습니다.",
+          "The mobile team wanted one big API to get all data at once."
+        ],
+        [
+          "하지만 한 부분이 실패하면 앱 전체가 죽기 때문에 위험하다고 말했습니다.",
+          "But I told them it's dangerous because if one part fails, the whole app crashes."
+        ],
+        [
+          "대신 데이터를 사용자, 계좌, 시세 등 40개의 작은 API로 나눴습니다.",
+          "So, I divided the data into 40 smaller APIs like user, account, and market price."
+        ],
+        [
+          "뉴스 API가 실패해도 주식 매매는 가능하므로 훨씬 안전합니다.",
+          "This way, even if the news API fails, users can still trade stocks, which is much safer."
+        ]
+      ]
+    },
+    {
+      "id": "topic-04",
+      "title": "장애 해결 경험",
+      "question": "Tell me about a time you resolved a critical system failure.",
+      "altQuestion": "Describe a stressful situation at work and how you handled it.",
+      "kor": "외부 업체로부터 매일 데이터를 받는데, 어느 날 파일명에 공백이 들어가 배치 작업이 실패했습니다. 장이 열리기 전 수동으로 파일명을 고쳐 배치를 무사히 돌렸습니다. 이후 업체에 검증을 요청하는 한편, 저희 내부 시스템에도 검증 로직을 추가하여 이중 안전장치를 만들었습니다. 덕분에 문제는 재발하지 않았습니다.",
+      "sentences": [
+        [
+          "어느 날 파일명에 공백이 들어가 배치 작업이 실패했습니다.",
+          "One night a batch job failed because the vendor accidentally put a space in the file name."
+        ],
+        [
+          "장이 열리기 전 수동으로 파일명을 고쳐 배치를 무사히 돌렸습니다.",
+          "I manually fixed it and ran the batch before the market opened."
+        ],
+        [
+          "저희 내부 시스템에도 검증 로직을 추가하여 이중 안전장치를 만들었습니다.",
+          "I added validation logic to our internal system too, creating a double-safeguard."
+        ],
+        [
+          "덕분에 이 문제는 다시는 발생하지 않았습니다.",
+          "Thanks to this double-check system, this issue never happened again."
+        ]
+      ]
+    },
+    {
+      "id": "topic-05",
+      "title": "단점 및 극복",
+      "question": "What is your greatest weakness?",
+      "altQuestion": "Tell me about a skill you are currently trying to improve.",
+      "kor": "솔직히 저는 그 자리에서 순발력 있게 대답하는 편은 아닙니다. 압박을 받으면 긴장하지만, 이를 알기에 매우 철저히 준비하고 행동 전 항상 두 번 체크합니다. 금융 IT에서는 속도보다 100% 정확성이 중요하다고 믿습니다. 또한 온프레미스 배경이라 클라우드 경험이 부족하지만, AWS와 Snowflake를 독학하며 보완하고 있습니다.",
+      "sentences": [
+        [
+          "솔직히 저는 그 자리에서 순발력 있게 대답하는 편은 아니며 압박을 받으면 긴장합니다.",
+          "To be honest, I am not a quick thinker on the spot and can get nervous under pressure."
+        ],
+        [
+          "하지만 이를 알기에 매우 철저히 준비하고 행동 전 항상 두 번 체크합니다.",
+          "But knowing this, I prepare very thoroughly and always double-check before acting."
+        ],
+        [
+          "금융 IT에서는 속도보다 100% 정확성이 더 중요하다고 믿습니다.",
+          "In financial IT, I believe 100% accuracy is more important than speed."
+        ],
+        [
+          "클라우드 경험이 부족하지만, AWS와 Snowflake를 독학하며 보완하고 있습니다.",
+          "I lack cloud experience, but I am overcoming this by self-studying AWS and Snowflake."
+        ]
+      ]
+    },
+    {
+      "id": "topic-06",
+      "title": "쿼리 최적화",
+      "question": "Can you give an example of optimizing database performance?",
+      "altQuestion": "How do you approach performance issues in a system?",
+      "kor": "NPS 프로젝트 결산 시 엄청난 양의 데이터를 다루다 보니 일부 배치 작업이 너무 느렸습니다. 오라클 쿼리의 실행 계획을 분석해 보니 풀 테이블 스캔을 하고 있었습니다. 적절한 인덱스를 추가하고 쿼리 힌트를 사용하여 조인 경로를 최적화했고, 결과적으로 배치가 훨씬 빠르고 안정적으로 끝났습니다.",
+      "sentences": [
+        [
+          "NPS 프로젝트 결산 시 일부 배치 작업이 너무 느렸습니다.",
+          "In the NPS project, some batch jobs for settlement were running too slow."
+        ],
+        [
+          "오라클 쿼리의 실행 계획을 분석해 보니 풀 테이블 스캔을 하고 있었습니다.",
+          "I analyzed the Execution Plan of the Oracle queries and found they were doing Full Table Scans."
+        ],
+        [
+          "적절한 인덱스를 추가하고 쿼리 힌트를 사용하여 조인 경로를 최적화했습니다.",
+          "I added proper Indexes and used Query Hints to optimize the join path."
+        ],
+        [
+          "결과적으로 배치가 훨씬 빠르고 안정적으로 끝났습니다.",
+          "As a result, the batch job finished much faster and more stably."
+        ]
+      ]
+    },
+    {
+      "id": "topic-07",
+      "title": "공백기 설명",
+      "question": "I see a gap in your resume. What were you doing?",
+      "altQuestion": "How did you spend your time between jobs?",
+      "kor": "지난 5년은 가족을 미국에 정착시키고 영주권을 받는 데 집중했습니다. 직장이 없었음에도 Python으로 주식 매매 시뮬레이션을 만들고 AI 앱을 배포하는 등 기술 능력을 예리하게 유지했습니다. 이 프로젝트들로 새로운 도구를 빠르게 익혔으며, 이제 가족이 완전히 정착했으므로 100% 일터로 돌아갈 준비가 되었습니다.",
+      "sentences": [
+        [
+          "지난 5년은 가족을 미국에 정착시키고 영주권을 받는 데 집중했습니다.",
+          "Over the past five years, I moved to the US to settle my family down and got my green card."
+        ],
+        [
+          "직장이 없었음에도 Python 프로젝트와 AI 앱 배포로 기술 능력을 유지했습니다.",
+          "Even without a job, I kept my tech skills sharp by doing Python projects and deploying AI apps."
+        ],
+        [
+          "이 프로젝트들을 통해 데이터 스킬을 향상시키고 새로운 도구를 익혔습니다.",
+          "Through these projects, I improved my data skills and learned new tools."
+        ],
+        [
+          "이제 가족이 완전히 정착했으므로 100% 일터로 돌아갈 준비가 되었습니다.",
+          "Now my family is fully settled, and I am 100% ready to return to work."
+        ]
+      ]
+    },
+    {
+      "id": "topic-08",
+      "title": "비전 (5/10년)",
+      "question": "Where do you see yourself in five and ten years?",
+      "altQuestion": "What are your long-term career goals?",
+      "kor": "5년 뒤 저는 이곳의 핵심 엔지니어가 되어 제 온프레미스 경험과 최신 클라우드 기술을 융합하고 싶습니다. 복잡한 파이프라인 문제 시 가장 먼저 찾는 사람이 될 것입니다. 10년 뒤에는 테크니컬 아키텍트가 되어 강력한 미래 지향적 시스템을 설계하고, 주니어들을 멘토링하고 싶습니다.",
+      "sentences": [
+        [
+          "5년 뒤 저는 제 경험과 클라우드 기술을 융합하는 핵심 엔지니어가 되고 싶습니다.",
+          "In five years, I want to be a core engineer merging my experience with cloud technologies."
+        ],
+        [
+          "복잡한 데이터 파이프라인 문제 시 가장 먼저 찾는 사람이 될 것입니다.",
+          "I want to be the go-to person for complex data pipelines."
+        ],
+        [
+          "10년 뒤에는 강력한 미래 지향적 시스템을 설계하는 테크니컬 아키텍트가 되고 싶습니다.",
+          "In ten years, I want to be a Technical Architect designing strong, future-proof systems."
+        ],
+        [
+          "또한 제가 과거에 그랬던 것처럼 주니어 엔지니어들을 멘토링하고 싶습니다.",
+          "Also, I want to mentor junior engineers, just like I did in the past."
+        ]
+      ]
+    },
+    {
+      "id": "topic-09",
+      "title": "돌발/모르는 질문 대응",
+      "question": "How do you handle tools or syntax you don't know?",
+      "altQuestion": "What do you do when you face a problem you can't solve immediately?",
+      "kor": "지금 당장 정확한 문법이 기억나진 않지만 개념은 이해하고 있습니다. 실무에서는 시스템 안정성을 위해 기억력에만 의존하지 않고 항상 팀의 기존 코드나 공식 문서를 먼저 확인합니다. 또한 해당 도구에 직접적 경험은 없어도 최근 AWS를 독학한 것처럼 새로운 기술을 매우 빠르게 배울 수 있습니다.",
+      "sentences": [
+        [
+          "지금 당장 정확한 문법이 기억나진 않지만 개념은 이해하고 있습니다.",
+          "I don't remember the exact syntax right now, but I understand the concept."
+        ],
+        [
+          "실무에서는 안정성을 위해 항상 팀의 기존 코드나 공식 문서를 먼저 확인합니다.",
+          "For system stability, I always check the team's existing code or official documents first."
+        ],
+        [
+          "직접적인 경험은 없지만 새로운 기술을 매우 빠르게 배울 수 있습니다.",
+          "I lack direct experience, but I learn new tech very quickly."
+        ],
+        [
+          "예를 들어 최근에 AWS와 Snowflake를 스스로 독학했습니다.",
+          "For example, I recently self-studied AWS and Snowflake."
+        ]
+      ]
+    }
+  ]
+}
