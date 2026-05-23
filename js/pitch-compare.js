@@ -48,33 +48,51 @@
         return { samples: out, sampleRate: targetRate };
     }
 
+    function frameRms(frame) {
+        let s = 0;
+        for (let i = 0; i < frame.length; i++) {
+            s += frame[i] * frame[i];
+        }
+        return Math.sqrt(s / frame.length);
+    }
+
+    /** 정규화 자기상관 — TTS·짧은 문장에서도 F0 잡기 쉽게 */
     function autocorrPitch(frame, sampleRate) {
         const n = frame.length;
-        let rms = 0;
-        for (let i = 0; i < n; i++) {
-            rms += frame[i] * frame[i];
-        }
-        rms = Math.sqrt(rms / n);
-        if (rms < 0.012) return null;
+        const rms = frameRms(frame);
+        if (rms < 0.006) return null;
 
-        const minLag = Math.floor(sampleRate / 450);
-        const maxLag = Math.min(Math.floor(sampleRate / 70), Math.floor(n / 2));
+        const minLag = Math.floor(sampleRate / 500);
+        const maxLag = Math.min(Math.floor(sampleRate / 60), Math.floor(n / 2) - 1);
+        if (maxLag <= minLag) return null;
+
+        let energy0 = 0;
+        for (let i = 0; i < n; i++) {
+            energy0 += frame[i] * frame[i];
+        }
+        if (energy0 < 1e-8) return null;
+
         let bestLag = -1;
         let bestCorr = 0;
 
         for (let lag = minLag; lag <= maxLag; lag++) {
             let sum = 0;
+            let energyLag = 0;
             for (let i = 0; i < n - lag; i++) {
                 sum += frame[i] * frame[i + lag];
+                energyLag += frame[i + lag] * frame[i + lag];
             }
-            const corr = sum / (n - lag);
+            const denom = Math.sqrt(energy0 * energyLag) + 1e-10;
+            const corr = sum / denom;
             if (corr > bestCorr) {
                 bestCorr = corr;
                 bestLag = lag;
             }
         }
-        if (bestLag < 0 || bestCorr < 0.2) return null;
-        return sampleRate / bestLag;
+        if (bestLag < 0 || bestCorr < 0.35) return null;
+        const hz = sampleRate / bestLag;
+        if (hz < 55 || hz > 520) return null;
+        return hz;
     }
 
     function extractPitchContour(samples, sampleRate) {
@@ -88,6 +106,49 @@
             points.push({ t: t, hz: f0 });
         }
         return points;
+    }
+
+    /** F0 실패 시 — 리듬·길이 비교용 음량 윤곽 */
+    function extractEnvelopeContour(samples, sampleRate) {
+        const frameSize = 512;
+        const hop = 128;
+        const rmsList = [];
+        for (let start = 0; start + frameSize < samples.length; start += hop) {
+            const frame = samples.subarray(start, start + frameSize);
+            rmsList.push({ t: (start + frameSize / 2) / sampleRate, rms: frameRms(frame) });
+        }
+        if (!rmsList.length) return [];
+        const peak = Math.max.apply(
+            null,
+            rmsList.map(function (p) {
+                return p.rms;
+            })
+        );
+        if (peak < 1e-6) return [];
+        return rmsList.map(function (p) {
+            const norm = p.rms / peak;
+            return { t: p.t, semi: norm > 0.02 ? norm * 5 - 2.5 : null };
+        });
+    }
+
+    function countVoicedSemi(points) {
+        let n = 0;
+        for (let i = 0; i < points.length; i++) {
+            if (points[i].semi != null) n++;
+        }
+        return n;
+    }
+
+    function buildDisplayContour(samples, sampleRate) {
+        const pitchPts = smoothContour(contourToSemitones(extractPitchContour(samples, sampleRate)), 2);
+        if (countVoicedSemi(pitchPts) >= 6) {
+            return { points: pitchPts, mode: 'pitch' };
+        }
+        const envPts = smoothContour(extractEnvelopeContour(samples, sampleRate), 2);
+        if (countVoicedSemi(envPts) >= 4) {
+            return { points: envPts, mode: 'envelope' };
+        }
+        return { points: pitchPts, mode: 'pitch' };
     }
 
     function contourToSemitones(points) {
@@ -132,7 +193,7 @@
 
     function buildSvgPaths(modelPts, userPts, totalSec, words, alignUser) {
         const W = 560;
-        const H = 100;
+        const H = 120;
         const pad = { l: 8, r: 8, t: 10, b: 18 };
         const iw = W - pad.l - pad.r;
         const ih = H - pad.t - pad.b;
@@ -153,11 +214,15 @@
             const scale = stretch && userDur > 0 ? refDur / userDur : 1;
             let d = '';
             let started = false;
+            let silentStreak = 0;
+            const maxSilent = 5;
             points.forEach(function (p) {
                 if (p.semi == null) {
-                    started = false;
+                    silentStreak++;
+                    if (silentStreak > maxSilent) started = false;
                     return;
                 }
+                silentStreak = 0;
                 const t = p.t * scale;
                 const x = xAt(t, dur);
                 const y = yAt(p.semi);
@@ -165,6 +230,10 @@
                 started = true;
             });
             return d;
+        }
+
+        function hasPath(d) {
+            return d && d.indexOf('L') !== -1;
         }
 
         let wordMarks = '';
@@ -194,13 +263,22 @@
 
         const modelPath = pathFrom(modelPts, refDur, false);
         const userPath = pathFrom(userPts, userDur, alignUser);
+        let emptyHint = '';
+        if (!hasPath(modelPath) && !hasPath(userPath)) {
+            emptyHint =
+                '<text x="' +
+                W / 2 +
+                '" y="' +
+                (pad.t + ih / 2) +
+                '" text-anchor="middle" class="pitch-empty-hint" font-size="11" fill="#94A3B8">곡선을 그리지 못했습니다 · ▶ 모범/내 말로 들어 보세요</text>';
+        }
 
         return (
             '<svg class="pitch-chart-svg" viewBox="0 0 ' +
             W +
             ' ' +
             H +
-            '" preserveAspectRatio="none" aria-hidden="true">' +
+            '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
             '<rect x="' +
             pad.l +
             '" y="' +
@@ -221,11 +299,12 @@
             '" stroke="#E2E8F0" stroke-width="1"/>' +
             wordMarks +
             (modelPath
-                ? '<path class="pitch-line pitch-line-ref" d="' + modelPath + '" fill="none"/>'
+                ? '<path class="pitch-line pitch-line-ref" d="' + modelPath + '" fill="none" vector-effect="non-scaling-stroke"/>'
                 : '') +
             (userPath
-                ? '<path class="pitch-line pitch-line-user" d="' + userPath + '" fill="none"/>'
+                ? '<path class="pitch-line pitch-line-user" d="' + userPath + '" fill="none" vector-effect="non-scaling-stroke"/>'
                 : '') +
+            emptyHint +
             '</svg>'
         );
     }
@@ -261,14 +340,17 @@
         const userDs = downsample(userMono.samples, userMono.sampleRate, 8000);
         const modelDs = downsample(modelMono.samples, modelMono.sampleRate, 8000);
 
-        let modelPts = smoothContour(contourToSemitones(extractPitchContour(modelDs.samples, modelDs.sampleRate)));
-        let userPts = smoothContour(contourToSemitones(extractPitchContour(userDs.samples, userDs.sampleRate)));
+        const modelContour = buildDisplayContour(modelDs.samples, modelDs.sampleRate);
+        const userContour = buildDisplayContour(userDs.samples, userDs.sampleRate);
+        const modelPts = modelContour.points;
+        const userPts = userContour.points;
 
         const refDur = durationSec(modelPts);
         const userDur = durationSec(userPts);
         if (refDur < 0.3 || userDur < 0.3) return fail('too_short');
 
         const ratio = userDur / refDur;
+        const useEnvelope = modelContour.mode === 'envelope' || userContour.mode === 'envelope';
         const id = 'pc' + ++sessionSeq;
         sessions[id] = {
             modelBlob: modelBlob,
@@ -296,6 +378,7 @@
             userDur.toFixed(1) +
             's' +
             (ratio > 1.05 ? ' · 내 말이 ' + ratio.toFixed(2) + '× 길음' : ratio < 0.95 ? ' · 내 말이 ' + (1 / ratio).toFixed(2) + '× 빠름' : '') +
+            (useEnvelope ? ' · <span class="pitch-mode-tag">음량 윤곽</span> (피치 대신)' : '') +
             '</div>' +
             '<div class="pitch-chart-wrap">' +
             svg +
