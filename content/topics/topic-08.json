@@ -1,0 +1,27 @@
+{
+  "id": "topic-08",
+  "title": "비전 (5/10년)",
+  "question": "Where do you see yourself in five and ten years?",
+  "altQuestion": "What are your long-term career goals?",
+  "kor": "5년 뒤 저는 이곳의 핵심 엔지니어가 되어 제 온프레미스 경험과 최신 클라우드 기술을 융합하고 싶습니다. 복잡한 파이프라인 문제 시 가장 먼저 찾는 사람이 될 것입니다. 10년 뒤에는 테크니컬 아키텍트가 되어 강력한 미래 지향적 시스템을 설계하고, 주니어들을 멘토링하고 싶습니다.",
+  "sentences": [
+    [
+      "5년 뒤 저는 제 경험과 클라우드 기술을 융합하는 핵심 엔지니어가 되고 싶습니다.",
+      "In five years, I want to be a core engineer merging my experience with cloud technologies."
+    ],
+    [
+      "복잡한 데이터 파이프라인 문제 시 가장 먼저 찾는 사람이 될 것입니다.",
+      "I want to be the go-to person for complex data pipelines."
+    ],
+    [
+      "10년 뒤에는 강력한 미래 지향적 시스템을 설계하는 테크니컬 아키텍트가 되고 싶습니다.",
+      "In ten years, I want to be a Technical Architect designing strong, future-proof systems."
+    ],
+    [
+      "또한 제가 과거에 그랬던 것처럼 주니어 엔지니어들을 멘토링하고 싶습니다.",
+      "Also, I want to mentor junior engineers, just like I did in the past."
+    ]
+  ],
+  "bridgeKo": "제가 여기서 지향하는 커리어와 연결하면,",
+  "bridge": "When I think about my path here, I connect it to the engineer I want to become."
+}

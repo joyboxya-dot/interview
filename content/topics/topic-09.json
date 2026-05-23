@@ -1,0 +1,27 @@
+{
+  "id": "topic-09",
+  "title": "돌발/모르는 질문 대응",
+  "question": "How do you handle tools or syntax you don't know?",
+  "altQuestion": "What do you do when you face a problem you can't solve immediately?",
+  "kor": "지금 당장 정확한 문법이 기억나진 않지만 개념은 이해하고 있습니다. 실무에서는 시스템 안정성을 위해 기억력에만 의존하지 않고 항상 팀의 기존 코드나 공식 문서를 먼저 확인합니다. 또한 해당 도구에 직접적 경험은 없어도 최근 AWS를 독학한 것처럼 새로운 기술을 매우 빠르게 배울 수 있습니다.",
+  "sentences": [
+    [
+      "지금 당장 정확한 문법이 기억나진 않지만 개념은 이해하고 있습니다.",
+      "I don't remember the exact syntax right now, but I understand the concept."
+    ],
+    [
+      "실무에서는 안정성을 위해 항상 팀의 기존 코드나 공식 문서를 먼저 확인합니다.",
+      "For system stability, I always check the team's existing code or official documents first."
+    ],
+    [
+      "직접적인 경험은 없지만 새로운 기술을 매우 빠르게 배울 수 있습니다.",
+      "I lack direct experience, but I learn new tech very quickly."
+    ],
+    [
+      "예를 들어 최근에 AWS와 Snowflake를 스스로 독학했습니다.",
+      "For example, I recently self-studied AWS and Snowflake."
+    ]
+  ],
+  "bridgeKo": "실무에서 문법이 바로 안 떠올라도, 이렇게 접근합니다.",
+  "bridge": "If I do not recall the exact syntax, I still connect it to how I work in production."
+}

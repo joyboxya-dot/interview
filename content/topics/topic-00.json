@@ -1,0 +1,35 @@
+{
+  "id": "topic-00",
+  "title": "업무 효율화 경험",
+  "question": "Tell me about a time you improved an inefficient process.",
+  "altQuestion": "How do you handle repetitive tasks?",
+  "kor": "NPS 고도화 프로젝트 이후 저는 운영 엔지니어로 합류했습니다. 그 당시 ETL 로그 확인은 매우 비효율적이었습니다. 팀원들은 이 이중 확인을 당연시 여겼지만 저는 비효율을 싫어합니다. 퇴근 후 개인 시간을 써서 레거시 쉘 스크립트를 수정했고, 읽기 전용 로그 화면을 메인 UI에 직접 추가했습니다. 결과적으로 이중 접속을 없애고 많은 시간을 절약했습니다.",
+  "sentences": [
+    [
+      "NPS 고도화 프로젝트 이후 저는 운영 엔지니어로 합류했습니다.",
+      "After the NPS modernization project, I joined as an operations engineer."
+    ],
+    [
+      "그 당시 ETL 로그 확인은 매우 비효율적이었습니다.",
+      "At that time, checking ETL logs was very inefficient."
+    ],
+    [
+      "팀원들은 이 이중 확인을 당연시 여겼지만 저는 비효율을 싫어합니다.",
+      "The team accepted this dual-check as normal, but I hate inefficiency."
+    ],
+    [
+      "퇴근 후 개인 시간을 써서 레거시 쉘 스크립트를 수정했습니다.",
+      "After work, I used my personal time to modify the legacy shell scripts."
+    ],
+    [
+      "읽기 전용 로그 화면을 메인 UI에 직접 추가했습니다.",
+      "I built a read-only log screen and added it directly to the main UI."
+    ],
+    [
+      "결과적으로 이중 접속을 없애고 많은 시간을 절약했습니다.",
+      "As a result, we stopped the dual-system check and saved a lot of time."
+    ]
+  ],
+  "bridgeKo": "NPS 고도화 이후 운영 업무로 말씀드리면,",
+  "bridge": "That connects to my work as an operations engineer after the NPS modernization."
+}

@@ -1,0 +1,27 @@
+{
+  "id": "topic-04",
+  "title": "장애 해결 경험",
+  "question": "Tell me about a time you resolved a critical system failure.",
+  "altQuestion": "Describe a stressful situation at work and how you handled it.",
+  "kor": "외부 업체로부터 매일 데이터를 받는데, 어느 날 파일명에 공백이 들어가 배치 작업이 실패했습니다. 장이 열리기 전 수동으로 파일명을 고쳐 배치를 무사히 돌렸습니다. 이후 업체에 검증을 요청하는 한편, 저희 내부 시스템에도 검증 로직을 추가하여 이중 안전장치를 만들었습니다. 덕분에 문제는 재발하지 않았습니다.",
+  "sentences": [
+    [
+      "어느 날 파일명에 공백이 들어가 배치 작업이 실패했습니다.",
+      "One night a batch job failed because the vendor accidentally put a space in the file name."
+    ],
+    [
+      "장이 열리기 전 수동으로 파일명을 고쳐 배치를 무사히 돌렸습니다.",
+      "I manually fixed it and ran the batch before the market opened."
+    ],
+    [
+      "저희 내부 시스템에도 검증 로직을 추가하여 이중 안전장치를 만들었습니다.",
+      "I added validation logic to our internal system too, creating a double-safeguard."
+    ],
+    [
+      "덕분에 이 문제는 다시는 발생하지 않았습니다.",
+      "Thanks to this double-check system, this issue never happened again."
+    ]
+  ],
+  "bridgeKo": "장 개장 전 배치 장애를 처리했던 경험으로 말씀드리면,",
+  "bridge": "That brings me to a batch failure I fixed before the market opened."
+}

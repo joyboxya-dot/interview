@@ -1,0 +1,27 @@
+{
+  "id": "topic-01",
+  "title": "문서화 부족 해결",
+  "question": "Can you share an experience dealing with a poorly documented system?",
+  "altQuestion": "What is the hardest challenge you faced recently?",
+  "kor": "NPS 고도화 직후 저희 팀은 약 800억 달러를 관리하는 거대한 시스템을 다뤘습니다. 하지만 비즈니스 로직이 문서화되어 있지 않아 일일 결산이 매우 어려웠습니다. 운영 업무 중 틈틈이 복잡한 로직을 직접 분석하여 200페이지 분량의 가이드를 작성했습니다. 팀은 이를 표준으로 사용했고, 매일의 결산을 안정화할 수 있었습니다.",
+  "sentences": [
+    [
+      "NPS 고도화 직후 저희 팀은 약 800억 달러를 관리하는 거대한 시스템을 다뤘습니다.",
+      "Right after the NPS modernization, my team handled a massive system managing about 800 billion dollars."
+    ],
+    [
+      "하지만 비즈니스 로직이 문서화되어 있지 않아 일일 결산이 매우 어려웠습니다.",
+      "However, the business logic was never documented, which made our daily settlement very difficult."
+    ],
+    [
+      "운영 업무 중 틈틈이 복잡한 로직을 직접 분석하여 200페이지 분량의 가이드를 작성했습니다.",
+      "While doing regular operations, I personally analyzed the complex logic and wrote a 200-page guide."
+    ],
+    [
+      "팀은 이를 표준으로 사용했고, 매일의 결산을 안정화할 수 있었습니다.",
+      "We used this as our team standard, which stabilized our daily settlement."
+    ]
+  ],
+  "bridgeKo": "NPS 직후 문서화가 없던 시기와 연결하면,",
+  "bridge": "That relates to right after the NPS modernization, when nothing was documented."
+}

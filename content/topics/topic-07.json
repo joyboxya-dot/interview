@@ -1,0 +1,27 @@
+{
+  "id": "topic-07",
+  "title": "공백기 설명",
+  "question": "I see a gap in your resume. What were you doing?",
+  "altQuestion": "How did you spend your time between jobs?",
+  "kor": "지난 5년은 가족을 미국에 정착시키고 영주권을 받는 데 집중했습니다. 직장이 없었음에도 Python으로 주식 매매 시뮬레이션을 만들고 AI 앱을 배포하는 등 기술 능력을 예리하게 유지했습니다. 이 프로젝트들로 새로운 도구를 빠르게 익혔으며, 이제 가족이 완전히 정착했으므로 100% 일터로 돌아갈 준비가 되었습니다.",
+  "sentences": [
+    [
+      "지난 5년은 가족을 미국에 정착시키고 영주권을 받는 데 집중했습니다.",
+      "Over the past five years, I moved to the US to settle my family down and got my green card."
+    ],
+    [
+      "직장이 없었음에도 Python 프로젝트와 AI 앱 배포로 기술 능력을 유지했습니다.",
+      "Even without a job, I kept my tech skills sharp by doing Python projects and deploying AI apps."
+    ],
+    [
+      "이 프로젝트들을 통해 데이터 스킬을 향상시키고 새로운 도구를 익혔습니다.",
+      "Through these projects, I improved my data skills and learned new tools."
+    ],
+    [
+      "이제 가족이 완전히 정착했으므로 100% 일터로 돌아갈 준비가 되었습니다.",
+      "Now my family is fully settled, and I am 100% ready to return to work."
+    ]
+  ],
+  "bridgeKo": "미국에서 가족을 정착시키던 시기와 연결하면,",
+  "bridge": "That relates to the years I spent settling my family in the US."
+}

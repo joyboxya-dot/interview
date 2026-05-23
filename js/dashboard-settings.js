@@ -5,14 +5,12 @@
     const STORAGE_KEY = 'interviewDashboardSettingsV1';
 
     const DEFAULTS = {
-        version: 1,
+        version: 2,
         difficultyId: 'strict',
         ttsNormalRate: 0.82,
         ttsPracticeRate: 0.82,
         l2PresetId: 'interview',
         masteryMode: true,
-        contentSource: 'server',
-        contentEditorJson: '',
     };
 
     let cached = null;
@@ -57,16 +55,6 @@
         if (global.MasteryEngine && global.MasteryEngine.isMasteryMode) {
             s.masteryMode = global.MasteryEngine.isMasteryMode();
         }
-        if (global.ContentLoader && global.ContentLoader.loadFromUploadPack) {
-            const up = global.ContentLoader.loadFromUploadPack();
-            if (up && up.length) {
-                s.contentSource = 'editor';
-                try {
-                    const raw = localStorage.getItem('interviewContentUploadPack');
-                    if (raw) s.contentEditorJson = raw;
-                } catch (e) {}
-            }
-        }
         return s;
     }
 
@@ -83,12 +71,6 @@
         }
         if (global.MasteryEngine && global.MasteryEngine.setMasteryMode) {
             global.MasteryEngine.setMasteryMode(!!s.masteryMode);
-        }
-        if (s.contentSource === 'editor' && s.contentEditorJson && global.ContentLoader) {
-            try {
-                const pack = JSON.parse(s.contentEditorJson);
-                global.ContentLoader.saveUploadPack(pack);
-            } catch (e) {}
         }
     }
 
@@ -140,26 +122,11 @@
         const mastery = document.getElementById('mastery-mode-check');
         if (mastery) patch.masteryMode = mastery.checked;
 
-        const editor = document.getElementById('content-pack-editor');
-        const srcEditor = document.getElementById('content-source-editor');
-        const srcServer = document.getElementById('content-source-server');
-        if (srcEditor && srcEditor.checked) patch.contentSource = 'editor';
-        else if (srcServer && srcServer.checked) patch.contentSource = 'server';
-        if (editor) patch.contentEditorJson = editor.value;
-
         return save(patch);
     }
 
     function applyToUI() {
         const s = get();
-        const editor = document.getElementById('content-pack-editor');
-        const srcEditor = document.getElementById('content-source-editor');
-        const srcServer = document.getElementById('content-source-server');
-        if (editor && s.contentEditorJson) editor.value = s.contentEditorJson;
-        if (srcEditor && srcServer) {
-            srcEditor.checked = s.contentSource === 'editor';
-            srcServer.checked = s.contentSource !== 'editor';
-        }
         const l2 = document.getElementById('l2-speed-preset');
         if (l2 && l2.options.length) l2.value = s.l2PresetId;
         const mastery = document.getElementById('mastery-mode-check');
@@ -168,38 +135,7 @@
     }
 
     function getContentLoadOptions() {
-        const s = get();
-        if (s.contentSource === 'editor' && s.contentEditorJson && s.contentEditorJson.trim()) {
-            try {
-                return { inlinePack: JSON.parse(s.contentEditorJson) };
-            } catch (e) {
-                return { useUpload: true, useServer: true };
-            }
-        }
         return { useUpload: false, useServer: true };
-    }
-
-    function setEditorJson(pack, asEditorSource) {
-        const text = typeof pack === 'string' ? pack : JSON.stringify(pack, null, 2);
-        const patch = { contentEditorJson: text };
-        if (asEditorSource !== false) patch.contentSource = 'editor';
-        save(patch);
-        const editor = document.getElementById('content-pack-editor');
-        if (editor) editor.value = text;
-        const srcEditor = document.getElementById('content-source-editor');
-        const srcServer = document.getElementById('content-source-server');
-        if (srcEditor && srcServer && patch.contentSource === 'editor') {
-            srcEditor.checked = true;
-            srcServer.checked = false;
-        }
-        return text;
-    }
-
-    function parseEditorPack() {
-        const editor = document.getElementById('content-pack-editor');
-        const text = (editor && editor.value.trim()) || get().contentEditorJson || '';
-        if (!text) throw new Error('empty_json');
-        return JSON.parse(text);
     }
 
     global.DashboardSettings = {
@@ -209,8 +145,6 @@
         captureFromUI: captureFromUI,
         applyToUI: applyToUI,
         getContentLoadOptions: getContentLoadOptions,
-        setEditorJson: setEditorJson,
-        parseEditorPack: parseEditorPack,
         persistFromUI: captureFromUI,
     };
 

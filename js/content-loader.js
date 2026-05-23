@@ -1,5 +1,5 @@
 /**
- * manifest + pack.json 로드 (재배포 없이 스크립트 추가)
+ * manifest + 주제별 JSON (/content/topics/topic-XX.json)
  */
 (function (global) {
     const MANIFEST_URL_KEY = 'interviewContentManifestUrl';
@@ -9,6 +9,7 @@
     let topics = [];
     let manifest = null;
     let loadError = null;
+    let lastServerTopics = [];
 
     function settings() {
         return global.INTERVIEW_SETTINGS || {};
@@ -19,6 +20,9 @@
     }
 
     function normalizeTopic(raw, index) {
+        if (global.TopicStore && global.TopicStore.normalizeTopic) {
+            return global.TopicStore.normalizeTopic(raw, index);
+        }
         const t = Object.assign({}, raw);
         t.id = t.id || 'topic-' + String(index).padStart(2, '0');
         t.sentences = (t.sentences || []).map(function (s) {
@@ -28,13 +32,24 @@
         return t;
     }
 
+    function finalizeTopics(serverList) {
+        lastServerTopics = serverList.slice();
+        if (global.TopicStore && global.TopicStore.mergeWithServer) {
+            topics = global.TopicStore.mergeWithServer(serverList);
+        } else {
+            topics = serverList.map(normalizeTopic);
+        }
+        return topics;
+    }
+
     function applyPack(pack) {
         if (!pack || !Array.isArray(pack.topics)) throw new Error('invalid_pack');
-        topics = pack.topics.map(normalizeTopic);
+        const serverList = pack.topics.map(normalizeTopic);
         if (pack.version != null) {
             localStorage.setItem(VERSION_KEY, String(pack.version));
         }
-        return topics;
+        loadError = null;
+        return finalizeTopics(serverList);
     }
 
     async function fetchJson(url) {
@@ -43,23 +58,45 @@
         return res.json();
     }
 
+    async function loadTopicsFromManifest(m) {
+        manifest = m;
+        if (m.topicIds && Array.isArray(m.topicIds) && m.topicIds.length) {
+            const base = m.topicsBase || '/content/topics/';
+            const loaded = await Promise.all(
+                m.topicIds.map(function (id) {
+                    const url = base + (id.endsWith('.json') ? id : id + '.json');
+                    return fetchJson(url).then(function (raw) {
+                        if (!raw.id) raw.id = id.replace(/\.json$/, '');
+                        return normalizeTopic(raw);
+                    });
+                })
+            );
+            return loaded;
+        }
+        if (m.packUrl || m.pack) {
+            const packUrl = m.packUrl || m.pack || '/content/pack.json';
+            const pack = await fetchJson(packUrl);
+            return pack.topics.map(normalizeTopic);
+        }
+        throw new Error('manifest_no_topics');
+    }
+
     async function loadFromManifestUrl(url) {
         manifest = await fetchJson(url);
-        const packUrl = manifest.packUrl || manifest.pack || '/content/pack.json';
-        const pack = await fetchJson(packUrl);
-        applyPack(pack);
+        const serverList = await loadTopicsFromManifest(manifest);
         localStorage.setItem(MANIFEST_URL_KEY, url);
+        if (manifest.contentVersion != null) {
+            localStorage.setItem(VERSION_KEY, String(manifest.contentVersion));
+        }
         loadError = null;
-        return topics;
+        return finalizeTopics(serverList);
     }
 
     function loadFromUploadPack() {
         const raw = localStorage.getItem(UPLOAD_KEY);
         if (!raw) return null;
         const pack = JSON.parse(raw);
-        applyPack(pack);
-        loadError = null;
-        return topics;
+        return applyPack(pack);
     }
 
     function saveUploadPack(pack) {
@@ -74,8 +111,7 @@
     async function loadContent(options) {
         options = options || {};
         if (options.inlinePack) {
-            applyPack(options.inlinePack);
-            return topics;
+            return applyPack(options.inlinePack);
         }
         if (options.useUpload) {
             const up = loadFromUploadPack();
@@ -87,8 +123,7 @@
         } catch (e) {
             loadError = e;
             if (typeof global.EMBEDDED_TOPIC_PACK !== 'undefined' && global.EMBEDDED_TOPIC_PACK.topics) {
-                applyPack(global.EMBEDDED_TOPIC_PACK);
-                return topics;
+                return applyPack(global.EMBEDDED_TOPIC_PACK);
             }
             throw e;
         }
@@ -96,6 +131,10 @@
 
     function getTopics() {
         return topics;
+    }
+
+    function getServerTopics() {
+        return lastServerTopics;
     }
 
     function getManifest() {
@@ -106,13 +145,19 @@
         return loadError;
     }
 
+    function refreshMergedTopics() {
+        return finalizeTopics(lastServerTopics);
+    }
+
     global.ContentLoader = {
         loadContent: loadContent,
         getTopics: getTopics,
+        getServerTopics: getServerTopics,
         getManifest: getManifest,
         getLoadError: getLoadError,
         saveUploadPack: saveUploadPack,
         clearUploadPack: clearUploadPack,
         loadFromUploadPack: loadFromUploadPack,
+        refreshMergedTopics: refreshMergedTopics,
     };
 })(window);

@@ -1,0 +1,27 @@
+{
+  "id": "topic-06",
+  "title": "쿼리 최적화",
+  "question": "Can you give an example of optimizing database performance?",
+  "altQuestion": "How do you approach performance issues in a system?",
+  "kor": "NPS 프로젝트 결산 시 엄청난 양의 데이터를 다루다 보니 일부 배치 작업이 너무 느렸습니다. 오라클 쿼리의 실행 계획을 분석해 보니 풀 테이블 스캔을 하고 있었습니다. 적절한 인덱스를 추가하고 쿼리 힌트를 사용하여 조인 경로를 최적화했고, 결과적으로 배치가 훨씬 빠르고 안정적으로 끝났습니다.",
+  "sentences": [
+    [
+      "NPS 프로젝트 결산 시 일부 배치 작업이 너무 느렸습니다.",
+      "In the NPS project, some batch jobs for settlement were running too slow."
+    ],
+    [
+      "오라클 쿼리의 실행 계획을 분석해 보니 풀 테이블 스캔을 하고 있었습니다.",
+      "I analyzed the Execution Plan of the Oracle queries and found they were doing Full Table Scans."
+    ],
+    [
+      "적절한 인덱스를 추가하고 쿼리 힌트를 사용하여 조인 경로를 최적화했습니다.",
+      "I added proper Indexes and used Query Hints to optimize the join path."
+    ],
+    [
+      "결과적으로 배치가 훨씬 빠르고 안정적으로 끝났습니다.",
+      "As a result, the batch job finished much faster and more stably."
+    ]
+  ],
+  "bridgeKo": "NPS 결산 때 배치 성능을 다뤘던 경험과 연결하면,",
+  "bridge": "That connects to settlement batch performance in the NPS project."
+}

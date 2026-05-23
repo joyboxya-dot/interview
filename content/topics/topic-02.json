@@ -1,0 +1,27 @@
+{
+  "id": "topic-02",
+  "title": "협업과 커뮤니케이션",
+  "question": "Describe a time you worked closely with another team.",
+  "altQuestion": "How do you resolve conflicts with other departments?",
+  "kor": "다올증권 입사 직후 MTS 현대화 프로젝트에 투입되어 외부 모바일 팀과 일했습니다. 그들은 빠른 전송을, 저희는 관리 부담 감소를 원했습니다. 3개월간 백엔드 파트를 리드하며 업무를 분배하고 일정을 관리했습니다. 약 50개의 새 API를 만들고 나머지는 기존 것에 매핑하여 성공적으로 새로운 MTS를 런칭했습니다.",
+  "sentences": [
+    [
+      "다올증권 입사 직후 MTS 현대화 프로젝트에 투입되어 외부 모바일 팀과 일했습니다.",
+      "Right after joining Daol Securities, I joined the MTS modernization project working with an external mobile team."
+    ],
+    [
+      "그들은 빠른 전송을, 저희는 관리 부담 감소를 원했습니다.",
+      "They wanted fast data delivery, but we wanted to reduce management burden."
+    ],
+    [
+      "3개월간 백엔드 파트를 리드하며 업무를 분배하고 일정을 관리했습니다.",
+      "Over three months, I led our back-end team, dividing tasks and managing the schedule."
+    ],
+    [
+      "약 50개의 새 API를 만들고 나머지는 기존 것에 매핑하여 성공적으로 런칭했습니다.",
+      "We created about 50 new APIs and mapped the rest, successfully launching the new MTS system."
+    ]
+  ],
+  "bridgeKo": "MTS 현대화 때 외부 팀과 협업했던 일과 연결하면,",
+  "bridge": "That ties to the MTS modernization, when I worked with an external mobile team."
+}

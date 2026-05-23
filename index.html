@@ -250,20 +250,54 @@
             padding: 6px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;
             border: 1px solid #CBD5E1; background: white; cursor: pointer;
         }
-        .content-source-row { margin-top: 8px; }
-        .content-pack-editor {
-            width: 100%; box-sizing: border-box; margin-top: 8px;
-            min-height: 140px; max-height: 280px; resize: vertical;
-            font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-            font-size: 11px; line-height: 1.45; padding: 8px 10px;
-            border: 1px solid #CBD5E1; border-radius: 8px; background: #fff;
-            color: #1E293B;
+        .topic-delete-row {
+            display: flex; gap: 6px; align-items: center; margin-top: 8px;
         }
-        .content-pack-editor:focus {
-            outline: 2px solid #BFDBFE; border-color: var(--primary);
+        .topic-delete-row select {
+            flex: 1; min-width: 0; padding: 7px 8px; font-size: 12px;
+            border: 1px solid #CBD5E1; border-radius: 6px; background: #fff;
         }
-        .content-pack-editor::placeholder { color: #94A3B8; }
-        .content-editor-hint { margin-top: 4px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
+        .topic-delete-row button {
+            padding: 7px 12px; font-size: 11px; font-weight: 700;
+            border-radius: 6px; border: 1px solid #FECACA; background: #FEF2F2;
+            color: #B91C1C; cursor: pointer; white-space: nowrap;
+        }
+        .topic-add-block {
+            margin-top: 10px; padding-top: 10px; border-top: 1px dashed #E2E8F0;
+        }
+        .topic-add-block summary {
+            font-size: 12px; font-weight: 800; color: #334155; cursor: pointer;
+            list-style: none; margin-bottom: 8px;
+        }
+        .topic-add-block summary::-webkit-details-marker { display: none; }
+        .topic-field { margin-bottom: 8px; }
+        .topic-field-label {
+            display: block; font-size: 10px; font-weight: 700; color: #64748B;
+            margin-bottom: 3px;
+        }
+        .topic-input {
+            width: 100%; box-sizing: border-box; padding: 7px 9px;
+            font-size: 12px; border: 1px solid #CBD5E1; border-radius: 6px;
+        }
+        .topic-input:focus { outline: 2px solid #BFDBFE; border-color: var(--primary); }
+        .topic-sentence-row {
+            display: grid; grid-template-columns: 1fr 1fr auto; gap: 5px;
+            margin-bottom: 5px; align-items: center;
+        }
+        .topic-sent-remove {
+            width: 28px; height: 28px; padding: 0; border: 1px solid #E2E8F0;
+            border-radius: 6px; background: #fff; color: #64748B; cursor: pointer;
+            font-size: 16px; line-height: 1;
+        }
+        .topic-add-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .topic-add-actions button {
+            padding: 7px 12px; font-size: 11px; font-weight: 700;
+            border-radius: 6px; border: 1px solid #CBD5E1; background: white; cursor: pointer;
+        }
+        #btn-add-topic {
+            background: var(--primary); color: #fff; border-color: var(--primary);
+        }
+        .content-hint { margin-top: 4px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
         .rg-chunks-line { font-size: 15px; line-height: 1.55; margin-top: 6px; }
         .rg-chunk { font-weight: 600; color: #1E293B; }
         .rg-pause { font-size: 11px; font-weight: 800; color: #B45309; white-space: nowrap; }
@@ -455,25 +489,49 @@
                     <div class="mastery-queue-badge" id="mastery-queue-badge">약점 큐 0개</div>
                 </div>
                 <div class="content-panel" id="content-panel">
-                    <div class="difficulty-title">스크립트 (pack.json)</div>
+                    <div class="difficulty-title">면접 스크립트</div>
                     <p class="tts-speed-hint" id="content-status-hint">로딩 중…</p>
-                    <div class="content-source-row">
-                        <label class="dash-check-row">
-                            <input type="radio" name="content-source" id="content-source-server" value="server" checked />
-                            서버 pack.json
-                        </label>
-                        <label class="dash-check-row">
-                            <input type="radio" name="content-source" id="content-source-editor" value="editor" />
-                            아래 편집 내용
-                        </label>
+                    <p class="content-hint">서버: 주제별 JSON · 추가·삭제는 이 기기에 저장됩니다. ID는 자동 부여됩니다.</p>
+                    <div class="topic-delete-row">
+                        <select id="topic-delete-select" aria-label="삭제할 스크립트"></select>
+                        <button type="button" id="btn-delete-topic">삭제</button>
                     </div>
-                    <textarea id="content-pack-editor" class="content-pack-editor" spellcheck="false" placeholder='{ "version": 2, "topics": [ { "title": "...", "bridgeKo": "한글 브릿지", "bridge": "English bridge.", "kor": "...", "sentences": [["한글","English"]] } ] }'></textarea>
-                    <p class="content-editor-hint">JSON을 붙여넣거나 수정한 뒤 「적용」 — 저장되어 다음에도 이 설정으로 열립니다.</p>
-                    <div class="content-actions">
-                        <button type="button" id="btn-apply-content">편집 내용 적용</button>
-                        <button type="button" id="btn-load-server-to-editor">서버 pack 불러오기</button>
-                        <button type="button" id="btn-reload-content">다시 로드</button>
-                    </div>
+                    <details class="topic-add-block" open>
+                        <summary>＋ 새 스크립트 추가</summary>
+                        <div class="topic-field">
+                            <label class="topic-field-label" for="topic-add-title">제목 (한글)</label>
+                            <input type="text" id="topic-add-title" class="topic-input" placeholder="예: 업무 효율화 경험" />
+                        </div>
+                        <div class="topic-field">
+                            <label class="topic-field-label" for="topic-add-question">면접 질문 (영어)</label>
+                            <input type="text" id="topic-add-question" class="topic-input" placeholder="Tell me about a time..." />
+                        </div>
+                        <div class="topic-field">
+                            <label class="topic-field-label" for="topic-add-alt">돌발·유사 질문 (영어)</label>
+                            <input type="text" id="topic-add-alt" class="topic-input" placeholder="How do you handle..." />
+                        </div>
+                        <div class="topic-field">
+                            <label class="topic-field-label" for="topic-add-bridge-ko">브릿지 (한글, 1문장)</label>
+                            <input type="text" id="topic-add-bridge-ko" class="topic-input" placeholder="그 경험과 연결하면," />
+                        </div>
+                        <div class="topic-field">
+                            <label class="topic-field-label" for="topic-add-bridge">브릿지 (영어, 1문장)</label>
+                            <input type="text" id="topic-add-bridge" class="topic-input" placeholder="That connects to my experience when..." />
+                        </div>
+                        <div class="topic-field">
+                            <label class="topic-field-label" for="topic-add-kor">한글 통문장 (힌트용)</label>
+                            <textarea id="topic-add-kor" class="topic-input" rows="3" placeholder="전체 답변 한글 요약"></textarea>
+                        </div>
+                        <div class="topic-field">
+                            <span class="topic-field-label">문장별 스크립트 (한글 · 영어)</span>
+                            <div id="topic-sentence-rows"></div>
+                        </div>
+                        <div class="topic-add-actions">
+                            <button type="button" id="btn-add-sentence-row">＋ 문장</button>
+                            <button type="button" id="btn-add-topic">추가하기</button>
+                            <button type="button" id="btn-reload-content">목록 새로고침</button>
+                        </div>
+                    </details>
                 </div>
                 <div class="tts-speed-panel" id="tts-speed-panel">
                     <div class="difficulty-title">음성 재생 속도</div>
@@ -552,7 +610,9 @@
 
 <script src="js/user-settings.js"></script>
 <script src="js/dashboard-settings.js"></script>
+<script src="js/topic-store.js"></script>
 <script src="js/content-loader.js"></script>
+<script src="js/content-manager-ui.js"></script>
 <script src="js/l2-fluency.js"></script>
 <script src="js/mastery-engine.js"></script>
 <script src="js/reading-guide.js"></script>
@@ -698,12 +758,104 @@
         if (!MasteryEngine || !MasteryEngine.isMasteryMode()) return true;
         if (tormentActive) return false;
         if (mPhase < 2) return true;
+        /* Azure·L2 합격 피드백 후 Space = 정상 진행 (연속 2회 숙달은 큐·주제 끝 반복용) */
+        if (fbBox && fbBox.classList.contains('pass')) return true;
         const key = getCurrentMasteryKey();
         if (!key) return true;
         const state = MasteryEngine.loadState();
         const item = state.items[key];
         if (item && item.inQueue && !item.mastered) return false;
         return true;
+    }
+
+    function getSkipBlockReason() {
+        if (!MasteryEngine || !MasteryEngine.isMasteryMode()) return '';
+        if (tormentActive) {
+            return '약점 숙달 연습 중입니다. 이 항목을 L2·발음 기준으로 통과해야 합니다.';
+        }
+        if (mPhase < 2) return '';
+
+        const key = getCurrentMasteryKey();
+        const lines = [];
+        const th =
+            typeof window.getPassThresholds === 'function' ? window.getPassThresholds() : null;
+        if (th) {
+            lines.push(
+                '2단계 발음 합격선: 정확도 ' +
+                    th.passAccuracy +
+                    ' · 유창성 ' +
+                    th.passFluency +
+                    ' · 운율 ' +
+                    th.passProsody
+            );
+        }
+
+        if (mPhase >= 3 && typeof L2Fluency !== 'undefined') {
+            const p = L2Fluency.getPreset();
+            const wc = L2Fluency.countWords(currentTargetEng);
+            const ttfbLim = Math.min(8000, p.ttfbBaseMs + wc * p.ttfbPerWordMs);
+            const durLim = Math.round(
+                L2Fluency.expectedDurationMs(wc) * p.maxDurationRatio
+            );
+            lines.push(
+                '3단계+ 숙달(L2): 말 시작 ' +
+                    Math.round(ttfbLim / 1000) +
+                    '초 이내 · 발화 ' +
+                    Math.round(durLim / 1000) +
+                    '초 이내 · 연속 ' +
+                    p.requiredStreak +
+                    '회 통과 시 큐 해제'
+            );
+        } else if (mPhase === 2) {
+            lines.push('2단계: 위 발음 점수 + 연속 2회 통과 시 약점 큐에서 제거');
+        }
+
+        if (key) {
+            const item = MasteryEngine.loadState().items[key];
+            const label = getMasteryKeyLabel(key);
+            if (item) {
+                const need = L2Fluency ? L2Fluency.getPreset().requiredStreak : 2;
+                lines.push(
+                    '현재 항목: ' +
+                        label +
+                        ' · 연속 통과 ' +
+                        item.streak +
+                        '/' +
+                        need +
+                        (item.inQueue ? ' · 아직 약점 큐' : '')
+                );
+                const last = item.history[item.history.length - 1];
+                if (last) {
+                    lines.push(
+                        '마지막 시도: ' +
+                            (last.pass ? '숙달 통과' : '숙달 미통과') +
+                            (last.metrics && last.metrics.ttfbMs != null
+                                ? ' · L2 시작 ' +
+                                  Math.round(last.metrics.ttfbMs) +
+                                  'ms / 발화 ' +
+                                  Math.round(last.metrics.speakDurationMs) +
+                                  'ms'
+                                : '')
+                    );
+                    if (!last.pass && mPhase >= 3) {
+                        lines.push(
+                            '(Azure 정확도·유창성은 넘었어도 L2 말 시작·길이 미달이면 큐에 남을 수 있습니다)'
+                        );
+                    }
+                }
+            }
+        }
+
+        lines.push('Enter로 다시 말한 뒤 합격하면 다음으로 갈 수 있습니다.');
+        return lines.join('\n');
+    }
+
+    function getMasteryKeyLabel(key) {
+        const p = MasteryEngine.parseKey(key);
+        if (!p || !db[p.topicIdx]) return key;
+        const title = db[p.topicIdx].title;
+        if (p.type === 'full') return title + ' · 통문장';
+        return title + ' · 문장 ' + (p.sentIdx + 1);
     }
 
     function buildFluencyMetrics(accuracyOk) {
@@ -782,6 +934,18 @@
         return startTormentItem(key);
     }
 
+    function syncContentUi() {
+        if (typeof ContentLoader !== 'undefined') {
+            db = ContentLoader.getTopics();
+        }
+        if (typeof ContentManagerUI !== 'undefined') {
+            ContentManagerUI.renderDeleteSelect(db);
+        }
+        updateContentStatusHint();
+        updateDashboard();
+        updateMasteryQueueBadge();
+    }
+
     async function bootstrapContent() {
         if (typeof ContentLoader === 'undefined') return;
         const loadOpts =
@@ -790,44 +954,17 @@
                 : { useUpload: false, useServer: true };
         try {
             await ContentLoader.loadContent(loadOpts);
-            db = ContentLoader.getTopics();
         } catch (e) {
             console.warn('content load failed', e);
-            db = ContentLoader.getTopics() || [];
         }
-        if (typeof DashboardSettings !== 'undefined') {
-            const editor = document.getElementById('content-pack-editor');
-            if (editor && !editor.value.trim() && db.length) {
-                DashboardSettings.setEditorJson(
-                    {
-                        version: 2,
-                        topics: db.map(function (t) {
-                            return {
-                                id: t.id,
-                                title: t.title,
-                                question: t.question,
-                                altQuestion: t.altQuestion,
-                                bridge: t.bridge,
-                                bridgeKo: t.bridgeKo,
-                                kor: t.kor,
-                                sentences: t.sentences,
-                            };
-                        }),
-                    },
-                    DashboardSettings.get().contentSource === 'editor'
-                );
-            }
-        }
-        updateContentStatusHint();
-        updateDashboard();
-        updateMasteryQueueBadge();
+        syncContentUi();
     }
 
     function updateContentStatusHint() {
         const el = document.getElementById('content-status-hint');
         if (!el) return;
         if (!db.length) {
-            el.textContent = '스크립트를 불러오지 못했습니다. 서버에서 열거나 아래 JSON을 편집·적용하세요.';
+            el.textContent = '스크립트를 불러오지 못했습니다. 서버에서 열고 「목록 새로고침」을 눌러 보세요.';
             el.style.color = '#B91C1C';
             return;
         }
@@ -835,13 +972,18 @@
         let ver = '';
         if (typeof ContentLoader !== 'undefined') {
             const m = ContentLoader.getManifest();
-            if (m && m.version) ver = ' · v' + m.version;
+            if (m && m.contentVersion) ver = ' · v' + m.contentVersion;
+            else if (m && m.version) ver = ' · v' + m.version;
         }
-        let src = '';
-        if (typeof DashboardSettings !== 'undefined') {
-            src = DashboardSettings.get().contentSource === 'editor' ? ' · 편집본' : ' · 서버';
+        let extra = '';
+        if (typeof TopicStore !== 'undefined') {
+            const st = TopicStore.loadStore();
+            const addN = Object.keys(st.added).length;
+            const delN = st.deleted.length;
+            if (addN) extra += ' · 추가 ' + addN;
+            if (delN) extra += ' · 숨김 ' + delN;
         }
-        el.textContent = db.length + '개 주제 로드됨' + ver + src;
+        el.textContent = db.length + '개 스크립트' + ver + extra;
     }
 
     function renderL2SpeedPanel() {
@@ -885,99 +1027,17 @@
         updateMasteryQueueBadge();
     }
 
-    async function applyContentFromEditor() {
-        if (typeof DashboardSettings === 'undefined' || typeof ContentLoader === 'undefined') return;
-        try {
-            const pack = DashboardSettings.parseEditorPack();
-            if (!pack.topics || !Array.isArray(pack.topics)) throw new Error('topics 배열이 필요합니다');
-            ContentLoader.saveUploadPack(pack);
-            DashboardSettings.save({
-                contentSource: 'editor',
-                contentEditorJson: JSON.stringify(pack, null, 2),
-            });
-            document.getElementById('content-source-editor').checked = true;
-            document.getElementById('content-source-server').checked = false;
-            db = ContentLoader.getTopics();
-            updateContentStatusHint();
-            updateDashboard();
-            alert('스크립트를 적용·저장했습니다. (' + db.length + '개 주제)');
-        } catch (err) {
-            alert(err.message === 'empty_json' ? 'JSON을 입력해 주세요.' : 'JSON 오류: ' + err.message);
-        }
-    }
-
     function bindContentPanelActions() {
-        const btnReload = document.getElementById('btn-reload-content');
-        const btnApply = document.getElementById('btn-apply-content');
-        const btnLoadServer = document.getElementById('btn-load-server-to-editor');
-        const editor = document.getElementById('content-pack-editor');
-        const srcEditor = document.getElementById('content-source-editor');
-        const srcServer = document.getElementById('content-source-server');
-
-        function onSourceChange() {
-            if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
-        }
-
-        if (srcEditor && !srcEditor.dataset.bound) {
-            srcEditor.dataset.bound = '1';
-            srcEditor.onchange = onSourceChange;
-        }
-        if (srcServer && !srcServer.dataset.bound) {
-            srcServer.dataset.bound = '1';
-            srcServer.onchange = onSourceChange;
-        }
-        if (editor && !editor.dataset.bound) {
-            editor.dataset.bound = '1';
-            editor.addEventListener('blur', function () {
-                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
-            });
-        }
-
-        if (btnApply && !btnApply.dataset.bound) {
-            btnApply.dataset.bound = '1';
-            btnApply.onclick = function () {
-                applyContentFromEditor();
-            };
-        }
-        if (btnLoadServer && !btnLoadServer.dataset.bound) {
-            btnLoadServer.dataset.bound = '1';
-            btnLoadServer.onclick = async function () {
-                if (typeof ContentLoader === 'undefined') return;
-                try {
-                    await ContentLoader.loadContent({ useUpload: false });
-                    const pack = {
-                        version: 1,
-                        topics: ContentLoader.getTopics().map(function (t) {
-                            return {
-                                id: t.id,
-                                title: t.title,
-                                question: t.question,
-                                altQuestion: t.altQuestion,
-                                bridge: t.bridge,
-                                bridgeKo: t.bridgeKo,
-                                kor: t.kor,
-                                sentences: t.sentences,
-                            };
-                        }),
-                    };
-                    DashboardSettings.setEditorJson(pack, true);
-                    db = ContentLoader.getTopics();
-                    updateContentStatusHint();
-                    alert('서버 pack을 편집창에 불러왔습니다. 「적용」으로 저장할 수 있습니다.');
-                } catch (e) {
-                    alert('불러오기 실패: ' + (e.message || e));
-                }
-            };
-        }
-        if (btnReload && !btnReload.dataset.bound) {
-            btnReload.dataset.bound = '1';
-            btnReload.onclick = async function () {
-                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
+        if (typeof ContentManagerUI === 'undefined') return;
+        ContentManagerUI.bind({
+            onTopicsChanged: function () {
+                syncContentUi();
+            },
+            reload: async function () {
                 await bootstrapContent();
-                if (typeof DashboardSettings !== 'undefined') DashboardSettings.applyToUI();
-                alert('현재 설정으로 다시 불러왔습니다. (' + db.length + '개 주제)');
-            };
-        }
+                alert('목록을 새로 불러왔습니다. (' + db.length + '개)');
+            },
+        });
     }
 
     function updateMissionDifficultyBadge() {
@@ -2406,7 +2466,11 @@
         stopAllPlayback();
         stopRecordingSilently();
         if (!canSkipCurrentPhase()) {
-            alert('숙달 모드: 이 항목을 통과할 때까지 건너뛸 수 없습니다.');
+            const detail = getSkipBlockReason();
+            alert(
+                '숙달 모드: 아직 이 항목을 건너뛸 수 없습니다.\n\n' +
+                    (detail || '발음·L2 기준으로 통과한 뒤 진행해 주세요.')
+            );
             return;
         }
         if (tormentActive) {
@@ -2818,6 +2882,7 @@
         if(!isRecording) return;
         const wasAzure = useAzureMic;
         const evalPhase = mPhase;
+        if (recordStartedAt && !speechStartedAt) speechStartedAt = recordStartedAt;
         isRecording = false;
         useAzureMic = false;
         clearTimeout(recordTimer);
@@ -3126,9 +3191,7 @@
         renderL2SpeedPanel();
         renderMasteryDashPanel();
         bindContentPanelActions();
-        if (typeof DashboardSettings !== 'undefined') {
-            DashboardSettings.applyToUI();
-        }
+        if (typeof DashboardSettings !== 'undefined') DashboardSettings.applyToUI();
         updateMissionDifficultyBadge();
         const inits = [bootstrapContent()];
         if (typeof AzureSpeech !== 'undefined') {

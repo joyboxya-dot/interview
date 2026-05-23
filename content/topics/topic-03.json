@@ -1,0 +1,27 @@
+{
+  "id": "topic-03",
+  "title": "SPOF 및 시스템 안정성",
+  "question": "How do you handle system stability and prevent SPOF?",
+  "altQuestion": "Can you explain a time you prioritized safety over speed?",
+  "kor": "모바일 팀은 모든 데이터를 한 번에 받기 위해 하나의 큰 API를 원했습니다. 하지만 한 부분이 실패하면 앱 전체가 죽기 때문에 위험하다고 말했습니다. 대신 데이터를 사용자, 계좌, 시세 등 40개의 작은 API로 나눴습니다. 이렇게 하면 뉴스 API가 실패해도 주식 매매는 가능하므로 훨씬 안전합니다.",
+  "sentences": [
+    [
+      "모바일 팀은 모든 데이터를 한 번에 받기 위해 하나의 큰 API를 원했습니다.",
+      "The mobile team wanted one big API to get all data at once."
+    ],
+    [
+      "하지만 한 부분이 실패하면 앱 전체가 죽기 때문에 위험하다고 말했습니다.",
+      "But I told them it's dangerous because if one part fails, the whole app crashes."
+    ],
+    [
+      "대신 데이터를 사용자, 계좌, 시세 등 40개의 작은 API로 나눴습니다.",
+      "So, I divided the data into 40 smaller APIs like user, account, and market price."
+    ],
+    [
+      "뉴스 API가 실패해도 주식 매매는 가능하므로 훨씬 안전합니다.",
+      "This way, even if the news API fails, users can still trade stocks, which is much safer."
+    ]
+  ],
+  "bridgeKo": "MTS에서 API를 나눠 안정성을 맞췄던 일과 연결하면,",
+  "bridge": "That connects to the MTS project, when we split APIs to keep the app stable."
+}
