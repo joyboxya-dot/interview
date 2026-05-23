@@ -73,6 +73,10 @@
 
     async function loadContent(options) {
         options = options || {};
+        if (options.inlinePack) {
+            applyPack(options.inlinePack);
+            return topics;
+        }
         if (options.useUpload) {
             const up = loadFromUploadPack();
             if (up) return up;

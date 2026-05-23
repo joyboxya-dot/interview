@@ -250,6 +250,20 @@
             padding: 6px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;
             border: 1px solid #CBD5E1; background: white; cursor: pointer;
         }
+        .content-source-row { margin-top: 8px; }
+        .content-pack-editor {
+            width: 100%; box-sizing: border-box; margin-top: 8px;
+            min-height: 140px; max-height: 280px; resize: vertical;
+            font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+            font-size: 11px; line-height: 1.45; padding: 8px 10px;
+            border: 1px solid #CBD5E1; border-radius: 8px; background: #fff;
+            color: #1E293B;
+        }
+        .content-pack-editor:focus {
+            outline: 2px solid #BFDBFE; border-color: var(--primary);
+        }
+        .content-pack-editor::placeholder { color: #94A3B8; }
+        .content-editor-hint { margin-top: 4px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
         .rg-chunks-line { font-size: 15px; line-height: 1.55; margin-top: 6px; }
         .rg-chunk { font-weight: 600; color: #1E293B; }
         .rg-pause { font-size: 11px; font-weight: 800; color: #B45309; white-space: nowrap; }
@@ -441,13 +455,25 @@
                     <div class="mastery-queue-badge" id="mastery-queue-badge">약점 큐 0개</div>
                 </div>
                 <div class="content-panel" id="content-panel">
-                    <div class="difficulty-title">스크립트 (재배포 없이 추가)</div>
+                    <div class="difficulty-title">스크립트 (pack.json)</div>
                     <p class="tts-speed-hint" id="content-status-hint">로딩 중…</p>
-                    <div class="content-actions">
-                        <button type="button" id="btn-reload-content">목록 새로고침</button>
-                        <button type="button" id="btn-import-content">JSON 가져오기</button>
+                    <div class="content-source-row">
+                        <label class="dash-check-row">
+                            <input type="radio" name="content-source" id="content-source-server" value="server" checked />
+                            서버 pack.json
+                        </label>
+                        <label class="dash-check-row">
+                            <input type="radio" name="content-source" id="content-source-editor" value="editor" />
+                            아래 편집 내용
+                        </label>
                     </div>
-                    <input type="file" id="content-file-input" accept=".json,application/json" style="display:none" />
+                    <textarea id="content-pack-editor" class="content-pack-editor" spellcheck="false" placeholder='{ "version": 1, "topics": [ { "title": "...", "question": "...", "kor": "...", "sentences": [["한글","English"]] } ] }'></textarea>
+                    <p class="content-editor-hint">JSON을 붙여넣거나 수정한 뒤 「적용」 — 저장되어 다음에도 이 설정으로 열립니다.</p>
+                    <div class="content-actions">
+                        <button type="button" id="btn-apply-content">편집 내용 적용</button>
+                        <button type="button" id="btn-load-server-to-editor">서버 pack 불러오기</button>
+                        <button type="button" id="btn-reload-content">다시 로드</button>
+                    </div>
                 </div>
                 <div class="tts-speed-panel" id="tts-speed-panel">
                     <div class="difficulty-title">음성 재생 속도</div>
@@ -525,6 +551,7 @@
 </div>
 
 <script src="js/user-settings.js"></script>
+<script src="js/dashboard-settings.js"></script>
 <script src="js/content-loader.js"></script>
 <script src="js/l2-fluency.js"></script>
 <script src="js/mastery-engine.js"></script>
@@ -753,12 +780,34 @@
 
     async function bootstrapContent() {
         if (typeof ContentLoader === 'undefined') return;
+        const loadOpts =
+            typeof DashboardSettings !== 'undefined'
+                ? DashboardSettings.getContentLoadOptions()
+                : { useUpload: false, useServer: true };
         try {
-            await ContentLoader.loadContent({ useUpload: true });
+            await ContentLoader.loadContent(loadOpts);
             db = ContentLoader.getTopics();
         } catch (e) {
             console.warn('content load failed', e);
             db = ContentLoader.getTopics() || [];
+        }
+        if (typeof DashboardSettings !== 'undefined') {
+            const editor = document.getElementById('content-pack-editor');
+            if (editor && !editor.value.trim() && db.length) {
+                DashboardSettings.setEditorJson(
+                    { version: 1, topics: db.map(function (t) {
+                        return {
+                            id: t.id,
+                            title: t.title,
+                            question: t.question,
+                            altQuestion: t.altQuestion,
+                            kor: t.kor,
+                            sentences: t.sentences,
+                        };
+                    }) },
+                    DashboardSettings.get().contentSource === 'editor'
+                );
+            }
         }
         updateContentStatusHint();
         updateDashboard();
@@ -769,7 +818,7 @@
         const el = document.getElementById('content-status-hint');
         if (!el) return;
         if (!db.length) {
-            el.textContent = '스크립트를 불러오지 못했습니다. 서버에서 열거나 JSON을 가져오세요.';
+            el.textContent = '스크립트를 불러오지 못했습니다. 서버에서 열거나 아래 JSON을 편집·적용하세요.';
             el.style.color = '#B91C1C';
             return;
         }
@@ -779,7 +828,11 @@
             const m = ContentLoader.getManifest();
             if (m && m.version) ver = ' · v' + m.version;
         }
-        el.textContent = db.length + '개 주제 로드됨' + ver;
+        let src = '';
+        if (typeof DashboardSettings !== 'undefined') {
+            src = DashboardSettings.get().contentSource === 'editor' ? ' · 편집본' : ' · 서버';
+        }
+        el.textContent = db.length + '개 주제 로드됨' + ver + src;
     }
 
     function renderL2SpeedPanel() {
@@ -798,7 +851,10 @@
             sel.onchange = function () {
                 L2Fluency.setPresetId(sel.value);
                 if (hint) hint.textContent = L2Fluency.getPreset().label + ' · L2 면접 속도 기준';
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
             };
+        } else {
+            sel.value = L2Fluency.getPresetId();
         }
         if (hint) hint.textContent = L2Fluency.getPreset().label + ' · 시작 지연·말하기 길이로 숙달 판정 (3단계+)';
     }
@@ -812,53 +868,103 @@
             chk.onchange = function () {
                 MasteryEngine.setMasteryMode(chk.checked);
                 updateMasteryQueueBadge();
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
             };
+        } else {
+            chk.checked = MasteryEngine.isMasteryMode();
         }
         updateMasteryQueueBadge();
     }
 
+    async function applyContentFromEditor() {
+        if (typeof DashboardSettings === 'undefined' || typeof ContentLoader === 'undefined') return;
+        try {
+            const pack = DashboardSettings.parseEditorPack();
+            if (!pack.topics || !Array.isArray(pack.topics)) throw new Error('topics 배열이 필요합니다');
+            ContentLoader.saveUploadPack(pack);
+            DashboardSettings.save({
+                contentSource: 'editor',
+                contentEditorJson: JSON.stringify(pack, null, 2),
+            });
+            document.getElementById('content-source-editor').checked = true;
+            document.getElementById('content-source-server').checked = false;
+            db = ContentLoader.getTopics();
+            updateContentStatusHint();
+            updateDashboard();
+            alert('스크립트를 적용·저장했습니다. (' + db.length + '개 주제)');
+        } catch (err) {
+            alert(err.message === 'empty_json' ? 'JSON을 입력해 주세요.' : 'JSON 오류: ' + err.message);
+        }
+    }
+
     function bindContentPanelActions() {
         const btnReload = document.getElementById('btn-reload-content');
-        const btnImport = document.getElementById('btn-import-content');
-        const fileInput = document.getElementById('content-file-input');
-        if (btnReload && !btnReload.dataset.bound) {
-            btnReload.dataset.bound = '1';
-            btnReload.onclick = async function () {
+        const btnApply = document.getElementById('btn-apply-content');
+        const btnLoadServer = document.getElementById('btn-load-server-to-editor');
+        const editor = document.getElementById('content-pack-editor');
+        const srcEditor = document.getElementById('content-source-editor');
+        const srcServer = document.getElementById('content-source-server');
+
+        function onSourceChange() {
+            if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
+        }
+
+        if (srcEditor && !srcEditor.dataset.bound) {
+            srcEditor.dataset.bound = '1';
+            srcEditor.onchange = onSourceChange;
+        }
+        if (srcServer && !srcServer.dataset.bound) {
+            srcServer.dataset.bound = '1';
+            srcServer.onchange = onSourceChange;
+        }
+        if (editor && !editor.dataset.bound) {
+            editor.dataset.bound = '1';
+            editor.addEventListener('blur', function () {
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
+            });
+        }
+
+        if (btnApply && !btnApply.dataset.bound) {
+            btnApply.dataset.bound = '1';
+            btnApply.onclick = function () {
+                applyContentFromEditor();
+            };
+        }
+        if (btnLoadServer && !btnLoadServer.dataset.bound) {
+            btnLoadServer.dataset.bound = '1';
+            btnLoadServer.onclick = async function () {
                 if (typeof ContentLoader === 'undefined') return;
                 try {
                     await ContentLoader.loadContent({ useUpload: false });
+                    const pack = {
+                        version: 1,
+                        topics: ContentLoader.getTopics().map(function (t) {
+                            return {
+                                id: t.id,
+                                title: t.title,
+                                question: t.question,
+                                altQuestion: t.altQuestion,
+                                kor: t.kor,
+                                sentences: t.sentences,
+                            };
+                        }),
+                    };
+                    DashboardSettings.setEditorJson(pack, true);
                     db = ContentLoader.getTopics();
                     updateContentStatusHint();
-                    updateDashboard();
-                    alert('스크립트를 새로 불러왔습니다. (' + db.length + '개 주제)');
+                    alert('서버 pack을 편집창에 불러왔습니다. 「적용」으로 저장할 수 있습니다.');
                 } catch (e) {
                     alert('불러오기 실패: ' + (e.message || e));
                 }
             };
         }
-        if (btnImport && fileInput && !btnImport.dataset.bound) {
-            btnImport.dataset.bound = '1';
-            btnImport.onclick = function () {
-                fileInput.click();
-            };
-            fileInput.onchange = function () {
-                const file = fileInput.files && fileInput.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = function () {
-                    try {
-                        const pack = JSON.parse(reader.result);
-                        ContentLoader.saveUploadPack(pack);
-                        db = ContentLoader.getTopics();
-                        updateContentStatusHint();
-                        updateDashboard();
-                        alert('pack.json을 저장했습니다. (' + db.length + '개 주제)');
-                    } catch (err) {
-                        alert('JSON 오류: ' + err.message);
-                    }
-                    fileInput.value = '';
-                };
-                reader.readAsText(file);
+        if (btnReload && !btnReload.dataset.bound) {
+            btnReload.dataset.bound = '1';
+            btnReload.onclick = async function () {
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
+                await bootstrapContent();
+                if (typeof DashboardSettings !== 'undefined') DashboardSettings.applyToUI();
+                alert('현재 설정으로 다시 불러왔습니다. (' + db.length + '개 주제)');
             };
         }
     }
@@ -899,6 +1005,7 @@
             selNormal.onchange = function () {
                 window.setSavedTtsNormalRate(parseFloat(selNormal.value));
                 if (hint) hint.textContent = window.formatTtsSpeedHint();
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
             };
         }
         if (!selPractice.dataset.bound) {
@@ -906,6 +1013,7 @@
             selPractice.onchange = function () {
                 window.setSavedTtsPracticeRate(parseFloat(selPractice.value));
                 if (hint) hint.textContent = window.formatTtsSpeedHint();
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
             };
         }
         if (hint) hint.textContent = window.formatTtsSpeedHint();
@@ -924,10 +1032,12 @@
             btn.className = 'difficulty-btn' + (key === current ? ' active' : '');
             btn.textContent = p.label;
             btn.title = window.formatPassThresholdLine(p);
+            btn.dataset.id = key;
             btn.onclick = function () {
                 window.setSavedDifficultyId(key);
                 renderDifficultyPanel();
                 updateMissionDifficultyBadge();
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
             };
             container.appendChild(btn);
         });
@@ -2926,14 +3036,21 @@
 
     window.addEventListener('beforeunload', function() {
         if (elMission.style.display === 'block') persistProgress();
+        if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
     });
 
     hydrateArchiveFromIdb().then(function() {
+        if (typeof DashboardSettings !== 'undefined') {
+            DashboardSettings.loadAndApply();
+        }
         renderDifficultyPanel();
         renderTtsSpeedPanel();
         renderL2SpeedPanel();
         renderMasteryDashPanel();
         bindContentPanelActions();
+        if (typeof DashboardSettings !== 'undefined') {
+            DashboardSettings.applyToUI();
+        }
         updateMissionDifficultyBadge();
         const inits = [bootstrapContent()];
         if (typeof AzureSpeech !== 'undefined') {
