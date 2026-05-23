@@ -1679,7 +1679,18 @@
     let progress = loadProgress();
     let currentTopicIndex = 0;
     
-    let mPhase = 1; 
+    let mPhase = 1;
+    /** 스테퍼·단계 전환 시 이전 1단계 TTS 자동 진행 타이머 무효화 */
+    let missionNavGen = 0;
+    let phase1AdvanceTimer = null;
+
+    function invalidateMissionNav() {
+        missionNavGen++;
+        if (phase1AdvanceTimer) {
+            clearTimeout(phase1AdvanceTimer);
+            phase1AdvanceTimer = null;
+        }
+    } 
     let mSentIdx = 0;
     let currentTargetEng = "";
     let retryCount = 0; 
@@ -2642,11 +2653,12 @@
         }
     }
 
-    /** 스테퍼 번호 클릭 — 숙달·통과 체크 없이 해당 단계로 이동 (기능 테스트용) */
+    /** 스테퍼 번호 클릭 — 숙달·통과 체크 없이 해당 단계로 이동 */
     function jumpToMissionPhase(targetPhase) {
         if (!elMission || elMission.style.display === 'none' || !db.length) return;
         const p = Math.max(1, Math.min(6, Number(targetPhase) || 1));
 
+        invalidateMissionNav();
         stopAllPlayback();
         stopRecordingSilently();
         fbBox.style.display = 'none';
@@ -2659,7 +2671,7 @@
         currentMissedWordsList = [];
         uiRetryCount.innerText = '';
 
-        if (p === 1) runPhase1();
+        if (p === 1) runPhase1({ noAutoAdvance: true });
         else if (p === 2) runPhase2();
         else if (p === 3) runPhase3RecallKor();
         else if (p === 4) runPhase4RecallKeywords(false);
@@ -2777,11 +2789,14 @@
         btnMic.classList.remove('recording');
     }
 
-    async function runPhase1() {
+    async function runPhase1(options) {
+        options = options || {};
+        const navGen = missionNavGen;
         mPhase = 1; mSentIdx = 0; retryCount = 0;
         persistProgress();
         let data = db[currentTopicIndex];
         const minimal = typeof PracticeTrack !== 'undefined' && PracticeTrack.isMinimalPhase1();
+        const autoAdvance = !options.noAutoAdvance && !minimal;
         const korHint = minimal
             ? '<div class="recall-hint">질문만 듣고 Space로 다음 (4컷은 아래 참고)</div>' +
               escapeHtml(getTopicDisplayKor(data).slice(0, 280)) +
@@ -2803,11 +2818,22 @@
 
         if (minimal) {
             speakText(data.question, 'en');
-        } else {
-            speakText(getTopicDisplayKor(data), 'ko', () => {
-                speakText(getTopicFullEng(data), 'en', () => {
-                    setTimeout(forceNextPhase, 1500);
+        } else if (autoAdvance) {
+            speakText(getTopicDisplayKor(data), 'ko', function () {
+                if (navGen !== missionNavGen) return;
+                speakText(getTopicFullEng(data), 'en', function () {
+                    if (navGen !== missionNavGen) return;
+                    phase1AdvanceTimer = setTimeout(function () {
+                        phase1AdvanceTimer = null;
+                        if (navGen !== missionNavGen || mPhase !== 1) return;
+                        forceNextPhase();
+                    }, 1500);
                 });
+            });
+        } else {
+            speakText(getTopicDisplayKor(data), 'ko', function () {
+                if (navGen !== missionNavGen) return;
+                speakText(getTopicFullEng(data), 'en');
             });
         }
     }
@@ -3242,7 +3268,7 @@
                 mSentIdx--;
                 loadCurrentSentence();
             } else {
-                runPhase1();
+                runPhase1({ noAutoAdvance: true });
             }
         } else if (mPhase === 3) {
             if (mSentIdx > 0) {
@@ -3992,6 +4018,7 @@
         if(isRecording) {
             stopRecordingSilently();
         }
+        invalidateMissionNav();
         stopAllPlayback();
         persistProgress();
         elReviewPage.style.display = 'none';
