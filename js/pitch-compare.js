@@ -273,23 +273,58 @@
         return extendPointsToDuration(merged, speechDur);
     }
 
+    function interpolateSemi(points, t) {
+        if (!points.length) return null;
+        if (t <= points[0].t) return points[0].semi;
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1];
+            const next = points[i];
+            if (t <= next.t) {
+                if (prev.semi == null) return next.semi;
+                if (next.semi == null) return prev.semi;
+                if (next.t === prev.t) return next.semi;
+                const f = (t - prev.t) / (next.t - prev.t);
+                return prev.semi + (next.semi - prev.semi) * f;
+            }
+        }
+        return points[points.length - 1].semi;
+    }
+
+    /** 문장 끝까지 곡선이 이어지게 — 모범 TTS 끝이 평평하게 끊기는 현상 완화 */
+    function ensureDenseCoverage(points, speechDur) {
+        const hop = 0.03;
+        const dense = [];
+        let carry = null;
+        for (let t = 0; t <= speechDur; t += hop) {
+            const v = interpolateSemi(points, t);
+            if (v != null) carry = v;
+            if (carry == null) continue;
+            dense.push({ t: t, semi: carry });
+        }
+        if (carry != null && (!dense.length || dense[dense.length - 1].t < speechDur - 0.02)) {
+            dense.push({ t: speechDur, semi: carry });
+        }
+        return dense;
+    }
+
     function buildDisplayContour(samples, sampleRate) {
         const speechDur = samples.length / sampleRate;
         const envPts = smoothContour(
-            fillShortGaps(extractEnvelopeContour(samples, sampleRate), 16),
+            fillShortGaps(extractEnvelopeContour(samples, sampleRate), 20),
             2
         );
         const pitchPts = smoothContour(
-            fillShortGaps(contourToSemitones(extractPitchContour(samples, sampleRate)), 16),
+            fillShortGaps(contourToSemitones(extractPitchContour(samples, sampleRate)), 20),
             2
         );
         const merged = extendPointsToDuration(
             mergePitchAndEnvelope(pitchPts, envPts, speechDur),
             speechDur
         );
+        const dense = ensureDenseCoverage(merged, speechDur);
         const voiced = countVoicedSemi(pitchPts);
         return {
-            points: merged,
+            points: dense,
             mode: voiced >= 6 ? 'pitch' : 'envelope',
         };
     }
@@ -416,12 +451,6 @@
                 d += (started ? ' L' : ' M') + x.toFixed(1) + ' ' + y.toFixed(1);
                 started = true;
             });
-            if (started && lastSemi != null && scale > 0) {
-                const endT = Math.min((points[points.length - 1].t || 0) * scale, axisDur);
-                if (endT < axisDur - 0.02) {
-                    d += ' L' + xAt(axisDur).toFixed(1) + ' ' + yAt(lastSemi).toFixed(1);
-                }
-            }
             return d;
         }
 
@@ -630,6 +659,7 @@
             words: shiftedWords,
             alignUser: true,
             suggestRate: suggestRate,
+            playbackRateDefault: 1,
         };
 
         const svg = buildSvgPaths(modelPts, refDur, userTracks, shiftedWords, true);
@@ -670,11 +700,13 @@
                 '<span class="pitch-legend-user">━ 최근</span>' +
                 '</div>' +
                 '<div class="pitch-controls">' +
-                '<label class="pitch-slider-label">최근 말 재생 속도 <input type="range" class="pitch-rate-slider" min="0.5" max="1.5" step="0.05" value="' +
-                suggestRate.toFixed(2) +
-                '" /> <span class="pitch-rate-val">' +
-                suggestRate.toFixed(2) +
-                '×</span> <span class="pitch-slider-hint">(▶ 최근)</span></label>' +
+                '<label class="pitch-slider-label">최근 말 느리게/빠르게 <input type="range" class="pitch-rate-slider" min="0.5" max="1.5" step="0.05" value="1" /> <span class="pitch-rate-val">1.0×</span>' +
+                (Math.abs(suggestRate - 1) > 0.08
+                    ? ' <span class="pitch-slider-hint">(▶ 최근 = 실제 속도 1.0× · 차트 길이 맞춤은 ' +
+                      suggestRate.toFixed(2) +
+                      '×)</span>'
+                    : ' <span class="pitch-slider-hint">(▶ 최근 = 실제 녹음 속도)</span>') +
+                '</label>' +
                 '<label class="pitch-align-label"><input type="checkbox" class="pitch-align-check" checked /> 윤곽 맞춤 (길이를 모범에 맞춤)</label>' +
                 '<div class="pitch-play-row">' +
                 '<button type="button" class="pitch-play-ref">▶ 모범</button>' +
@@ -715,10 +747,11 @@
         const btnFirst = el.querySelector('.pitch-play-first');
 
         function currentRate() {
-            return slider ? parseFloat(slider.value) || 1 : session.suggestRate || 1;
+            return slider ? parseFloat(slider.value) || 1 : session.playbackRateDefault || 1;
         }
 
         if (slider && rateVal) {
+            slider.value = String(session.playbackRateDefault || 1);
             rateVal.textContent = currentRate().toFixed(2) + '×';
             slider.oninput = function () {
                 rateVal.textContent = currentRate().toFixed(2) + '×';
@@ -738,7 +771,8 @@
         }
         if (btnUser) {
             btnUser.onclick = function () {
-                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, currentRate());
+                const rate = currentRate();
+                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, rate);
             };
         }
         if (btnFirst && session.firstPlaySamples) {

@@ -846,7 +846,7 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js"></script>
+<script src="js/pitch-compare.js?v=20260521"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>
@@ -2001,7 +2001,13 @@
             if (!row.data) return;
             const everUrl = row.data.everFirst ? URL.createObjectURL(row.data.everFirst) : null;
             const latUrl = row.data.latest ? URL.createObjectURL(row.data.latest) : everUrl;
-            recordingArchive[row.key] = { everFirst: everUrl || latUrl, latest: latUrl || everUrl };
+            recordingArchive[row.key] = {
+                everFirst: everUrl || latUrl,
+                latest: latUrl || everUrl,
+                _everAssessWav: row.data.everAssessWav || null,
+                _latestAssessWav: row.data.latestAssessWav || null,
+                _assessAttempts: row.data.assessAttempts || 0,
+            };
         });
         mergeLegacyParagraphKeysInMemory();
         syncCurrentRecordingRefs();
@@ -2013,10 +2019,15 @@
         const prev = existing ? existing.data : {};
         const everBlob = prev.everFirst || (slot._everBlob || null);
         const latestBlob = slot._latestBlob;
-        if (!everBlob && !latestBlob) return;
+        const everAssess = slot._everAssessWav || prev.everAssessWav || null;
+        const latestAssess = slot._latestAssessWav || prev.latestAssessWav || null;
+        if (!everBlob && !latestBlob && !everAssess && !latestAssess) return;
         await idbPutRecording(key, {
             everFirst: everBlob || latestBlob,
-            latest: latestBlob || everBlob
+            latest: latestBlob || everBlob,
+            everAssessWav: everAssess,
+            latestAssessWav: latestAssess,
+            assessAttempts: slot._assessAttempts || prev.assessAttempts || 0,
         });
     }
 
@@ -2055,18 +2066,34 @@
         return key;
     }
 
-    /** 피치 비교: 최근(WAV) + 최초 저장 녹음(있을 때만) */
+    /** Azure 채점 WAV — 피치 비교용 최초·최근 (webm 아카이브와 별도) */
+    function noteAssessWavForPitch(wav) {
+        if (!wav || mPhase < 2) return;
+        const key = getRecordingKey();
+        if (!recordingArchive[key]) {
+            recordingArchive[key] = {};
+        }
+        const slot = recordingArchive[key];
+        if (!slot._everAssessWav) {
+            try {
+                slot._everAssessWav = wav.slice(0, wav.size, wav.type || 'audio/wav');
+            } catch (e) {
+                slot._everAssessWav = wav;
+            }
+        }
+        slot._latestAssessWav = wav;
+        slot._assessAttempts = (slot._assessAttempts || 0) + 1;
+        persistSlotToIdb(key, slot);
+    }
+
     function getPitchCompareUserBlobs() {
         const latest = lastAssessWavBlob;
         if (!latest) return { latest: null, first: null };
         const key = getRecordingKey();
         const slot = recordingArchive[key];
-        if (!slot || !slot._everBlob) return { latest: latest, first: null };
-        const hasFirst = slot._latestBlob && slot._everBlob !== slot._latestBlob;
-        return {
-            latest: latest,
-            first: hasFirst ? slot._everBlob : null,
-        };
+        if (!slot || !slot._everAssessWav) return { latest: latest, first: null };
+        if ((slot._assessAttempts || 0) < 2) return { latest: latest, first: null };
+        return { latest: latest, first: slot._everAssessWav };
     }
 
     function getSentenceTextForKey(key) {
@@ -2864,8 +2891,7 @@
         currentTargetEng = sentEng;
         onCueShown();
 
-        const engHtml =
-            formatEngForDisplay(sentEng, false, { syllableDots: true }) +
+        const engHtml = formatEngForDisplay(sentEng, false, { syllableDots: true });
         updateUI(data.question, sentKor, engHtml);
         document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
         setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
@@ -3772,6 +3798,7 @@
                     return;
                 }
                 lastAssessWavBlob = wav;
+                noteAssessWavForPitch(wav);
                 await evaluateAnswerFromAzure(assessment);
             } catch (e) {
                 console.warn('Short Audio assess failed', e);
