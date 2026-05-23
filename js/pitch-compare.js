@@ -65,11 +65,11 @@
         return { samples: out, sampleRate: targetRate };
     }
 
-    /** 말하기 구간만 남김 — 앞뒤 무음·버튼 누르고 기다린 구간 제거 */
+    /** 말하기 구간만 남김 — 앞뒤 무음 제거 (끝은 여유 있게 잘라 really·bothered 등 유지) */
     function trimSpeechBounds(samples, sampleRate) {
         const frameSize = 256;
         const hop = 64;
-        const gate = 0.01;
+        const gate = 0.008;
         let first = -1;
         let last = -1;
         for (let start = 0; start + frameSize <= samples.length; start += hop) {
@@ -86,9 +86,10 @@
                 speechDur: samples.length / sampleRate,
             };
         }
-        const pad = Math.floor(sampleRate * 0.04);
-        const i0 = Math.max(0, first - pad);
-        const i1 = Math.min(samples.length, last + pad);
+        const padStart = Math.floor(sampleRate * 0.04);
+        const padEnd = Math.floor(sampleRate * 0.14);
+        const i0 = Math.max(0, first - padStart);
+        const i1 = Math.min(samples.length, last + padEnd);
         const trimmed = samples.subarray(i0, i1);
         return {
             samples: new Float32Array(trimmed),
@@ -149,7 +150,7 @@
                 bestLag = lag;
             }
         }
-        if (bestLag < 0 || bestCorr < 0.32) return null;
+        if (bestLag < 0 || bestCorr < 0.28) return null;
         const hz = sampleRate / bestLag;
         if (hz < 55 || hz > 520) return null;
         return hz;
@@ -158,11 +159,21 @@
     function extractPitchContour(samples, sampleRate) {
         const frameSize = 1024;
         const hop = 256;
+        const minFrame = 384;
         const points = [];
-        for (let start = 0; start + frameSize <= samples.length; start += hop) {
-            const frame = samples.subarray(start, start + frameSize);
+        for (let start = 0; start < samples.length; start += hop) {
+            const end = Math.min(start + frameSize, samples.length);
+            const len = end - start;
+            if (len < minFrame) break;
+            let frame;
+            if (len < frameSize) {
+                frame = new Float32Array(frameSize);
+                frame.set(samples.subarray(start, end));
+            } else {
+                frame = samples.subarray(start, end);
+            }
             const f0 = autocorrPitch(frame, sampleRate);
-            const t = (start + frameSize / 2) / sampleRate;
+            const t = (start + len / 2) / sampleRate;
             points.push({ t: t, hz: f0 });
         }
         return points;
@@ -171,10 +182,14 @@
     function extractEnvelopeContour(samples, sampleRate) {
         const frameSize = 512;
         const hop = 128;
+        const minFrame = 192;
         const rmsList = [];
-        for (let start = 0; start + frameSize <= samples.length; start += hop) {
-            const frame = samples.subarray(start, start + frameSize);
-            rmsList.push({ t: (start + frameSize / 2) / sampleRate, rms: frameRms(frame) });
+        for (let start = 0; start < samples.length; start += hop) {
+            const end = Math.min(start + frameSize, samples.length);
+            const len = end - start;
+            if (len < minFrame) break;
+            const frame = samples.subarray(start, end);
+            rmsList.push({ t: (start + len / 2) / sampleRate, rms: frameRms(frame) });
         }
         if (!rmsList.length) return [];
         const peak = Math.max.apply(
@@ -224,19 +239,66 @@
         return out;
     }
 
+    function extendPointsToDuration(points, speechDur) {
+        if (!points.length || speechDur <= 0) return points;
+        let lastSemi = null;
+        for (let i = points.length - 1; i >= 0; i--) {
+            if (points[i].semi != null) {
+                lastSemi = points[i].semi;
+                break;
+            }
+        }
+        const out = points.slice();
+        const lastT = out[out.length - 1].t;
+        if (lastSemi != null && lastT < speechDur - 0.04) {
+            out.push({ t: speechDur, semi: lastSemi });
+        }
+        return out;
+    }
+
+    /** 음량은 끝까지, 피치는 잡히는 구간만 — 문장 끝이 비어 보이지 않게 */
+    function mergePitchAndEnvelope(pitchPts, envPts, speechDur) {
+        const map = new Map();
+        envPts.forEach(function (p) {
+            if (p.semi == null) return;
+            map.set(Math.round(p.t * 250), { t: p.t, semi: p.semi });
+        });
+        pitchPts.forEach(function (p) {
+            if (p.semi == null) return;
+            map.set(Math.round(p.t * 250), { t: p.t, semi: p.semi });
+        });
+        const merged = Array.from(map.values()).sort(function (a, b) {
+            return a.t - b.t;
+        });
+        return extendPointsToDuration(merged, speechDur);
+    }
+
     function buildDisplayContour(samples, sampleRate) {
-        let pitchPts = smoothContour(
-            fillShortGaps(contourToSemitones(extractPitchContour(samples, sampleRate)), 8),
+        const speechDur = samples.length / sampleRate;
+        const envPts = smoothContour(
+            fillShortGaps(extractEnvelopeContour(samples, sampleRate), 16),
             2
         );
-        if (countVoicedSemi(pitchPts) >= 6) {
-            return { points: pitchPts, mode: 'pitch' };
-        }
-        const envPts = smoothContour(fillShortGaps(extractEnvelopeContour(samples, sampleRate), 6), 2);
-        if (countVoicedSemi(envPts) >= 4) {
-            return { points: envPts, mode: 'envelope' };
-        }
-        return { points: pitchPts, mode: 'pitch' };
+        const pitchPts = smoothContour(
+            fillShortGaps(contourToSemitones(extractPitchContour(samples, sampleRate)), 16),
+            2
+        );
+        const merged = extendPointsToDuration(
+            mergePitchAndEnvelope(pitchPts, envPts, speechDur),
+            speechDur
+        );
+        const voiced = countVoicedSemi(pitchPts);
+        return {
+            points: merged,
+            mode: voiced >= 6 ? 'pitch' : 'envelope',
+        };
+    }
+
+    function sortWordsByOffset(words) {
+        if (!words || !words.length) return [];
+        return words.slice().sort(function (a, b) {
+            return (a.offsetMs || 0) - (b.offsetMs || 0);
+        });
     }
 
     function contourToSemitones(points) {
@@ -300,14 +362,32 @@
         const iw = W - pad.l - pad.r;
         const ih = H - pad.t - pad.b;
         const refDur = refSpeechDur || 0.1;
+        const latestTrack = userTracks.length ? userTracks[userTracks.length - 1] : null;
+        const latestSpeechDur = latestTrack ? latestTrack.speechDur : refDur;
+        const sortedWords = sortWordsByOffset(words);
+
         let axisDur = refDur;
-        userTracks.forEach(function (tr) {
-            axisDur = Math.max(axisDur, tr.speechDur || 0);
-        });
+        if (alignUser) {
+            axisDur = refDur;
+        } else {
+            userTracks.forEach(function (tr) {
+                axisDur = Math.max(axisDur, tr.speechDur || 0);
+            });
+            sortedWords.forEach(function (w) {
+                if (w.offsetMs != null) {
+                    axisDur = Math.max(axisDur, w.offsetMs / 1000 + 0.12);
+                }
+            });
+        }
         axisDur = Math.max(axisDur, 0.1);
 
+        function chartTime(rawSec, speechDurForTrack) {
+            if (!alignUser || !speechDurForTrack || speechDurForTrack <= 0) return rawSec;
+            return rawSec * (refDur / speechDurForTrack);
+        }
+
         function xAt(t) {
-            return pad.l + (t / axisDur) * iw;
+            return pad.l + (Math.min(t, axisDur) / axisDur) * iw;
         }
 
         function yAt(semi) {
@@ -315,12 +395,13 @@
             return pad.t + ih * (1 - (clamped + 6) / 12);
         }
 
-        function pathFrom(points, speechDur) {
-            const scale = alignUser && speechDur > 0 ? refDur / speechDur : 1;
+        function pathFrom(points, speechDurForTrack) {
+            const scale = alignUser && speechDurForTrack > 0 ? refDur / speechDurForTrack : 1;
             let d = '';
             let started = false;
             let silentStreak = 0;
-            const maxSilent = 12;
+            const maxSilent = 20;
+            let lastSemi = null;
             points.forEach(function (p) {
                 if (p.semi == null) {
                     silentStreak++;
@@ -328,12 +409,19 @@
                     return;
                 }
                 silentStreak = 0;
-                const t = p.t * scale;
+                lastSemi = p.semi;
+                const t = Math.min(p.t * scale, axisDur);
                 const x = xAt(t);
                 const y = yAt(p.semi);
                 d += (started ? ' L' : ' M') + x.toFixed(1) + ' ' + y.toFixed(1);
                 started = true;
             });
+            if (started && lastSemi != null && scale > 0) {
+                const endT = Math.min((points[points.length - 1].t || 0) * scale, axisDur);
+                if (endT < axisDur - 0.02) {
+                    d += ' L' + xAt(axisDur).toFixed(1) + ' ' + yAt(lastSemi).toFixed(1);
+                }
+            }
             return d;
         }
 
@@ -342,10 +430,10 @@
         }
 
         let wordMarks = '';
-        if (words && words.length) {
-            words.forEach(function (w) {
+        if (sortedWords.length) {
+            sortedWords.forEach(function (w) {
                 if (w.offsetMs == null) return;
-                const t = w.offsetMs / 1000;
+                const t = chartTime(w.offsetMs / 1000, latestSpeechDur);
                 if (t > axisDur + 0.05) return;
                 const x = xAt(t);
                 wordMarks +=
@@ -501,7 +589,9 @@
             latestData.mode === 'envelope' ||
             (firstData && firstData.mode === 'envelope');
         const suggestRate = suggestPlaybackRate(refDur, userDur);
-        const shiftedWords = shiftWordOffsets(opts.words || [], latestData.trimOffsetSec);
+        const shiftedWords = sortWordsByOffset(
+            shiftWordOffsets(opts.words || [], latestData.trimOffsetSec)
+        );
         const trimNote =
             latestData.trimOffsetSec > 0.08
                 ? ' · 앞 무음 ' + latestData.trimOffsetSec.toFixed(1) + 's 제거'
