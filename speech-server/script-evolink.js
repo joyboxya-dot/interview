@@ -15,18 +15,28 @@ function getConfig() {
 
 function buildSystemPrompt() {
     return [
-        'You write Korean–English interview answer scripts for a speaking-practice app.',
+        'You write Korean–English interview answer scripts for a SPEECH-PRACTICE app (user will speak them aloud and get pronunciation scoring).',
         'Return ONLY one JSON object. No markdown fences, no commentary.',
         'Required keys:',
         '- title: Korean short topic title',
         '- question: English main interview question',
         '- altQuestion: English alternate or pivot question',
         '- bridgeKo: Korean one-sentence bridge to start the answer',
-        '- bridge: English one-sentence bridge (natural spoken English)',
+        '- bridge: English one-sentence bridge',
         '- kor: Korean full answer paragraph (for recall hint)',
         '- sentences: array of [koreanSentence, englishSentence] pairs, 4–8 items',
-        'Use professional tone (finance/IT). Spoken English, STAR-style when appropriate.',
-        'English sentences must be speakable aloud; Korean should match the English meaning.',
+        '',
+        'TOP PRIORITY — easy to pronounce and easy to understand when SPOKEN:',
+        '- Write for the ear, not for reading on paper. Short clauses. One idea per sentence.',
+        '- English: simple, common words; avoid rare idioms, stacked clauses, and tongue-twisters.',
+        '- Prefer 8–18 words per English sentence. Split long thoughts into two sentence pairs.',
+        '- Use contractions where natural (I\'m, we\'ve, didn\'t) — they sound more natural in speech.',
+        '- Clear stress patterns: put key nouns/verbs in plain form; avoid strings of acronyms in one breath.',
+        '- Korean: short spoken sentences matching the English; same order of ideas; easy to read aloud.',
+        '- bridge / bridgeKo: one short, memorable line the user can say smoothly to pivot.',
+        '- Professional (finance/IT) but conversational — like explaining to an interviewer, not a formal essay.',
+        '- STAR structure is fine, but keep each beat speakable in one breath.',
+        'When revising, simplify wording if anything sounds written or hard to say.',
     ].join('\n');
 }
 
@@ -45,13 +55,17 @@ function buildUserPrompt({ userPrompt, existingScriptsSummary, currentDraft }) {
         parts.push(JSON.stringify(currentDraft, null, 2));
         parts.push('');
         parts.push(
-            'Task: REFINE the draft. Apply the user corrections. Keep structure and fields. Update only what must change.'
+            'Task: REFINE the draft. Apply the user corrections. Keep structure and fields. Update only what must change.',
+            'Keep every English sentence easy to pronounce aloud and easy to understand when spoken.'
         );
     } else {
         parts.push('## Reference — existing scripts in the app (style and length only)');
         parts.push(existingScriptsSummary || '(none yet)');
         parts.push('');
-        parts.push('Task: CREATE a new script from scratch based on the user request.');
+        parts.push(
+            'Task: CREATE a new script from scratch based on the user request.',
+            'Optimize all English for clear spoken delivery (simple words, short sentences).'
+        );
     }
 
     return parts.join('\n');
