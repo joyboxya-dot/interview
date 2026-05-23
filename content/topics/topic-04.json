@@ -22,8 +22,8 @@
       "Thanks to this double-check system, this issue never happened again."
     ]
   ],
-  "bridgeKo": "장 개장 전 배치 장애를 처리했던 경험으로 말씀드리면,",
-  "bridge": "That brings me to a batch failure I fixed before the market opened.",
+  "bridgeKo": "장 열리기 전에 배치가 터졌습니다.",
+  "bridge": "Our batch failed right before market open.",
   "topicComic": {
     "captionKo": "",
     "panels": [

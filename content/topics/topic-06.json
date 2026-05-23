@@ -22,8 +22,8 @@
       "As a result, the batch job finished much faster and more stably."
     ]
   ],
-  "bridgeKo": "NPS 결산 때 배치 성능을 다뤘던 경험과 연결하면,",
-  "bridge": "That connects to settlement batch performance in the NPS project.",
+  "bridgeKo": "오라클 실행 계획부터 봤던 일입니다.",
+  "bridge": "It started with the Oracle execution plan.",
   "topicComic": {
     "captionKo": "",
     "panels": [

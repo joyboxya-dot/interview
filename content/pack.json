@@ -34,8 +34,8 @@
           "As a result, we stopped the dual-system check and saved a lot of time."
         ]
       ],
-      "bridgeKo": "NPS 고도화 이후 운영 업무로 말씀드리면,",
-      "bridge": "That connects to my work as an operations engineer after the NPS modernization."
+      "bridgeKo": "매일 업무 중, 제가 고친 일이 하나 있습니다.",
+      "bridge": "One daily ops task really bothered me."
     },
     {
       "id": "topic-01",
@@ -61,8 +61,8 @@
           "We used this as our team standard, which stabilized our daily settlement."
         ]
       ],
-      "bridgeKo": "NPS 직후 문서화가 없던 시기와 연결하면,",
-      "bridge": "That relates to right after the NPS modernization, when nothing was documented."
+      "bridgeKo": "문서가 거의 없어 막혔던 때가 있습니다.",
+      "bridge": "We had almost no documentation to rely on."
     },
     {
       "id": "topic-02",
@@ -88,8 +88,8 @@
           "We created about 50 new APIs and mapped the rest, successfully launching the new MTS system."
         ]
       ],
-      "bridgeKo": "MTS 현대화 때 외부 팀과 협업했던 일과 연결하면,",
-      "bridge": "That ties to the MTS modernization, when I worked with an external mobile team."
+      "bridgeKo": "외부 팀과 요구가 크게 엇갈렸습니다.",
+      "bridge": "We had a real clash with the external team."
     },
     {
       "id": "topic-03",
@@ -115,8 +115,8 @@
           "This way, even if the news API fails, users can still trade stocks, which is much safer."
         ]
       ],
-      "bridgeKo": "MTS에서 API를 나눠 안정성을 맞췄던 일과 연결하면,",
-      "bridge": "That connects to the MTS project, when we split APIs to keep the app stable."
+      "bridgeKo": "안정성 때문에 한번은 강하게 말렸습니다.",
+      "bridge": "I had to push back once for stability."
     },
     {
       "id": "topic-04",
@@ -142,8 +142,8 @@
           "Thanks to this double-check system, this issue never happened again."
         ]
       ],
-      "bridgeKo": "장 개장 전 배치 장애를 처리했던 경험으로 말씀드리면,",
-      "bridge": "That brings me to a batch failure I fixed before the market opened."
+      "bridgeKo": "장 열리기 전에 배치가 터졌습니다.",
+      "bridge": "Our batch failed right before market open."
     },
     {
       "id": "topic-05",
@@ -169,8 +169,8 @@
           "I lack cloud experience, but I am overcoming this by self-studying AWS and Snowflake."
         ]
       ],
-      "bridgeKo": "제가 일하는 방식과 관련해서 솔직히 말씀드리면,",
-      "bridge": "To be honest, that relates to how I prepare and double-check under pressure."
+      "bridgeKo": "솔직히, 제 약점이 하나 있습니다.",
+      "bridge": "Honestly, I have one clear weakness."
     },
     {
       "id": "topic-06",
@@ -196,8 +196,8 @@
           "As a result, the batch job finished much faster and more stably."
         ]
       ],
-      "bridgeKo": "NPS 결산 때 배치 성능을 다뤘던 경험과 연결하면,",
-      "bridge": "That connects to settlement batch performance in the NPS project."
+      "bridgeKo": "오라클 실행 계획부터 봤던 일입니다.",
+      "bridge": "It started with the Oracle execution plan."
     },
     {
       "id": "topic-07",
@@ -223,8 +223,8 @@
           "Now my family is fully settled, and I am 100% ready to return to work."
         ]
       ],
-      "bridgeKo": "미국에서 가족을 정착시키던 시기와 연결하면,",
-      "bridge": "That relates to the years I spent settling my family in the US."
+      "bridgeKo": "가족 때문에 잠시 일을 쉬었습니다.",
+      "bridge": "I stepped away from work for family reasons."
     },
     {
       "id": "topic-08",
@@ -250,8 +250,8 @@
           "Also, I want to mentor junior engineers, just like I did in the past."
         ]
       ],
-      "bridgeKo": "제가 여기서 지향하는 커리어와 연결하면,",
-      "bridge": "When I think about my path here, I connect it to the engineer I want to become."
+      "bridgeKo": "제가 보는 5년·10년 그림이 있습니다.",
+      "bridge": "Here is how I see my five- and ten-year path."
     },
     {
       "id": "topic-09",
@@ -277,8 +277,8 @@
           "For example, I recently self-studied AWS and Snowflake."
         ]
       ],
-      "bridgeKo": "실무에서 문법이 바로 안 떠올라도, 이렇게 접근합니다.",
-      "bridge": "If I do not recall the exact syntax, I still connect it to how I work in production."
+      "bridgeKo": "바로 코드는 못 써도, 절차는 있습니다.",
+      "bridge": "I may not code it live, but I have a clear process."
     }
   ]
 }

@@ -81,12 +81,22 @@
         #mission-area { display: none; background: white; padding: 14px 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
         .stepper { display: flex; justify-content: space-between; margin-bottom: 12px; position: relative; }
         .stepper::before { content: ''; position: absolute; top: 12px; left: 0; right: 0; height: 2px; background: #E5E7EB; z-index: 1; }
-        .step { position: relative; z-index: 2; background: white; padding: 0 4px; text-align: center; color: #9CA3AF; font-weight: 700; font-size: 11px; flex: 1; }
+        .stepper .step {
+            position: relative; z-index: 2; flex: 1;
+            border: none; background: white; padding: 0 4px; text-align: center;
+            color: #9CA3AF; font-weight: 700; font-size: 11px; cursor: pointer;
+            font-family: inherit;
+        }
+        .stepper .step:hover { color: var(--primary); }
+        .stepper .step:hover .circle { background: #BFDBFE; }
+        .stepper .step.done:hover { color: var(--success); }
+        .stepper .step.done:hover .circle { background: #34D399; }
         .step .circle { width: 24px; height: 24px; border-radius: 50%; background: #E5E7EB; color: white; line-height: 24px; margin: 0 auto 3px; font-size: 11px; }
         .step.active { color: var(--primary); }
         .step.active .circle { background: var(--primary); box-shadow: 0 0 0 3px #DBEAFE; }
         .step.done { color: var(--success); }
         .step.done .circle { background: var(--success); }
+        .step-label { display: block; }
         
         .question-box { background: #F8FAFC; border-left: 3px solid var(--primary); padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 16px; font-weight: bold; color: #111; }
         .question-box.mission-cue-primary {
@@ -123,12 +133,10 @@
             margin-top: 12px; padding: 8px 10px; border-radius: 8px;
             border: 1px dashed #CBD5E1; background: #FAFAFA;
         }
-        .mission-reference summary {
-            font-size: 11px; font-weight: 700; color: #64748B; cursor: pointer;
-            user-select: none; list-style: none;
+        .mission-reference-label {
+            font-size: 11px; font-weight: 700; color: #64748B;
+            margin: 0 0 8px; user-select: none;
         }
-        .mission-reference summary::-webkit-details-marker { display: none; }
-        .mission-reference[open] summary { margin-bottom: 8px; color: #475569; }
         .mission-reference .question-box { margin-top: 6px; font-size: 15px; }
         .mission-reference .comic-strip { margin-top: 6px; }
         .mission-reference .reading-guide { margin-top: 6px; }
@@ -687,11 +695,11 @@
                         </div>
                         <div class="topic-field">
                             <label class="topic-field-label" for="topic-add-bridge-ko">브릿지 (한글, 1문장)</label>
-                            <input type="text" id="topic-add-bridge-ko" class="topic-input" placeholder="그 경험과 연결하면," />
+                            <input type="text" id="topic-add-bridge-ko" class="topic-input" placeholder="문제/갈등 한 줄 (첫 본문과 겹치지 않게)" />
                         </div>
                         <div class="topic-field">
                             <label class="topic-field-label" for="topic-add-bridge">브릿지 (영어, 1문장)</label>
-                            <input type="text" id="topic-add-bridge" class="topic-input" placeholder="That connects to my experience when..." />
+                            <input type="text" id="topic-add-bridge" class="topic-input" placeholder="One short hook — do not repeat sentence 1" />
                         </div>
                         <div class="topic-field">
                             <label class="topic-field-label" for="topic-add-kor">한글 통문장 (힌트용)</label>
@@ -733,13 +741,13 @@
                     <div style="font-size:12px;font-weight:bold;color:var(--danger);" id="retry-counter"></div>
                 </div>
             </div>
-            <div class="stepper" id="stepper">
-                <div class="step" id="step-1"><div class="circle">1</div>의미</div>
-                <div class="step" id="step-2"><div class="circle">2</div>문장</div>
-                <div class="step" id="step-3"><div class="circle">3</div>한글</div>
-                <div class="step" id="step-4"><div class="circle">4</div>키워드</div>
-                <div class="step" id="step-5"><div class="circle">5</div>질문</div>
-                <div class="step" id="step-6"><div class="circle">6</div>피벗</div>
+            <div class="stepper" id="stepper" role="navigation" aria-label="학습 단계">
+                <button type="button" class="step" id="step-1" onclick="jumpToMissionPhase(1)" title="1단계로 바로 이동 (앞 단계 생략)"><div class="circle">1</div><span class="step-label">의미</span></button>
+                <button type="button" class="step" id="step-2" onclick="jumpToMissionPhase(2)" title="2단계로 바로 이동"><div class="circle">2</div><span class="step-label">문장</span></button>
+                <button type="button" class="step" id="step-3" onclick="jumpToMissionPhase(3)" title="3단계로 바로 이동"><div class="circle">3</div><span class="step-label">한글</span></button>
+                <button type="button" class="step" id="step-4" onclick="jumpToMissionPhase(4)" title="4단계로 바로 이동"><div class="circle">4</div><span class="step-label">키워드</span></button>
+                <button type="button" class="step" id="step-5" onclick="jumpToMissionPhase(5)" title="5단계로 바로 이동"><div class="circle">5</div><span class="step-label">질문</span></button>
+                <button type="button" class="step" id="step-6" onclick="jumpToMissionPhase(6)" title="6단계로 바로 이동"><div class="circle">6</div><span class="step-label">피벗</span></button>
             </div>
             <p class="mission-phase-goal" id="mission-phase-goal"></p>
             <div class="controls mission-controls">
@@ -761,15 +769,15 @@
                 <div class="english-text" id="ui-eng-text"></div>
             </div>
         </div>
-        <details class="mission-reference" id="mission-reference">
-            <summary>참고 4컷·읽기 지도 (그림만) · ↑↓</summary>
+        <div class="mission-reference" id="mission-reference">
+            <p class="mission-reference-label">참고 4컷·읽기 지도 (그림만) · ↑↓</p>
             <div class="question-box" id="ui-question-box" style="display:none">Q. 질문</div>
             <div id="ui-comic-strip" class="comic-strip" style="display:none" aria-hidden="true">
                 <p class="comic-strip-label" id="ui-comic-label" style="display:none"></p>
                 <div class="comic-panels" id="ui-comic-panels"></div>
             </div>
             <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
-        </details>
+        </div>
     </div>
 </div>
 
@@ -883,7 +891,7 @@
     const STORAGE_KEY = 'interviewProgressV38';
     const PHASE_LABELS = ['의미 수용', '문장 훈련', '문장 회상', '키워드 회상', '질문 회상', '피벗 방어'];
     const PHASE_MISSION_GOALS = {
-        1: '목표: 맥락만 잡기 → Space로 다음 (4컷은 아래 참고에서만)',
+        1: '목표: 맥락만 잡기 → Space로 다음 (4컷은 아래 참고)',
         2: '목표: 이 문장을 영어로 말하기 → Enter 점검',
         3: '목표: cloze(끝→앞)로 맞춰보기 → Space 후 한글만·Enter 점검',
         4: '목표: 힌트만 보고 통문장 말하기',
@@ -2540,19 +2548,55 @@
     function updateStepper(phase) {
         const labels = ['의미', '문장', '회상', '키워드', '질문', '피벗'];
         for (let i = 1; i <= 6; i++) {
-            let el = document.getElementById('step-' + i);
+            const el = document.getElementById('step-' + i);
+            if (!el) continue;
             el.className = 'step';
+            const circle = el.querySelector('.circle');
+            const labelEl = el.querySelector('.step-label');
             const label = labels[i - 1];
+            if (labelEl) labelEl.textContent = label;
             if (i < phase) {
                 el.classList.add('done');
-                el.innerHTML = '<div class="circle">✓</div>' + label;
+                if (circle) circle.textContent = '✓';
             } else if (i === phase) {
                 el.classList.add('active');
-                el.innerHTML = '<div class="circle">' + i + '</div>' + label;
-            } else {
-                el.innerHTML = '<div class="circle">' + i + '</div>' + label;
+                if (circle) circle.textContent = String(i);
+            } else if (circle) {
+                circle.textContent = String(i);
             }
         }
+    }
+
+    /** 스테퍼 번호 클릭 — 숙달·통과 체크 없이 해당 단계로 이동 (기능 테스트용) */
+    function jumpToMissionPhase(targetPhase) {
+        if (!elMission || elMission.style.display === 'none' || !db.length) return;
+        const p = Math.max(1, Math.min(6, Number(targetPhase) || 1));
+
+        stopAllPlayback();
+        stopRecordingSilently();
+        fbBox.style.display = 'none';
+        fbBox.className = 'feedback mission-feedback';
+        setMissionWorkDimmed(false);
+        tormentActive = false;
+        tormentKey = null;
+        retryCount = 0;
+        mSentIdx = 0;
+        currentMissedWordsList = [];
+        uiRetryCount.innerText = '';
+
+        if (p === 1) runPhase1();
+        else if (p === 2) runPhase2();
+        else if (p === 3) runPhase3RecallKor();
+        else if (p === 4) runPhase4RecallKeywords(false);
+        else if (p === 5) runPhase5RecallQuestion();
+        else if (p === 6) {
+            const bridge =
+                (progress.checkpoint && progress.checkpoint.bridge) ||
+                getTopicBridgeEn(db[currentTopicIndex]) ||
+                null;
+            runPhase6Pivot(bridge);
+        }
+        persistProgress();
     }
 
     function setMissionWorkDimmed(on) {
@@ -2601,25 +2645,11 @@
             if (showQuestionCue && question) qPrimary.textContent = 'Q. ' + question;
         }
         if (qRef) qRef.style.display = 'none';
-
-        if (refPanel && !refPanel.dataset.userToggled) {
-            refPanel.open = false;
-        }
-    }
-
-    function bindMissionReferencePanel() {
-        const refPanel = document.getElementById('mission-reference');
-        if (!refPanel || refPanel.dataset.bound) return;
-        refPanel.dataset.bound = '1';
-        refPanel.addEventListener('toggle', function () {
-            refPanel.dataset.userToggled = '1';
-        });
     }
 
     function scrollMissionReference(deltaY) {
         const refPanel = document.getElementById('mission-reference');
         if (refPanel) {
-            if (!refPanel.open) refPanel.open = true;
             refPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
         window.scrollBy({ top: deltaY, behavior: 'smooth' });
@@ -3874,7 +3904,6 @@
         if (typeof DashboardSettings !== 'undefined') {
             DashboardSettings.loadAndApply();
         }
-        bindMissionReferencePanel();
         renderPracticeTrackPanel();
         renderDifficultyPanel();
         renderTtsSpeedPanel();

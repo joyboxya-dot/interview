@@ -22,8 +22,8 @@
       "This way, even if the news API fails, users can still trade stocks, which is much safer."
     ]
   ],
-  "bridgeKo": "MTS에서 API를 나눠 안정성을 맞췄던 일과 연결하면,",
-  "bridge": "That connects to the MTS project, when we split APIs to keep the app stable.",
+  "bridgeKo": "안정성 때문에 한번은 강하게 말렸습니다.",
+  "bridge": "I had to push back once for stability.",
   "topicComic": {
     "captionKo": "",
     "panels": [
