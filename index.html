@@ -69,15 +69,6 @@
         .dash-menu-primary:hover { background: var(--secondary); border-color: var(--secondary); color: white; }
         .dash-menu-ghost { background: transparent; border-color: transparent; color: #94A3B8; font-size: 11px; font-weight: 600; padding: 6px; }
         .dash-menu-ghost:hover { color: #64748B; background: #F1F5F9; border-color: #E2E8F0; }
-        .dash-recordings-promo {
-            display: block; width: 100%; margin-top: 10px; padding: 12px 14px;
-            text-align: left; border-radius: 10px; border: 2px solid #6EE7B7;
-            background: linear-gradient(180deg, #ECFDF5 0%, #F0FDF4 100%);
-            cursor: pointer; transition: 0.15s;
-        }
-        .dash-recordings-promo:hover { border-color: #34D399; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15); }
-        .dash-recordings-promo-title { font-size: 14px; font-weight: 800; color: #047857; margin: 0 0 4px; }
-        .dash-recordings-promo-desc { font-size: 11px; font-weight: 600; color: #059669; margin: 0; line-height: 1.4; }
         @media (max-width: 560px) {
             .dash-grid { grid-template-columns: 1fr; }
             .dash-menu { flex-direction: row; flex-wrap: wrap; }
@@ -205,7 +196,7 @@
         }
         .eng-hidden { color: #94A3B8; font-style: italic; font-size: 15px; }
         .difficulty-panel {
-            text-align: left; margin: 0; padding: 8px 10px; background: #F8FAFC;
+            text-align: left; margin: 0; padding: 8px 10px; background: #fff;
             border-radius: 8px; border: 1px solid #E2E8F0;
         }
         .difficulty-title { font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 6px; }
@@ -221,7 +212,7 @@
         }
         .difficulty-hint { margin-top: 6px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
         .tts-speed-panel {
-            text-align: left; margin: 8px 0 0; padding: 8px 10px; background: #F8FAFC;
+            text-align: left; margin: 0; padding: 8px 10px; background: #fff;
             border-radius: 8px; border: 1px solid #E2E8F0;
         }
         .tts-speed-row {
@@ -236,10 +227,25 @@
         }
         .tts-speed-select:focus { outline: 2px solid #BFDBFE; border-color: var(--primary); }
         .tts-speed-hint { margin-top: 6px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
-        .l2-speed-panel, .mastery-dash-panel, .content-panel {
-            text-align: left; margin: 8px 0 0; padding: 8px 10px; background: #F8FAFC;
+        .dash-settings-fold {
+            margin: 0 0 10px; border: 1px solid #E2E8F0; border-radius: 8px;
+            background: #F8FAFC; overflow: hidden;
+        }
+        .dash-settings-fold summary {
+            padding: 10px 12px; font-size: 13px; font-weight: 800; cursor: pointer;
+            list-style: none; color: #334155; user-select: none;
+        }
+        .dash-settings-fold summary::-webkit-details-marker { display: none; }
+        .dash-settings-fold summary::after {
+            content: ' ▼ 펼치기'; font-size: 11px; font-weight: 600; color: #94A3B8;
+        }
+        .dash-settings-fold[open] summary::after { content: ' ▲ 접기'; }
+        .dash-settings-body { padding: 8px 10px 10px; border-top: 1px solid #E2E8F0; }
+        .l2-speed-panel, .mastery-dash-panel, .content-panel, .difficulty-panel, .tts-speed-panel {
+            text-align: left; margin: 8px 0 0; padding: 8px 10px; background: #fff;
             border-radius: 8px; border: 1px solid #E2E8F0;
         }
+        .content-panel { margin-top: 12px; background: #F8FAFC; }
         .mastery-queue-badge {
             display: inline-block; font-size: 11px; font-weight: 800; color: #B91C1C;
             background: #FEE2E2; padding: 4px 10px; border-radius: 999px; margin-top: 6px;
@@ -270,6 +276,15 @@
             list-style: none; margin-bottom: 8px;
         }
         .topic-add-block summary::-webkit-details-marker { display: none; }
+        .topic-add-block summary::after {
+            content: ' ▼'; font-size: 10px; font-weight: 600; color: #94A3B8;
+        }
+        .topic-add-block[open] summary::after { content: ' ▲'; }
+        .topic-draft-fields summary {
+            font-size: 11px; font-weight: 700; color: #64748B; cursor: pointer;
+            list-style: none; margin: 8px 0;
+        }
+        .topic-draft-fields summary::-webkit-details-marker { display: none; }
         .topic-field { margin-bottom: 8px; }
         .topic-field-label {
             display: block; font-size: 10px; font-weight: 700; color: #64748B;
@@ -483,6 +498,9 @@
         <div class="dash-grid">
             <div class="dash-main">
                 <p id="resume-info" class="dash-resume"></p>
+                <details class="dash-settings-fold" id="dash-settings-fold">
+                    <summary>⚙️ 설정</summary>
+                    <div class="dash-settings-body">
                 <div class="difficulty-panel" id="difficulty-panel">
                     <div class="difficulty-title">2단계 발음 난이도</div>
                     <div class="difficulty-options" id="difficulty-options"></div>
@@ -506,6 +524,23 @@
                     </label>
                     <div class="mastery-queue-badge" id="mastery-queue-badge">약점 큐 0개</div>
                 </div>
+                <div class="tts-speed-panel" id="tts-speed-panel">
+                    <div class="difficulty-title">음성 재생 속도</div>
+                    <div class="tts-speed-row">
+                        <div class="tts-speed-field">
+                            <label class="tts-speed-label" for="tts-speed-normal">안내·모범</label>
+                            <select class="tts-speed-select" id="tts-speed-normal" aria-label="안내·모범 음성 속도"></select>
+                        </div>
+                        <div class="tts-speed-field">
+                            <label class="tts-speed-label" for="tts-speed-practice">틀린 단어</label>
+                            <select class="tts-speed-select" id="tts-speed-practice" aria-label="틀린 단어 음성 속도"></select>
+                        </div>
+                    </div>
+                    <p class="tts-speed-hint" id="tts-speed-hint"></p>
+                </div>
+                <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
+                    </div>
+                </details>
                 <div class="content-panel" id="content-panel">
                     <div class="difficulty-title">면접 스크립트</div>
                     <p class="tts-speed-hint" id="content-status-hint">로딩 중…</p>
@@ -514,11 +549,11 @@
                         <select id="topic-delete-select" aria-label="삭제할 스크립트"></select>
                         <button type="button" id="btn-delete-topic">삭제</button>
                     </div>
-                    <details class="topic-add-block" open>
+                    <details class="topic-add-block">
                         <summary>＋ 새 스크립트 추가</summary>
                         <div class="topic-field">
                             <label class="topic-field-label" for="topic-ai-prompt">AI 요청 (만들 내용 · 수정 지시)</label>
-                            <textarea id="topic-ai-prompt" class="topic-ai-prompt" rows="3" placeholder="예: 모르는 툴 질문이 올 때 답하는 스크립트. 파이썬은 업무에 쓴 적 없고 C 문법이 비슷하다고 설명."></textarea>
+                            <textarea id="topic-ai-prompt" class="topic-ai-prompt" rows="3" placeholder="예: 모르는 툴 질문 답변. 발음·이해 쉬운 짧은 영어 문장으로."></textarea>
                             <p class="topic-ai-mode-hint" id="topic-ai-mode-hint"></p>
                             <div class="topic-add-actions" style="margin-top:0">
                                 <button type="button" id="btn-ai-generate-script">AI 스크립트 생성</button>
@@ -526,7 +561,7 @@
                             </div>
                             <p class="topic-ai-status" id="topic-ai-status" aria-live="polite"></p>
                         </div>
-                        <details class="topic-draft-fields" id="topic-draft-fields" open>
+                        <details class="topic-draft-fields" id="topic-draft-fields">
                             <summary>AI 초안 · 직접 수정 후 「추가하기」</summary>
                         <div class="topic-field">
                             <label class="topic-field-label" for="topic-add-title">제목 (한글)</label>
@@ -564,30 +599,10 @@
                         </details>
                     </details>
                 </div>
-                <div class="tts-speed-panel" id="tts-speed-panel">
-                    <div class="difficulty-title">음성 재생 속도</div>
-                    <div class="tts-speed-row">
-                        <div class="tts-speed-field">
-                            <label class="tts-speed-label" for="tts-speed-normal">안내·모범</label>
-                            <select class="tts-speed-select" id="tts-speed-normal" aria-label="안내·모범 음성 속도"></select>
-                        </div>
-                        <div class="tts-speed-field">
-                            <label class="tts-speed-label" for="tts-speed-practice">틀린 단어</label>
-                            <select class="tts-speed-select" id="tts-speed-practice" aria-label="틀린 단어 음성 속도"></select>
-                        </div>
-                    </div>
-                    <p class="tts-speed-hint" id="tts-speed-hint"></p>
-                </div>
-                <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
-                <button type="button" class="dash-recordings-promo" id="btn-dash-recordings-promo">
-                    <p class="dash-recordings-promo-title">🎧 저장된 녹음 듣기</p>
-                    <p class="dash-recordings-promo-desc" id="dash-recordings-promo-desc">최초 발음 vs 최근 발음 비교 · 문장별 재생</p>
-                </button>
             </div>
             <nav class="dash-menu" aria-label="학습 메뉴">
                 <button type="button" class="dash-menu-btn dash-menu-primary" id="btn-start-mission" onclick="startMission(false)">학습 시작하기</button>
                 <button type="button" class="dash-menu-btn" id="btn-restart" onclick="startMission(true)" style="display:none;">처음부터 다시</button>
-                <button type="button" class="dash-menu-btn" id="btn-open-recording-review">🎧 녹음 듣기</button>
                 <button type="button" class="dash-menu-btn dash-menu-ghost" onclick="resetProgress()">데이터 초기화</button>
             </nav>
         </div>
@@ -603,7 +618,6 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
             <div style="font-weight:bold; color:var(--primary);" id="ui-topic-title">주제 제목</div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <button type="button" class="global-nav-btn primary" id="btn-mission-recordings" style="padding:6px 10px;font-size:11px;">🎧 녹음</button>
                 <span class="mission-difficulty-badge" id="mission-difficulty-badge" title="대시보드에서 변경"></span>
                 <div style="font-size:14px; font-weight:bold; color:var(--danger);" id="retry-counter"></div>
             </div>
@@ -1275,10 +1289,7 @@
     const elReviewPage = document.getElementById('recording-review-page');
     const elReviewList = document.getElementById('recording-review-list');
 
-    document.getElementById('btn-open-recording-review').onclick = openRecordingReviewPage;
-    document.getElementById('btn-dash-recordings-promo').onclick = openRecordingReviewPage;
     document.getElementById('btn-nav-recordings').onclick = openRecordingReviewPage;
-    document.getElementById('btn-mission-recordings').onclick = openRecordingReviewPage;
     document.getElementById('btn-nav-home').onclick = goHome;
     document.getElementById('btn-close-recording-review').onclick = closeRecordingReviewPage;
 
@@ -1646,14 +1657,8 @@
         const keys = Object.keys(recordingArchive);
         const n = keys.length;
         const countEl = document.getElementById('global-recording-count');
-        const promoDesc = document.getElementById('dash-recordings-promo-desc');
         if (countEl) {
             countEl.textContent = n ? '저장 ' + n + '곳' : '저장 없음';
-        }
-        if (promoDesc) {
-            promoDesc.textContent = n
-                ? '최초 vs 최근 비교 · ' + n + '곳 저장됨'
-                : '최초 발음 vs 최근 발음 · 2단계부터 자동 저장';
         }
         const btnNavHome = document.getElementById('btn-nav-home');
         if (btnNavHome) {
