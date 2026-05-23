@@ -49,6 +49,17 @@
         return PRESETS[getPresetId()];
     }
 
+    /** L2 말하기 속도 → 영어 모범 TTS 재생 비율 (면접형 0.82 기준) */
+    function getModelEnglishTtsRate() {
+        const p = getPreset();
+        const baseMs = PRESETS.interview.msPerWord;
+        const raw = 0.82 * (baseMs / p.msPerWord);
+        if (typeof global.closestTtsOptionRate === 'function') {
+            return global.closestTtsOptionRate(raw);
+        }
+        return Math.max(0.5, Math.min(1, raw));
+    }
+
     function countWords(text) {
         return String(text || '')
             .replace(/[^a-zA-Z0-9\s']/g, ' ')
@@ -114,6 +125,7 @@
         getPresetId: getPresetId,
         setPresetId: setPresetId,
         getPreset: getPreset,
+        getModelEnglishTtsRate: getModelEnglishTtsRate,
         countWords: countWords,
         evaluateFluency: evaluateFluency,
         formatHint: formatHint,

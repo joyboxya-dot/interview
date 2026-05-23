@@ -11,10 +11,10 @@
     let currentAudio = null;
     let currentObjectUrl = null;
 
-    const TTS_CACHE_VERSION = 'v4-practice-rate';
+    const TTS_CACHE_VERSION = 'v5-l2-playback-rate';
 
-    function cacheId(text, lang, profile) {
-        return TTS_CACHE_VERSION + '|' + profile + '|' + lang + '|' + text;
+    function cacheId(text, lang, profile, playbackRate) {
+        return TTS_CACHE_VERSION + '|' + profile + '|' + lang + '|' + playbackRate + '|' + text;
     }
 
     function openTtsDb() {
@@ -85,7 +85,10 @@
         return settings().useAzureTts !== false && ready;
     }
 
-    function normalPlaybackRate() {
+    function normalPlaybackRate(lang) {
+        if (lang === 'en' && typeof global.getModelEnglishTtsRate === 'function') {
+            return global.getModelEnglishTtsRate();
+        }
         if (typeof global.getSavedTtsNormalRate === 'function') return global.getSavedTtsNormalRate();
         const r = settings().ttsNormalPlaybackRate;
         return typeof r === 'number' && r > 0 && r <= 1.5 ? r : 0.82;
@@ -136,12 +139,14 @@
         stopTtsAudioOnly();
     }
 
-    async function fetchMp3FromServer(text, lang, profile) {
+    async function fetchMp3FromServer(text, lang, profile, playbackRate) {
         const url = settings().ttsUrl || '/api/tts';
+        const body = { text: text, lang: lang, profile: profile };
+        if (playbackRate != null) body.playbackRate = playbackRate;
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-            body: JSON.stringify({ text: text, lang: lang, profile: profile }),
+            body: JSON.stringify(body),
         });
         if (!res.ok) {
             const err = await res.json().catch(function () {
@@ -152,11 +157,11 @@
         return res.blob();
     }
 
-    async function getCachedMp3Blob(text, lang, profile) {
-        const id = cacheId(text, lang, profile);
+    async function getCachedMp3Blob(text, lang, profile, playbackRate) {
+        const id = cacheId(text, lang, profile, playbackRate);
         let blob = await idbGetTts(id);
         if (blob && blob.size) return blob;
-        blob = await fetchMp3FromServer(text, lang, profile);
+        blob = await fetchMp3FromServer(text, lang, profile, playbackRate);
         if (blob && blob.size) await idbPutTts(id, blob);
         return blob;
     }
@@ -206,9 +211,11 @@
             return speakBrowserFallback(safe, lang, callback, false, sessionId);
         }
         try {
-            const blob = await getCachedMp3Blob(safe, lang === 'ko' ? 'ko' : 'en', 'normal');
+            const langKey = lang === 'ko' ? 'ko' : 'en';
+            const rate = normalPlaybackRate(langKey);
+            const blob = await getCachedMp3Blob(safe, langKey, 'normal', rate);
             if (sessionId !== playSessionId) return;
-            await playMp3Blob(blob, normalPlaybackRate(), callback, sessionId);
+            await playMp3Blob(blob, 1, callback, sessionId);
         } catch (e) {
             console.warn('Azure TTS speak failed', e);
             if (sessionId === playSessionId) {
@@ -229,9 +236,9 @@
             return speakBrowserFallback(safe, 'en', callback, true, sessionId);
         }
         try {
-            const blob = await getCachedMp3Blob(safe, 'en', 'practice');
+            const blob = await getCachedMp3Blob(safe, 'en', 'practice', rate);
             if (sessionId !== playSessionId) return;
-            await playMp3Blob(blob, rate, callback, sessionId);
+            await playMp3Blob(blob, 1, callback, sessionId);
         } catch (e) {
             console.warn('Azure TTS practice failed', e);
             if (sessionId === playSessionId) {

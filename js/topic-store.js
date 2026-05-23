@@ -34,9 +34,6 @@
         }).filter(function (s) {
             return s[0] || s[1];
         });
-        if (t.topicComic && global.ComicHint && global.ComicHint.normalizeComicItem) {
-            t.topicComic = global.ComicHint.normalizeComicItem(t.topicComic) || t.topicComic;
-        }
         delete t.sentenceComics;
         return t;
     }

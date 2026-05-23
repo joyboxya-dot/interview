@@ -139,13 +139,26 @@ window.setSavedTtsPracticeRate = function (rate) {
 };
 
 /** @returns {{ normal: number, practice: number, browserNormal: number, browserPractice: number }} */
+window.getModelEnglishTtsRate = function () {
+    if (typeof window.L2Fluency !== 'undefined' && window.L2Fluency.getModelEnglishTtsRate) {
+        return window.L2Fluency.getModelEnglishTtsRate();
+    }
+    return window.getSavedTtsNormalRate();
+};
+
 window.getTtsPlaybackRates = function () {
     const normal = window.getSavedTtsNormalRate();
     const practice = window.getSavedTtsPracticeRate();
+    const modelEn =
+        typeof window.getModelEnglishTtsRate === 'function'
+            ? window.getModelEnglishTtsRate()
+            : normal;
     return {
         normal: normal,
         practice: practice,
+        modelEnglish: modelEn,
         browserNormal: Math.min(1, normal * 0.92),
+        browserModelEnglish: Math.min(1, modelEn * 0.92),
         browserPractice: Math.min(0.5, practice * 0.34),
     };
 };
@@ -157,5 +170,13 @@ window.formatTtsSpeedHint = function () {
     const pct = function (x) {
         return Math.round(x * 100) + '%';
     };
-    return '안내·모범 ' + pct(r.normal) + ' · 틀린 단어(TTS만) ' + pct(r.practice) + ' · 내 녹음(←→) 100%';
+    return (
+        '영어 모범 ' +
+        pct(r.modelEnglish) +
+        ' (L2 말하기 속도) · 한글 안내 ' +
+        pct(r.normal) +
+        ' · 틀린 단어 ' +
+        pct(r.practice) +
+        ' · 내 녹음(←→) 100%'
+    );
 };

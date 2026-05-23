@@ -5,7 +5,8 @@
     const STORAGE_KEY = 'interviewDashboardSettingsV1';
 
     const DEFAULTS = {
-        version: 2,
+        version: 3,
+        practiceTrack: 'interview',
         difficultyId: 'strict',
         ttsNormalRate: 0.82,
         ttsPracticeRate: 0.82,
@@ -37,6 +38,11 @@
         if (global.L2Fluency && global.L2Fluency.PRESETS && !global.L2Fluency.PRESETS[s.l2PresetId]) {
             s.l2PresetId = DEFAULTS.l2PresetId;
         }
+        if (global.PracticeTrack && global.PracticeTrack.TRACKS && !global.PracticeTrack.TRACKS[s.practiceTrack]) {
+            s.practiceTrack = DEFAULTS.practiceTrack;
+        } else if (!s.practiceTrack || (s.practiceTrack !== 'interview' && s.practiceTrack !== 'deep')) {
+            s.practiceTrack = DEFAULTS.practiceTrack;
+        }
         return s;
     }
 
@@ -55,6 +61,9 @@
         if (global.MasteryEngine && global.MasteryEngine.isMasteryMode) {
             s.masteryMode = global.MasteryEngine.isMasteryMode();
         }
+        if (global.PracticeTrack && global.PracticeTrack.getTrackId) {
+            s.practiceTrack = global.PracticeTrack.getTrackId();
+        }
         return s;
     }
 
@@ -71,6 +80,9 @@
         }
         if (global.MasteryEngine && global.MasteryEngine.setMasteryMode) {
             global.MasteryEngine.setMasteryMode(!!s.masteryMode);
+        }
+        if (global.PracticeTrack && global.PracticeTrack.setTrackId && s.practiceTrack) {
+            global.PracticeTrack.setTrackId(s.practiceTrack);
         }
     }
 
@@ -122,6 +134,13 @@
         const mastery = document.getElementById('mastery-mode-check');
         if (mastery) patch.masteryMode = mastery.checked;
 
+        const trackActive = document.querySelector('#practice-track-options .practice-track-btn.active');
+        if (trackActive && trackActive.dataset && trackActive.dataset.id) {
+            patch.practiceTrack = trackActive.dataset.id;
+        } else if (global.PracticeTrack && global.PracticeTrack.getTrackId) {
+            patch.practiceTrack = global.PracticeTrack.getTrackId();
+        }
+
         return save(patch);
     }
 
@@ -131,6 +150,9 @@
         if (l2 && l2.options.length) l2.value = s.l2PresetId;
         const mastery = document.getElementById('mastery-mode-check');
         if (mastery) mastery.checked = !!s.masteryMode;
+        if (typeof global.renderPracticeTrackPanel === 'function') {
+            global.renderPracticeTrackPanel();
+        }
         return s;
     }
 

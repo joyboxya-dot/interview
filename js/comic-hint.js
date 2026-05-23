@@ -9,6 +9,18 @@
             .replace(/</g, '&lt;');
     }
 
+    function resolvePanelUrl(url) {
+        const u = String(url || '').trim();
+        if (!u) return u;
+        if (u.indexOf('data:') === 0 || u.indexOf('http://') === 0 || u.indexOf('https://') === 0) {
+            return u;
+        }
+        if (u.indexOf('/') === 0 && global.location && global.location.origin && global.location.protocol !== 'file:') {
+            return global.location.origin + u;
+        }
+        return u;
+    }
+
     /** @returns {{ panels: string[], captionKo: string } | null} */
     function normalizeComicItem(item) {
         if (!item) return null;
@@ -33,12 +45,11 @@
         panels = panels.filter(Boolean);
         if (panels.length < 4) return null;
         return {
-            panels: panels.slice(0, 4),
+            panels: panels.slice(0, 4).map(resolvePanelUrl),
             captionKo: captionKo,
         };
     }
 
-    /** 주제 JSON의 topicComic (답변 전체 4컷) */
     function getTopicComic(data) {
         if (!data) return null;
         return normalizeComicItem(data.topicComic);
@@ -86,7 +97,7 @@
                     escapeAttr(url) +
                     '" alt="' +
                     escapeAttr(alt) +
-                    '" loading="lazy" decoding="async" width="200" height="150" />' +
+                    '" loading="eager" decoding="sync" width="200" height="150" />' +
                     '<figcaption class="comic-panel-num">' +
                     (i + 1) +
                     '</figcaption></figure>'
@@ -104,24 +115,46 @@
         return s;
     }
 
-    /** phase 1~3: 같은 주제 4컷 / 그 외: 숨김 */
-    function showForPhase(data, phase) {
+    /** topicComic 없으면 API 또는 브라우저 폴백으로 생성 */
+    async function ensureTopicComic(topic) {
+        if (!topic) return topic;
+        if (getTopicComic(topic)) return topic;
+        if (global.ComicGenerator && global.ComicGenerator.attachTopicComic) {
+            try {
+                return await global.ComicGenerator.attachTopicComic(Object.assign({}, topic));
+            } catch (e) {
+                console.warn('ensureTopicComic api', e);
+            }
+        }
+        if (global.ComicGeneratorFallback && global.ComicGeneratorFallback.generateTopicComic) {
+            const r = global.ComicGeneratorFallback.generateTopicComic(topic);
+            return Object.assign({}, topic, { topicComic: r.topicComic });
+        }
+        return topic;
+    }
+
+    async function showForPhase(data, phase) {
         if (!data) {
             hide();
-            return;
+            return data;
         }
         const p = Number(phase);
         if (p >= 1 && p <= 3) {
-            const c = getTopicComic(data);
+            let topic = data;
+            if (!getTopicComic(topic)) {
+                topic = await ensureTopicComic(topic);
+            }
+            const c = getTopicComic(topic);
             const prefixes = {
                 1: '📖 답변 흐름 (4컷)',
                 2: '🗣️ 답변 흐름 (4컷)',
                 3: '💭 답변 흐름 (4컷)',
             };
             show(c, { label: labelWithCaption(prefixes[p] || '📖 답변 흐름', c) });
-            return;
+            return topic;
         }
         hide();
+        return data;
     }
 
     function preloadTopicComic(data) {
@@ -137,8 +170,10 @@
         hide: hide,
         show: show,
         showForPhase: showForPhase,
+        ensureTopicComic: ensureTopicComic,
         getTopicComic: getTopicComic,
         preloadTopicComic: preloadTopicComic,
         normalizeComicItem: normalizeComicItem,
+        resolvePanelUrl: resolvePanelUrl,
     };
 })(typeof window !== 'undefined' ? window : global);

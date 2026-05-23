@@ -29,9 +29,6 @@
             if (Array.isArray(s)) return s;
             return [s.ko, s.en];
         });
-        if (t.topicComic && global.ComicHint && global.ComicHint.normalizeComicItem) {
-            t.topicComic = global.ComicHint.normalizeComicItem(t.topicComic) || t.topicComic;
-        }
         return t;
     }
 
