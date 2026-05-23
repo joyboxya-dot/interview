@@ -1,9 +1,12 @@
 /**
  * 모범 TTS vs 내 녹음 — 피치 곡선 겹침 + 재생 속도 슬라이더
+ * · 앞뒤 무음 자동 트림 후 비교 · Web Audio 재생 속도
  */
 (function (global) {
     const sessions = {};
     let sessionSeq = 0;
+    let pitchPlayCtx = null;
+    let pitchPlaySource = null;
 
     function escapeHtml(s) {
         return String(s)
@@ -11,6 +14,20 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function stopPlayback() {
+        if (pitchPlaySource) {
+            try {
+                pitchPlaySource.stop();
+            } catch (e) {}
+            pitchPlaySource.onended = null;
+            pitchPlaySource = null;
+        }
+        if (pitchPlayCtx) {
+            pitchPlayCtx.close().catch(function () {});
+            pitchPlayCtx = null;
+        }
     }
 
     async function blobToMono(arrayBuffer) {
@@ -48,6 +65,51 @@
         return { samples: out, sampleRate: targetRate };
     }
 
+    /** 말하기 구간만 남김 — 앞뒤 무음·버튼 누르고 기다린 구간 제거 */
+    function trimSpeechBounds(samples, sampleRate) {
+        const frameSize = 256;
+        const hop = 64;
+        const gate = 0.01;
+        let first = -1;
+        let last = -1;
+        for (let start = 0; start + frameSize <= samples.length; start += hop) {
+            const rms = frameRms(samples.subarray(start, start + frameSize));
+            if (rms >= gate) {
+                if (first < 0) first = start;
+                last = start + frameSize;
+            }
+        }
+        if (first < 0) {
+            return {
+                samples: samples,
+                offsetSec: 0,
+                speechDur: samples.length / sampleRate,
+            };
+        }
+        const pad = Math.floor(sampleRate * 0.04);
+        const i0 = Math.max(0, first - pad);
+        const i1 = Math.min(samples.length, last + pad);
+        const trimmed = samples.subarray(i0, i1);
+        return {
+            samples: new Float32Array(trimmed),
+            offsetSec: i0 / sampleRate,
+            speechDur: trimmed.length / sampleRate,
+        };
+    }
+
+    function shiftWordOffsets(words, offsetSec) {
+        if (!words || !words.length || !offsetSec) return words || [];
+        const ms = offsetSec * 1000;
+        return words
+            .map(function (w) {
+                if (w.offsetMs == null) return w;
+                return { word: w.word, offsetMs: Math.max(0, w.offsetMs - ms) };
+            })
+            .filter(function (w) {
+                return w.offsetMs != null;
+            });
+    }
+
     function frameRms(frame) {
         let s = 0;
         for (let i = 0; i < frame.length; i++) {
@@ -56,11 +118,10 @@
         return Math.sqrt(s / frame.length);
     }
 
-    /** 정규화 자기상관 — TTS·짧은 문장에서도 F0 잡기 쉽게 */
     function autocorrPitch(frame, sampleRate) {
         const n = frame.length;
         const rms = frameRms(frame);
-        if (rms < 0.006) return null;
+        if (rms < 0.005) return null;
 
         const minLag = Math.floor(sampleRate / 500);
         const maxLag = Math.min(Math.floor(sampleRate / 60), Math.floor(n / 2) - 1);
@@ -82,14 +143,13 @@
                 sum += frame[i] * frame[i + lag];
                 energyLag += frame[i + lag] * frame[i + lag];
             }
-            const denom = Math.sqrt(energy0 * energyLag) + 1e-10;
-            const corr = sum / denom;
+            const corr = sum / (Math.sqrt(energy0 * energyLag) + 1e-10);
             if (corr > bestCorr) {
                 bestCorr = corr;
                 bestLag = lag;
             }
         }
-        if (bestLag < 0 || bestCorr < 0.35) return null;
+        if (bestLag < 0 || bestCorr < 0.32) return null;
         const hz = sampleRate / bestLag;
         if (hz < 55 || hz > 520) return null;
         return hz;
@@ -99,7 +159,7 @@
         const frameSize = 1024;
         const hop = 256;
         const points = [];
-        for (let start = 0; start + frameSize < samples.length; start += hop) {
+        for (let start = 0; start + frameSize <= samples.length; start += hop) {
             const frame = samples.subarray(start, start + frameSize);
             const f0 = autocorrPitch(frame, sampleRate);
             const t = (start + frameSize / 2) / sampleRate;
@@ -108,12 +168,11 @@
         return points;
     }
 
-    /** F0 실패 시 — 리듬·길이 비교용 음량 윤곽 */
     function extractEnvelopeContour(samples, sampleRate) {
         const frameSize = 512;
         const hop = 128;
         const rmsList = [];
-        for (let start = 0; start + frameSize < samples.length; start += hop) {
+        for (let start = 0; start + frameSize <= samples.length; start += hop) {
             const frame = samples.subarray(start, start + frameSize);
             rmsList.push({ t: (start + frameSize / 2) / sampleRate, rms: frameRms(frame) });
         }
@@ -139,12 +198,41 @@
         return n;
     }
 
+    function fillShortGaps(points, maxGapFrames) {
+        const out = points.map(function (p) {
+            return { t: p.t, semi: p.semi };
+        });
+        let i = 0;
+        while (i < out.length) {
+            if (out[i].semi != null) {
+                i++;
+                continue;
+            }
+            let j = i;
+            while (j < out.length && out[j].semi == null) j++;
+            const gap = j - i;
+            if (gap > 0 && gap <= maxGapFrames && i > 0 && j < out.length) {
+                const a = out[i - 1].semi;
+                const b = out[j].semi;
+                for (let k = i; k < j; k++) {
+                    const f = (k - i + 1) / (gap + 1);
+                    out[k].semi = a + (b - a) * f;
+                }
+            }
+            i = j;
+        }
+        return out;
+    }
+
     function buildDisplayContour(samples, sampleRate) {
-        const pitchPts = smoothContour(contourToSemitones(extractPitchContour(samples, sampleRate)), 2);
+        let pitchPts = smoothContour(
+            fillShortGaps(contourToSemitones(extractPitchContour(samples, sampleRate)), 8),
+            2
+        );
         if (countVoicedSemi(pitchPts) >= 6) {
             return { points: pitchPts, mode: 'pitch' };
         }
-        const envPts = smoothContour(extractEnvelopeContour(samples, sampleRate), 2);
+        const envPts = smoothContour(fillShortGaps(extractEnvelopeContour(samples, sampleRate), 6), 2);
         if (countVoicedSemi(envPts) >= 4) {
             return { points: envPts, mode: 'envelope' };
         }
@@ -152,14 +240,18 @@
     }
 
     function contourToSemitones(points) {
-        const voiced = points.map(function (p) {
-            return p.hz;
-        }).filter(function (hz) {
-            return hz != null && hz > 60 && hz < 500;
-        });
-        if (!voiced.length) return points.map(function (p) {
-            return { t: p.t, semi: null };
-        });
+        const voiced = points
+            .map(function (p) {
+                return p.hz;
+            })
+            .filter(function (hz) {
+                return hz != null && hz > 60 && hz < 500;
+            });
+        if (!voiced.length) {
+            return points.map(function (p) {
+                return { t: p.t, semi: null };
+            });
+        }
         const sorted = voiced.slice().sort(function (a, b) {
             return a - b;
         });
@@ -186,22 +278,35 @@
         });
     }
 
-    function durationSec(points) {
-        if (!points.length) return 0;
-        return points[points.length - 1].t;
+    async function analyzeUserBlob(blob) {
+        const mono = await blobToMono(await blob.arrayBuffer());
+        const trim = trimSpeechBounds(mono.samples, mono.sampleRate);
+        const ds = downsample(trim.samples, mono.sampleRate, 8000);
+        const contour = buildDisplayContour(ds.samples, ds.sampleRate);
+        return {
+            pts: contour.points,
+            speechDur: trim.speechDur,
+            playSamples: trim.samples,
+            playRate: mono.sampleRate,
+            trimOffsetSec: trim.offsetSec,
+            mode: contour.mode,
+        };
     }
 
-    function buildSvgPaths(modelPts, userPts, totalSec, words, alignUser) {
+    function buildSvgPaths(modelPts, refSpeechDur, userTracks, words, alignUser) {
         const W = 560;
         const H = 120;
         const pad = { l: 8, r: 8, t: 10, b: 18 };
         const iw = W - pad.l - pad.r;
         const ih = H - pad.t - pad.b;
-        const refDur = durationSec(modelPts) || totalSec;
-        const userDur = durationSec(userPts) || totalSec;
-        const axisDur = Math.max(refDur, userDur, 0.1);
+        const refDur = refSpeechDur || 0.1;
+        let axisDur = refDur;
+        userTracks.forEach(function (tr) {
+            axisDur = Math.max(axisDur, tr.speechDur || 0);
+        });
+        axisDur = Math.max(axisDur, 0.1);
 
-        function xAt(t, dur) {
+        function xAt(t) {
             return pad.l + (t / axisDur) * iw;
         }
 
@@ -210,12 +315,12 @@
             return pad.t + ih * (1 - (clamped + 6) / 12);
         }
 
-        function pathFrom(points, dur, stretch) {
-            const scale = stretch && userDur > 0 ? refDur / userDur : 1;
+        function pathFrom(points, speechDur) {
+            const scale = alignUser && speechDur > 0 ? refDur / speechDur : 1;
             let d = '';
             let started = false;
             let silentStreak = 0;
-            const maxSilent = 5;
+            const maxSilent = 12;
             points.forEach(function (p) {
                 if (p.semi == null) {
                     silentStreak++;
@@ -224,7 +329,7 @@
                 }
                 silentStreak = 0;
                 const t = p.t * scale;
-                const x = xAt(t, dur);
+                const x = xAt(t);
                 const y = yAt(p.semi);
                 d += (started ? ' L' : ' M') + x.toFixed(1) + ' ' + y.toFixed(1);
                 started = true;
@@ -240,7 +345,9 @@
         if (words && words.length) {
             words.forEach(function (w) {
                 if (w.offsetMs == null) return;
-                const x = xAt(w.offsetMs / 1000, axisDur);
+                const t = w.offsetMs / 1000;
+                if (t > axisDur + 0.05) return;
+                const x = xAt(t);
                 wordMarks +=
                     '<line class="pitch-word-line" x1="' +
                     x.toFixed(1) +
@@ -261,16 +368,30 @@
             });
         }
 
-        const modelPath = pathFrom(modelPts, refDur, false);
-        const userPath = pathFrom(userPts, userDur, alignUser);
+        const modelPath = pathFrom(modelPts, refDur);
+        let pathsHtml = '';
+        let anyUser = false;
+        userTracks.forEach(function (tr) {
+            const d = pathFrom(tr.pts, tr.speechDur);
+            if (hasPath(d)) {
+                anyUser = true;
+                pathsHtml +=
+                    '<path class="pitch-line ' +
+                    tr.lineClass +
+                    '" d="' +
+                    d +
+                    '" fill="none" vector-effect="non-scaling-stroke"/>';
+            }
+        });
+
         let emptyHint = '';
-        if (!hasPath(modelPath) && !hasPath(userPath)) {
+        if (!hasPath(modelPath) && !anyUser) {
             emptyHint =
                 '<text x="' +
                 W / 2 +
                 '" y="' +
                 (pad.t + ih / 2) +
-                '" text-anchor="middle" class="pitch-empty-hint" font-size="11" fill="#94A3B8">곡선을 그리지 못했습니다 · ▶ 모범/내 말로 들어 보세요</text>';
+                '" text-anchor="middle" class="pitch-empty-hint" font-size="11" fill="#94A3B8">곡선을 그리지 못했습니다 · ▶ 재생으로 확인</text>';
         }
 
         return (
@@ -301,9 +422,7 @@
             (modelPath
                 ? '<path class="pitch-line pitch-line-ref" d="' + modelPath + '" fill="none" vector-effect="non-scaling-stroke"/>'
                 : '') +
-            (userPath
-                ? '<path class="pitch-line pitch-line-user" d="' + userPath + '" fill="none" vector-effect="non-scaling-stroke"/>'
-                : '') +
+            pathsHtml +
             emptyHint +
             '</svg>'
         );
@@ -323,101 +442,159 @@
         return { html: '', error: error };
     }
 
+    function suggestPlaybackRate(refDur, userDur) {
+        if (!userDur || userDur < 0.2) return 1;
+        return Math.min(1.5, Math.max(0.5, refDur / userDur));
+    }
+
+    async function playTrimmedSamples(samples, sampleRate, rate) {
+        if (!samples || !samples.length) return;
+        if (typeof global.stopAllPlayback === 'function') {
+            global.stopAllPlayback();
+        } else {
+            stopPlayback();
+        }
+        const ctx = new (global.AudioContext || global.webkitAudioContext)();
+        pitchPlayCtx = ctx;
+        const buffer = ctx.createBuffer(1, samples.length, sampleRate);
+        buffer.copyToChannel(samples, 0);
+        const src = ctx.createBufferSource();
+        pitchPlaySource = src;
+        src.buffer = buffer;
+        src.playbackRate.value = Math.min(2, Math.max(0.5, rate || 1));
+        src.connect(ctx.destination);
+        src.onended = function () {
+            stopPlayback();
+        };
+        src.start(0);
+    }
+
     async function buildCompareBlock(opts) {
         opts = opts || {};
         const userWavBlob = opts.userWavBlob;
+        const firstUserWavBlob = opts.firstUserWavBlob || null;
         const refText = String(opts.refText || '').trim();
         if (!userWavBlob || !refText) return fail('no_input');
 
         const modelBlob = await getModelMp3Blob(refText);
         if (!modelBlob) return fail('no_model_tts');
 
-        const [userMono, modelMono] = await Promise.all([
-            blobToMono(await userWavBlob.arrayBuffer()),
-            blobToMono(await modelBlob.arrayBuffer()),
-        ]);
-
-        const userDs = downsample(userMono.samples, userMono.sampleRate, 8000);
-        const modelDs = downsample(modelMono.samples, modelMono.sampleRate, 8000);
-
+        const modelMono = await blobToMono(await modelBlob.arrayBuffer());
+        const modelTrim = trimSpeechBounds(modelMono.samples, modelMono.sampleRate);
+        const modelDs = downsample(modelTrim.samples, modelMono.sampleRate, 8000);
         const modelContour = buildDisplayContour(modelDs.samples, modelDs.sampleRate);
-        const userContour = buildDisplayContour(userDs.samples, userDs.sampleRate);
         const modelPts = modelContour.points;
-        const userPts = userContour.points;
+        const refDur = modelTrim.speechDur;
 
-        const refDur = durationSec(modelPts);
-        const userDur = durationSec(userPts);
-        if (refDur < 0.3 || userDur < 0.3) return fail('too_short');
+        const latestData = await analyzeUserBlob(userWavBlob);
+        let firstData = null;
+        if (firstUserWavBlob) {
+            firstData = await analyzeUserBlob(firstUserWavBlob);
+        }
+
+        const userDur = latestData.speechDur;
+        if (refDur < 0.25 || userDur < 0.25) return fail('too_short');
 
         const ratio = userDur / refDur;
-        const useEnvelope = modelContour.mode === 'envelope' || userContour.mode === 'envelope';
+        const useEnvelope =
+            modelContour.mode === 'envelope' ||
+            latestData.mode === 'envelope' ||
+            (firstData && firstData.mode === 'envelope');
+        const suggestRate = suggestPlaybackRate(refDur, userDur);
+        const shiftedWords = shiftWordOffsets(opts.words || [], latestData.trimOffsetSec);
+        const trimNote =
+            latestData.trimOffsetSec > 0.08
+                ? ' · 앞 무음 ' + latestData.trimOffsetSec.toFixed(1) + 's 제거'
+                : '';
+
+        const userTracks = [];
+        if (firstData) {
+            userTracks.push({
+                pts: firstData.pts,
+                speechDur: firstData.speechDur,
+                lineClass: 'pitch-line-first',
+                label: 'first',
+            });
+        }
+        userTracks.push({
+            pts: latestData.pts,
+            speechDur: latestData.speechDur,
+            lineClass: 'pitch-line-user',
+            label: 'latest',
+        });
+
         const id = 'pc' + ++sessionSeq;
         sessions[id] = {
-            modelBlob: modelBlob,
-            userBlob: userWavBlob,
+            modelPlaySamples: modelTrim.samples,
+            modelPlayRate: modelMono.sampleRate,
+            latestPlaySamples: latestData.playSamples,
+            latestPlayRate: latestData.playRate,
+            firstPlaySamples: firstData ? firstData.playSamples : null,
+            firstPlayRate: firstData ? firstData.playRate : 0,
+            hasFirst: !!firstData,
             modelPts: modelPts,
-            userPts: userPts,
-            refDur: refDur,
-            userDur: userDur,
-            words: opts.words || [],
-            alignUser: false,
+            userTracks: userTracks,
+            refSpeechDur: refDur,
+            latestSpeechDur: userDur,
+            firstSpeechDur: firstData ? firstData.speechDur : 0,
+            words: shiftedWords,
+            alignUser: true,
+            suggestRate: suggestRate,
         };
 
-        const svg = buildSvgPaths(modelPts, userPts, Math.max(refDur, userDur), sessions[id].words, false);
+        const svg = buildSvgPaths(modelPts, refDur, userTracks, shiftedWords, true);
+
+        const firstMeta = firstData
+            ? ' · 최초 ' + firstData.speechDur.toFixed(1) + 's'
+            : '';
+        const legendFirst = firstData
+            ? '<span class="pitch-legend-first">╌ 최초</span>'
+            : '';
+        const btnFirst = firstData
+            ? '<button type="button" class="pitch-play-first">▶ 최초</button>'
+            : '';
 
         return {
             html:
-            '<div class="pitch-compare" data-pitch-id="' +
-            escapeHtml(id) +
-            '">' +
-            '<div class="pitch-compare-title">모범 음성 vs 내 녹음 · 피치 겹침</div>' +
-            '<div class="pitch-compare-meta">' +
-            '모범 ' +
-            refDur.toFixed(1) +
-            's · 내 말 ' +
-            userDur.toFixed(1) +
-            's' +
-            (ratio > 1.05 ? ' · 내 말이 ' + ratio.toFixed(2) + '× 길음' : ratio < 0.95 ? ' · 내 말이 ' + (1 / ratio).toFixed(2) + '× 빠름' : '') +
-            (useEnvelope ? ' · <span class="pitch-mode-tag">음량 윤곽</span> (피치 대신)' : '') +
-            '</div>' +
-            '<div class="pitch-chart-wrap">' +
-            svg +
-            '</div>' +
-            '<div class="pitch-legend">' +
-            '<span class="pitch-legend-ref">━ 모범</span>' +
-            '<span class="pitch-legend-user">━ 내 말</span>' +
-            '</div>' +
-            '<div class="pitch-controls">' +
-            '<label class="pitch-slider-label">내 말 재생 속도 <input type="range" class="pitch-rate-slider" min="0.5" max="1.5" step="0.05" value="1" title="내 녹음만 재생 속도 조절" /> <span class="pitch-rate-val">1.0×</span></label>' +
-            '<label class="pitch-align-label"><input type="checkbox" class="pitch-align-check" /> 윤곽 맞춤 (내 말 시간만 모범 길이에 맞춤)</label>' +
-            '<div class="pitch-play-row">' +
-            '<button type="button" class="pitch-play-ref">▶ 모범</button>' +
-            '<button type="button" class="pitch-play-user">▶ 내 말</button>' +
-            '</div>' +
-            '</div>' +
-            '</div>',
+                '<div class="pitch-compare" data-pitch-id="' +
+                escapeHtml(id) +
+                '">' +
+                '<div class="pitch-compare-title">모범 vs 내 녹음 · 피치 (최초·최근 겹침)</div>' +
+                '<div class="pitch-compare-meta">' +
+                '말한 구간 · 모범 ' +
+                refDur.toFixed(1) +
+                's · 최근 ' +
+                userDur.toFixed(1) +
+                's' +
+                firstMeta +
+                (ratio > 1.05 ? ' · 최근이 ' + ratio.toFixed(2) + '× 길음' : ratio < 0.95 ? ' · 최근이 ' + (1 / ratio).toFixed(2) + '× 빠름' : '') +
+                trimNote +
+                (useEnvelope ? ' · <span class="pitch-mode-tag">음량 윤곽</span>' : '') +
+                '</div>' +
+                '<div class="pitch-chart-wrap">' +
+                svg +
+                '</div>' +
+                '<div class="pitch-legend">' +
+                '<span class="pitch-legend-ref">━ 모범</span>' +
+                legendFirst +
+                '<span class="pitch-legend-user">━ 최근</span>' +
+                '</div>' +
+                '<div class="pitch-controls">' +
+                '<label class="pitch-slider-label">최근 말 재생 속도 <input type="range" class="pitch-rate-slider" min="0.5" max="1.5" step="0.05" value="' +
+                suggestRate.toFixed(2) +
+                '" /> <span class="pitch-rate-val">' +
+                suggestRate.toFixed(2) +
+                '×</span> <span class="pitch-slider-hint">(▶ 최근)</span></label>' +
+                '<label class="pitch-align-label"><input type="checkbox" class="pitch-align-check" checked /> 윤곽 맞춤 (길이를 모범에 맞춤)</label>' +
+                '<div class="pitch-play-row">' +
+                '<button type="button" class="pitch-play-ref">▶ 모범</button>' +
+                btnFirst +
+                '<button type="button" class="pitch-play-user">▶ 최근</button>' +
+                '</div>' +
+                '</div>' +
+                '</div>',
             error: null,
         };
-    }
-
-    function playBlob(blob, rate) {
-        if (!blob || typeof global.stopAllPlayback !== 'function') return;
-        global.stopAllPlayback();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.playbackRate = rate || 1;
-        if (typeof global.registerActiveAudio === 'function') {
-            global.registerActiveAudio(audio);
-        }
-        audio.onended = function () {
-            URL.revokeObjectURL(url);
-        };
-        audio.onerror = function () {
-            URL.revokeObjectURL(url);
-        };
-        audio.play().catch(function () {
-            URL.revokeObjectURL(url);
-        });
     }
 
     function redrawChart(root, session) {
@@ -425,8 +602,8 @@
         if (!wrap) return;
         wrap.innerHTML = buildSvgPaths(
             session.modelPts,
-            session.userPts,
-            Math.max(session.refDur, session.userDur),
+            session.refSpeechDur,
+            session.userTracks,
             session.words,
             session.alignUser
         );
@@ -445,13 +622,20 @@
         const alignCheck = el.querySelector('.pitch-align-check');
         const btnRef = el.querySelector('.pitch-play-ref');
         const btnUser = el.querySelector('.pitch-play-user');
+        const btnFirst = el.querySelector('.pitch-play-first');
+
+        function currentRate() {
+            return slider ? parseFloat(slider.value) || 1 : session.suggestRate || 1;
+        }
 
         if (slider && rateVal) {
+            rateVal.textContent = currentRate().toFixed(2) + '×';
             slider.oninput = function () {
-                rateVal.textContent = parseFloat(slider.value).toFixed(2) + '×';
+                rateVal.textContent = currentRate().toFixed(2) + '×';
             };
         }
         if (alignCheck) {
+            alignCheck.checked = !!session.alignUser;
             alignCheck.onchange = function () {
                 session.alignUser = !!alignCheck.checked;
                 redrawChart(el, session);
@@ -459,13 +643,17 @@
         }
         if (btnRef) {
             btnRef.onclick = function () {
-                playBlob(session.modelBlob, 1);
+                playTrimmedSamples(session.modelPlaySamples, session.modelPlayRate, 1);
             };
         }
         if (btnUser) {
             btnUser.onclick = function () {
-                const rate = slider ? parseFloat(slider.value) || 1 : 1;
-                playBlob(session.userBlob, rate);
+                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, currentRate());
+            };
+        }
+        if (btnFirst && session.firstPlaySamples) {
+            btnFirst.onclick = function () {
+                playTrimmedSamples(session.firstPlaySamples, session.firstPlayRate, 1);
             };
         }
     }
@@ -473,5 +661,6 @@
     global.PitchCompare = {
         buildCompareBlock: buildCompareBlock,
         bind: bind,
+        stopPlayback: stopPlayback,
     };
 })(window);

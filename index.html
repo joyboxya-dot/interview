@@ -449,6 +449,8 @@
         .rg-chunk { font-weight: 600; color: #1E293B; }
         .rg-pause { font-size: 11px; font-weight: 800; color: #B45309; white-space: nowrap; }
         .rg-stress-line { font-size: 11px; color: #64748B; margin-top: 8px; line-height: 1.45; }
+        .rg-stress-muted { color: #94A3B8; font-weight: 500; }
+        .rg-chunks-line { line-height: 1.55; }
         .cue-timer { font-size: 12px; font-weight: 700; color: #2563EB; margin-top: 4px; }
         #dashboard .azure-status { margin-top: 6px; font-size: 11px; }
         .mission-difficulty-badge {
@@ -578,16 +580,19 @@
         .pitch-chart-svg { width: 100%; height: 120px; display: block; }
         .pitch-line-ref { stroke: #2563EB; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
         .pitch-line-user { stroke: #EA580C; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.95; }
+        .pitch-line-first { stroke: #64748B; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 4; opacity: 0.85; }
         .pitch-mode-tag { font-weight: 800; color: #0369A1; }
         .pitch-word-line { stroke: #CBD5E1; stroke-width: 1; stroke-dasharray: 2 2; }
         .pitch-word-label { font-size: 8px; fill: #94A3B8; font-weight: 700; }
         .pitch-legend { display: flex; gap: 12px; margin-top: 6px; font-size: 11px; font-weight: 700; }
         .pitch-legend-ref { color: #2563EB; }
         .pitch-legend-user { color: #EA580C; }
+        .pitch-legend-first { color: #64748B; }
         .pitch-controls { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
         .pitch-slider-label, .pitch-align-label { font-size: 12px; color: #334155; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .pitch-rate-slider { flex: 1; min-width: 120px; max-width: 220px; }
         .pitch-rate-val { font-weight: 800; color: #0369A1; min-width: 36px; }
+        .pitch-slider-hint { font-size: 10px; color: #94A3B8; font-weight: 600; }
         .pitch-play-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .pitch-play-ref, .pitch-play-user {
             padding: 6px 12px; border-radius: 8px; border: none; font-size: 12px; font-weight: 800;
@@ -595,6 +600,7 @@
         }
         .pitch-play-ref { background: #2563EB; color: #fff; }
         .pitch-play-user { background: #EA580C; color: #fff; }
+        .pitch-play-first { background: #64748B; color: #fff; }
         .fb-pitch-prominent { margin: 10px 0 12px; }
         .fb-pitch-prominent .pitch-compare { margin: 0; }
         .pitch-compare-unavailable {
@@ -2030,6 +2036,20 @@
         return key;
     }
 
+    /** 피치 비교: 최근(WAV) + 최초 저장 녹음(있을 때만) */
+    function getPitchCompareUserBlobs() {
+        const latest = lastAssessWavBlob;
+        if (!latest) return { latest: null, first: null };
+        const key = getRecordingKey();
+        const slot = recordingArchive[key];
+        if (!slot || !slot._everBlob) return { latest: latest, first: null };
+        const hasFirst = slot._latestBlob && slot._everBlob !== slot._latestBlob;
+        return {
+            latest: latest,
+            first: hasFirst ? slot._everBlob : null,
+        };
+    }
+
     function getSentenceTextForKey(key) {
         const parts = key.split('-');
         const t = parseInt(parts[0], 10);
@@ -2049,6 +2069,9 @@
     function stopAllPlayback() {
         speechSynthesis.cancel();
         clearMissedWordPlayTimers();
+        if (typeof PitchCompare !== 'undefined' && PitchCompare.stopPlayback) {
+            PitchCompare.stopPlayback();
+        }
         if (typeof AzureTts !== 'undefined' && AzureTts.stopPlayback) {
             AzureTts.stopPlayback();
         }
@@ -3062,8 +3085,10 @@
                     assessment.detail && assessment.detail.words
                         ? assessment.detail.words
                         : assessment.words;
+                const recBlobs = getPitchCompareUserBlobs();
                 const built = await PitchCompare.buildCompareBlock({
-                    userWavBlob: lastAssessWavBlob,
+                    userWavBlob: recBlobs.latest,
+                    firstUserWavBlob: recBlobs.first,
                     refText: refText,
                     words: words,
                 });
