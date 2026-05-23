@@ -458,16 +458,11 @@
             background: #F1F5F9; padding: 4px 10px; border-radius: 999px;
         }
         .reading-guide {
-            margin-bottom: 10px; padding: 12px 14px;
+            margin-bottom: 10px; padding: 14px 16px;
             background: linear-gradient(180deg, #FFFBEB 0%, #FFF7ED 100%);
             border: 2px solid #FCD34D; border-radius: 10px;
         }
-        .reading-guide-title {
-            font-size: 13px; font-weight: 800; color: #92400E; margin: 0 0 8px;
-        }
-        .reading-guide-legend {
-            font-size: 10px; font-weight: 600; color: #B45309; margin: 0 0 10px; line-height: 1.45;
-        }
+        .rg-visual-only { line-height: 1.65; }
         .reading-chunks { display: flex; flex-direction: column; gap: 8px; }
         .reading-chunk {
             display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px;
@@ -475,13 +470,26 @@
             border: 1px solid #FDE68A; line-height: 1.55;
         }
         .rg-glue {
-            font-size: 13px; font-weight: 500; color: #94A3B8;
+            font-size: 12px; font-weight: 500; color: #94A3B8; letter-spacing: 0.01em;
         }
         .rg-beat {
-            font-size: 19px; font-weight: 800; color: #0F172A; letter-spacing: 0.02em;
+            font-size: 20px; font-weight: 800; color: #0F172A; letter-spacing: 0.02em;
         }
-        .rg-beat .syllable-weak { font-size: 0.78em; }
-        .rg-beat .syllable-stress { font-size: 1.05em; }
+        .rg-beat .syllable-weak {
+            font-size: 0.72em; font-weight: 600; color: #64748B;
+        }
+        .rg-beat .syllable-stress {
+            font-size: 1.12em; font-weight: 900; color: #B45309; letter-spacing: 0.03em;
+        }
+        .rg-pause-mark {
+            display: inline-block; width: 32px; height: 0; margin: 0 8px 0 10px;
+            vertical-align: middle; position: relative; top: -2px;
+            border-top: 3px dashed #EF4444;
+        }
+        .rg-pause-mark::after {
+            content: '⏸'; position: absolute; left: 50%; top: -11px; transform: translateX(-50%);
+            font-size: 11px; color: #DC2626; line-height: 1; background: #FFFBEB; padding: 0 2px;
+        }
         .reading-pause {
             display: flex; align-items: center; justify-content: center; gap: 8px;
             padding: 6px 10px; font-size: 12px; font-weight: 800; color: #B91C1C;
@@ -811,7 +819,7 @@
             </div>
         </div>
         <div class="mission-reference" id="mission-reference">
-            <p class="mission-reference-label">참고 · 읽기 지도 · 4컷 · ↑↓</p>
+            <p class="mission-reference-label">참고 · 말하기 리듬 · 4컷 · ↑↓</p>
             <div class="question-box" id="ui-question-box" style="display:none">Q. 질문</div>
             <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
             <div id="ui-comic-strip" class="comic-strip" style="display:none" aria-hidden="true">
@@ -2832,7 +2840,6 @@
 
         const engHtml =
             formatEngForDisplay(sentEng, false, { syllableDots: true }) +
-            '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 위 「읽기 지도」= 끊음·강세 · 3단계부터 cloze</p>';
         updateUI(data.question, sentKor, engHtml);
         document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
         setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));

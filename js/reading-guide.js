@@ -1,5 +1,5 @@
 /**
- * 끊음(chunks) + 강세(stress) 읽기 지도
+ * 읽기 지도 — 설명 없이 시각만 (작·회색=빠르게, 굵기·음절=강세, ⏸=끊음)
  */
 (function (global) {
     const GLUE_WORDS = new Set([
@@ -50,12 +50,34 @@
         return autoChunksFromEn(en);
     }
 
+    /** 사전 없을 때 — 앞 음절 작게, 뒤 강세 크게 */
+    function renderTokenHeuristic(token) {
+        const m = token.match(/^([^A-Za-z]*)([A-Za-z]+)([^A-Za-z]*)$/);
+        if (!m) return escapeHtml(token);
+        const w = m[2];
+        if (w.length <= 2) {
+            return escapeHtml(m[1]) + '<span class="syllable-stress">' + escapeHtml(w.toUpperCase()) + '</span>' + escapeHtml(m[3]);
+        }
+        const cut = w.length <= 4 ? 1 : Math.max(1, Math.floor(w.length * 0.38));
+        return (
+            escapeHtml(m[1]) +
+            '<span class="syllable-weak">' +
+            escapeHtml(w.slice(0, cut)) +
+            '</span><span class="syllable-stress">' +
+            escapeHtml(w.slice(cut).toUpperCase()) +
+            '</span>' +
+            escapeHtml(m[3])
+        );
+    }
+
     function renderToken(token, stressDict) {
         const m = token.match(/^([^A-Za-z]*)([A-Za-z]+)([^A-Za-z]*)$/);
         if (!m) return escapeHtml(token);
         const clean = m[2].toLowerCase();
-        const inner = stressDict && stressDict[clean] ? stressDict[clean] : escapeHtml(m[2]);
-        return escapeHtml(m[1]) + inner + escapeHtml(m[3]);
+        if (stressDict && stressDict[clean]) {
+            return escapeHtml(m[1]) + stressDict[clean] + escapeHtml(m[3]);
+        }
+        return renderTokenHeuristic(token);
     }
 
     function buildChunkRichHtml(chunkText, stressDict) {
@@ -78,9 +100,11 @@
             } else {
                 html +=
                     '<span class="rg-beat">' +
-                    group.map(function (t) {
-                        return renderToken(t, stressDict);
-                    }).join(' ') +
+                    group
+                        .map(function (t) {
+                            return renderToken(t, stressDict);
+                        })
+                        .join(' ') +
                     '</span>';
             }
             if (j < tokens.length) html += ' ';
@@ -92,10 +116,7 @@
     function buildChunksHtml(chunks, stressDict) {
         return chunks
             .map(function (c, i) {
-                const pause =
-                    c.pauseAfterSec > 0
-                        ? ' <span class="rg-pause">⏸ ' + c.pauseAfterSec + 's</span>'
-                        : '';
+                const pause = c.pauseAfterSec > 0 ? '<span class="rg-pause-mark" aria-hidden="true"></span>' : '';
                 return (
                     '<span class="rg-chunk">' +
                     buildChunkRichHtml(c.text, stressDict) +
@@ -107,37 +128,10 @@
             .join('');
     }
 
-    function buildStressHintLine(en, stressDict) {
-        if (!stressDict || !en) return '';
-        const words = en.split(/\s+/).filter(Boolean);
-        const bits = [];
-        words.forEach(function (w) {
-            const key = wordKey(w);
-            if (stressDict[key]) bits.push(stressDict[key]);
-        });
-        if (!bits.length) {
-            return '<p class="rg-stress-line rg-stress-muted">강세 힌트: 사전에 없는 문장 · 위에서 <b>굵은 덩어리</b>만 세게</p>';
-        }
-        return (
-            '<p class="rg-stress-line">강세 힌트(음절): ' +
-            bits.slice(0, 6).join(' · ') +
-            (bits.length > 6 ? ' …' : '') +
-            '</p>'
-        );
-    }
-
     function buildReadingGuideHtml(sentence, stressDict) {
         const chunks = getChunks(sentence);
-        const en = sentence.en || (Array.isArray(sentence) ? sentence[1] : '');
-        let body = buildChunksHtml(chunks, stressDict);
-        body += buildStressHintLine(en, stressDict);
-        return (
-            '<div class="reading-guide-title">📖 읽기 지도 (끊음 · 강세)</div>' +
-            '<p class="reading-guide-legend">⏸ = 잠깐 멈춤 · <span class="rg-glue">작·회색</span> = 빠르게 · <span class="rg-beat">굵은 덩어리</span> = 세게</p>' +
-            '<div class="rg-chunks-line">' +
-            body +
-            '</div>'
-        );
+        const body = buildChunksHtml(chunks, stressDict);
+        return '<div class="rg-chunks-line rg-visual-only">' + body + '</div>';
     }
 
     global.ReadingGuide = {
