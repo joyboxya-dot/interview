@@ -89,17 +89,68 @@
         .step.done .circle { background: var(--success); }
         
         .question-box { background: #F8FAFC; border-left: 3px solid var(--primary); padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 16px; font-weight: bold; color: #111; }
+        .question-box.mission-cue-primary {
+            margin-bottom: 10px; font-size: 17px; background: #EFF6FF;
+        }
         .bridge-box { background: #FEF3C7; border-left: 3px solid var(--warning); padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 14px; display: none; }
         
         .korean-text { font-size: 15px; color: #555; margin-bottom: 6px; font-weight: bold; }
-        .english-text { font-size: 18px; color: #222; line-height: 1.5; margin-bottom: 10px; padding: 10px 12px; background: #F9FAFB; border-radius: 6px; transition: 0.3s; }
+        .english-text { font-size: 18px; color: #222; line-height: 1.5; margin-bottom: 6px; padding: 10px 12px; background: #F9FAFB; border-radius: 6px; transition: 0.3s; }
         .mode-blur { filter: blur(6px); cursor: pointer; }
         .mode-blur:hover { filter: blur(0); }
         
-        .controls { display: flex; gap: 8px; margin-top: 10px;}
-        .btn-mic { flex: 1; background: var(--primary); color: white; padding: 11px 12px; border-radius: 8px; font-size: 16px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .mission-top { margin-bottom: 8px; }
+        .mission-meta {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 6px; margin-bottom: 6px;
+        }
+        .mission-meta #ui-topic-title { font-weight: 800; color: var(--primary); font-size: 14px; }
+        .mission-phase-goal {
+            font-size: 13px; font-weight: 800; color: #0F172A; line-height: 1.35;
+            margin: 0 0 8px; padding: 6px 8px; background: #F8FAFC; border-radius: 6px;
+            border-left: 3px solid var(--primary);
+        }
+        .mission-stack { position: relative; }
+        .mission-work { min-height: 48px; }
+        .mission-work.is-dimmed { opacity: 0.45; }
+        .mission-feedback {
+            margin: 0 0 8px; padding: 8px 10px; border-radius: 8px;
+            font-weight: bold; display: none; position: relative; z-index: 8;
+            max-height: min(52vh, 420px); overflow-y: auto;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+        }
+        .mission-reference {
+            margin-top: 12px; padding: 8px 10px; border-radius: 8px;
+            border: 1px dashed #CBD5E1; background: #FAFAFA;
+        }
+        .mission-reference summary {
+            font-size: 11px; font-weight: 700; color: #64748B; cursor: pointer;
+            user-select: none; list-style: none;
+        }
+        .mission-reference summary::-webkit-details-marker { display: none; }
+        .mission-reference[open] summary { margin-bottom: 8px; color: #475569; }
+        .mission-reference .question-box { margin-top: 6px; font-size: 15px; }
+        .mission-reference .comic-strip { margin-top: 6px; }
+        .mission-reference .reading-guide { margin-top: 6px; }
+        .fb-fix-first {
+            font-size: 15px; font-weight: 900; color: #B45309; line-height: 1.35;
+            margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(180, 83, 9, 0.25);
+        }
+        .fb-details { margin-top: 8px; font-weight: normal; }
+        .fb-details summary {
+            font-size: 12px; font-weight: 700; color: #64748B; cursor: pointer;
+            list-style: none; user-select: none;
+        }
+        .fb-details summary::-webkit-details-marker { display: none; }
+        .fb-details[open] summary { margin-bottom: 6px; }
+        .fb-shortcut-hint {
+            font-size: 10px; font-weight: 600; color: #94A3B8; margin-top: 6px;
+        }
+        .controls, .mission-controls { display: flex; gap: 6px; margin: 0 0 8px; align-items: stretch; }
+        .btn-mic { flex: 1; background: var(--primary); color: white; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; }
         .btn-mic.recording { background: var(--danger); animation: pulse 1s infinite; }
-        .btn-skip { background: #9CA3AF; color: white; padding: 11px 12px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-skip { background: #9CA3AF; color: white; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; }
+        .btn-stop { background: #EF4444; color: white; border: none; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: bold; cursor: pointer; min-height: 40px; }
         
         .fb-btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
         .btn-force-pass { background: white; color: var(--warning); padding: 8px 12px; border-radius: 8px; font-weight: bold; border: 2px solid var(--warning); cursor: pointer; flex: 1; min-width: 48%; display: none; }
@@ -202,10 +253,9 @@
             display: block; width: 100%; height: auto; aspect-ratio: 4 / 3;
             object-fit: cover;
         }
-        .comic-panel-num {
-            position: absolute; top: 4px; left: 4px; margin: 0;
-            font-size: 9px; font-weight: 800; color: #64748B;
-            background: rgba(255,255,255,0.85); padding: 1px 5px; border-radius: 4px;
+        .comic-panel-step {
+            display: block; margin: 0; padding: 4px 6px 0;
+            font-size: 10px; font-weight: 800; color: #475569; text-align: center;
         }
         @media (max-width: 400px) {
             .comic-panels { max-width: 100%; gap: 4px; }
@@ -672,46 +722,51 @@
     </div>
 
     <div id="mission-area">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
-            <div style="font-weight:bold; color:var(--primary);" id="ui-topic-title">주제 제목</div>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span class="mission-difficulty-badge" id="mission-difficulty-badge" title="대시보드에서 변경"></span>
-                <div style="font-size:14px; font-weight:bold; color:var(--danger);" id="retry-counter"></div>
+        <div class="mission-top">
+            <div class="mission-meta">
+                <div id="ui-topic-title">주제 제목</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span class="mission-difficulty-badge" id="mission-difficulty-badge" title="대시보드에서 변경"></span>
+                    <div style="font-size:12px;font-weight:bold;color:var(--danger);" id="retry-counter"></div>
+                </div>
+            </div>
+            <div class="stepper" id="stepper">
+                <div class="step" id="step-1"><div class="circle">1</div>의미</div>
+                <div class="step" id="step-2"><div class="circle">2</div>문장</div>
+                <div class="step" id="step-3"><div class="circle">3</div>한글</div>
+                <div class="step" id="step-4"><div class="circle">4</div>키워드</div>
+                <div class="step" id="step-5"><div class="circle">5</div>질문</div>
+                <div class="step" id="step-6"><div class="circle">6</div>피벗</div>
+            </div>
+            <p class="mission-phase-goal" id="mission-phase-goal"></p>
+            <div class="controls mission-controls">
+                <button type="button" class="btn-mic" id="btn-main-mic" onclick="handleMicClick()">🎤 말하기 <span class="shortcut-key">Enter</span></button>
+                <button type="button" class="btn-skip" id="btn-skip" onclick="forceNextPhase()">건너뛰기 <span class="shortcut-key">Space</span></button>
+                <button type="button" class="btn-stop" onclick="stopAllPlayback()">중단 <span class="shortcut-key">Esc</span></button>
+            </div>
+            <div id="feedback-box" class="feedback mission-feedback">
+                <div id="stt-result"></div>
+                <div class="fb-btn-group" id="fb-btn-group"></div>
             </div>
         </div>
-        
-        <div class="stepper" id="stepper">
-            <div class="step" id="step-1"><div class="circle">1</div>의미</div>
-            <div class="step" id="step-2"><div class="circle">2</div>문장</div>
-            <div class="step" id="step-3"><div class="circle">3</div>한글</div>
-            <div class="step" id="step-4"><div class="circle">4</div>키워드</div>
-            <div class="step" id="step-5"><div class="circle">5</div>질문</div>
-            <div class="step" id="step-6"><div class="circle">6</div>피벗</div>
+        <div class="mission-stack">
+            <div class="mission-work" id="mission-work">
+                <div class="question-box mission-cue-primary" id="ui-question-primary" style="display:none"></div>
+                <div class="bridge-box" id="ui-bridge-box"></div>
+                <div class="korean-text" id="ui-kor-text"></div>
+                <div id="cue-timer" class="cue-timer" style="display:none"></div>
+                <div class="english-text" id="ui-eng-text"></div>
+            </div>
         </div>
-        
-        <div class="question-box" id="ui-question-box">Q. 질문</div>
-        <div class="bridge-box" id="ui-bridge-box"></div>
-
-        <div id="ui-comic-strip" class="comic-strip" style="display:none" aria-hidden="true">
-            <p class="comic-strip-label" id="ui-comic-label" style="display:none"></p>
-            <div class="comic-panels" id="ui-comic-panels"></div>
-        </div>
-
-        <div class="korean-text" id="ui-kor-text"></div>
-        <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
-        <div id="cue-timer" class="cue-timer" style="display:none"></div>
-        <div class="english-text" id="ui-eng-text"></div>
-        
-        <div id="feedback-box" class="feedback">
-            <div id="stt-result"></div>
-            <div class="fb-btn-group" id="fb-btn-group"></div>
-        </div>
-
-        <div class="controls">
-            <button class="btn-mic" id="btn-main-mic" onclick="handleMicClick()">🎤 말하기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">Enter</span></button>
-            <button class="btn-skip" id="btn-skip" onclick="forceNextPhase()">건너뛰기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">Space</span></button>
-            <button onclick="stopAllPlayback()" style="background:#EF4444; color:white; border:none; border-radius:8px; padding:0 20px; font-weight:bold; cursor:pointer;">중단 <span class="shortcut-key" style="margin-left:5px; font-size:12px; padding:2px 5px; background:rgba(0,0,0,0.2);">ESC</span></button>
-        </div>
+        <details class="mission-reference" id="mission-reference">
+            <summary>참고 4컷·읽기 지도 (그림만) · ↑↓</summary>
+            <div class="question-box" id="ui-question-box" style="display:none">Q. 질문</div>
+            <div id="ui-comic-strip" class="comic-strip" style="display:none" aria-hidden="true">
+                <p class="comic-strip-label" id="ui-comic-label" style="display:none"></p>
+                <div class="comic-panels" id="ui-comic-panels"></div>
+            </div>
+            <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
+        </details>
     </div>
 </div>
 
@@ -824,6 +879,18 @@
 
     const STORAGE_KEY = 'interviewProgressV38';
     const PHASE_LABELS = ['의미 수용', '문장 훈련', '문장 회상', '키워드 회상', '질문 회상', '피벗 방어'];
+    const PHASE_MISSION_GOALS = {
+        1: '목표: 맥락만 잡기 → Space로 다음 (4컷은 아래 참고에서만)',
+        2: '목표: 이 문장을 영어로 말하기 → Enter 점검',
+        3: '목표: cloze(끝→앞)로 맞춰보기 → Space 후 한글만·Enter 점검',
+        4: '목표: 힌트만 보고 통문장 말하기',
+        5: '목표: 질문만 보고 답 전체 말하기',
+        6: '목표: 다른 질문 → 브릿지 → 통문장',
+    };
+
+    /** 3단계: cloze 준비 → blind 회상 */
+    let phase3Substep = 'cloze';
+    let phase3PrepLevel = 1;
 
     let tormentActive = false;
     let tormentKey = null;
@@ -873,17 +940,111 @@
 
     function getClozeStorageKey() {
         if (typeof ClozeHint === 'undefined') return null;
-        if (mPhase === 2) return ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
+        if (mPhase === 2 || mPhase === 3) return ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
         if (mPhase === 4) return ClozeHint.fullKey(currentTopicIndex);
         return null;
     }
 
     function bumpClozeAfterPass() {
-        if (!isInterviewPracticeTrack() || typeof ClozeHint === 'undefined') return;
+        if (typeof ClozeHint === 'undefined') return;
+        if (mPhase === 3 && phase3Substep !== 'blind') return;
         const key = getClozeStorageKey();
         if (!key) return;
         const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
         ClozeHint.bumpLevel(key, wc);
+    }
+
+    function getPhase3ClozeKey() {
+        if (typeof ClozeHint === 'undefined') return null;
+        return ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
+    }
+
+    function initPhase3PrepLevel() {
+        const key = getPhase3ClozeKey();
+        if (!key || typeof ClozeHint === 'undefined') {
+            phase3PrepLevel = 1;
+            return;
+        }
+        const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
+        const stored = ClozeHint.getLevel(key);
+        phase3PrepLevel = stored > 0 ? stored : 1;
+        if (phase3PrepLevel > ClozeHint.maxLevel(wc)) {
+            phase3PrepLevel = ClozeHint.maxLevel(wc);
+        }
+    }
+
+    function enterPhase3BlindTest() {
+        phase3Substep = 'blind';
+        fbBox.style.display = 'none';
+        fbBox.className = 'feedback mission-feedback';
+        const data = db[currentTopicIndex];
+        const sents = getTopicSentences(data);
+        const isBridgeLine = mSentIdx === 0 && !!getTopicBridgeEn(data);
+        const korHtml =
+            (tormentActive ? tormentBannerHtml() : '') +
+            '<div class="recall-hint">말하기 테스트 · 한글만 보고 영어로 · Enter 점검</div>' +
+            escapeHtml(sents[mSentIdx][0]);
+        document.getElementById('ui-kor-text').innerHTML = korHtml;
+        document.getElementById('ui-eng-text').innerHTML =
+            '<div class="eng-hidden">영어 숨김 · 🎤 말한 뒤 Enter</div>';
+        document.getElementById('ui-eng-text').className = 'english-text';
+        updateMissionPhaseGoalText();
+    }
+
+    function updateMissionPhaseGoalText() {
+        const el = document.getElementById('mission-phase-goal');
+        if (!el) return;
+        if (mPhase === 3 && phase3Substep === 'cloze') {
+            el.textContent = '목표: 끝 단어부터 cloze로 맞춰보기 → Enter 더 가리기 · Space 말하기 테스트';
+        } else if (mPhase === 3) {
+            el.textContent = PHASE_MISSION_GOALS[3];
+        } else {
+            el.textContent = PHASE_MISSION_GOALS[mPhase] || '';
+        }
+    }
+
+    function refreshPhase3ClozeView() {
+        const key = getPhase3ClozeKey();
+        const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
+        const max = ClozeHint.maxLevel(wc);
+        const clozeHtml =
+            '<div class="cloze-level-tag">끝→앞 가리기 ' +
+            phase3PrepLevel +
+            '/' +
+            max +
+            ' · Enter 더 가리기 · Space 말하기 테스트</div>' +
+            '<div class="english-text">' +
+            ClozeHint.renderPlain(currentTargetEng, phase3PrepLevel) +
+            '</div>';
+        document.getElementById('ui-eng-text').innerHTML = clozeHtml;
+        document.getElementById('ui-eng-text').className = 'english-text';
+        updateMissionPhaseGoalText();
+    }
+
+    function advancePhase3ClozeStep() {
+        if (typeof ClozeHint === 'undefined') {
+            enterPhase3BlindTest();
+            return true;
+        }
+        const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
+        const max = ClozeHint.maxLevel(wc);
+        if (phase3PrepLevel >= max) {
+            enterPhase3BlindTest();
+            return true;
+        }
+        phase3PrepLevel += 1;
+        refreshPhase3ClozeView();
+        return true;
+    }
+
+    function handlePhase3EnterKey() {
+        if (mPhase !== 3 || isRecording) return false;
+        if (fbBox.classList.contains('fail')) return false;
+        if (phase3Substep === 'cloze') {
+            advancePhase3ClozeStep();
+            return true;
+        }
+        return false;
     }
 
     function isInterviewSpeechPass(spokenText, targetText) {
@@ -2047,12 +2208,15 @@
             else if (event.code === 'Space') {
                 event.preventDefault();
                 if (isRecording) return; // 녹음 중 스페이스 오작동 방지
-                
-                let btnForcePass = document.getElementById('btn-force-pass');
+
+                if (mPhase === 3 && phase3Substep === 'cloze' && !fbBox.classList.contains('fail')) {
+                    enterPhase3BlindTest();
+                    return;
+                }
                 
                 if (fbBox.classList.contains('pass')) {
                     forceNextPhase();
-                } else if (btnForcePass && btnForcePass.style.display === 'block') {
+                } else if (fbBox.classList.contains('fail') && canSkipCurrentPhase()) {
                     forceNextPhase();
                 } else if (mPhase !== 2 && btnSkip.style.display !== 'none') {
                     forceNextPhase();
@@ -2062,6 +2226,8 @@
                 event.preventDefault();
                 if (fbBox.classList.contains('fail')) {
                     retryCurrentPhase();
+                } else if (handlePhase3EnterKey()) {
+                    /* cloze 단계: 더 가리기 또는 blind 전환 */
                 } else {
                     if(btnMic.style.display !== 'none') btnMic.click();
                 }
@@ -2083,7 +2249,15 @@
             }
             else if (event.code === 'ArrowUp') {
                 event.preventDefault();
-                if (!isRecording) goPreviousSentence();
+                if (!isRecording && event.shiftKey) {
+                    goPreviousSentence();
+                } else {
+                    scrollMissionReference(-100);
+                }
+            }
+            else if (event.code === 'ArrowDown') {
+                event.preventDefault();
+                scrollMissionReference(100);
             }
         }
     });
@@ -2378,16 +2552,87 @@
         }
     }
 
+    function setMissionWorkDimmed(on) {
+        const w = document.getElementById('mission-work');
+        if (w) w.classList.toggle('is-dimmed', !!on);
+    }
+
+    function scrollFeedbackIntoView() {
+        if (fbBox && fbBox.style.display !== 'none') {
+            fbBox.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    function buildFeedbackHtml(statusMsg, detailHtml, fixHint) {
+        let h = '';
+        if (fixHint) {
+            h += '<div class="fb-fix-first">' + escapeHtml(fixHint) + '</div>';
+        }
+        h += '<div class="fb-status">' + statusMsg + '</div>';
+        if (detailHtml) {
+            h +=
+                '<details class="fb-details"><summary>발음·자세히 (펼칠 때만)</summary><div class="fb-details-body">' +
+                detailHtml +
+                '</div></details>';
+        }
+        if (!isMobile) {
+            h +=
+                '<div class="fb-shortcut-hint">Enter 재시도 · Space 다음 · ←→ 녹음 · Shift+↑ 이전 문장 · ↑↓ 참고 스크롤</div>';
+        }
+        return h;
+    }
+
+    function syncMissionLayout(question) {
+        const qPrimary = document.getElementById('ui-question-primary');
+        const qRef = document.getElementById('ui-question-box');
+        const refPanel = document.getElementById('mission-reference');
+        const goalEl = document.getElementById('mission-phase-goal');
+        if (goalEl) {
+            if (mPhase === 3) updateMissionPhaseGoalText();
+            else goalEl.textContent = PHASE_MISSION_GOALS[mPhase] || '';
+        }
+
+        const showQuestionCue = mPhase === 5 || mPhase === 6;
+        if (qPrimary) {
+            qPrimary.style.display = showQuestionCue ? 'block' : 'none';
+            if (showQuestionCue && question) qPrimary.textContent = 'Q. ' + question;
+        }
+        if (qRef) qRef.style.display = 'none';
+
+        if (refPanel && !refPanel.dataset.userToggled) {
+            refPanel.open = false;
+        }
+    }
+
+    function bindMissionReferencePanel() {
+        const refPanel = document.getElementById('mission-reference');
+        if (!refPanel || refPanel.dataset.bound) return;
+        refPanel.dataset.bound = '1';
+        refPanel.addEventListener('toggle', function () {
+            refPanel.dataset.userToggled = '1';
+        });
+    }
+
+    function scrollMissionReference(deltaY) {
+        const refPanel = document.getElementById('mission-reference');
+        if (refPanel) {
+            if (!refPanel.open) refPanel.open = true;
+            refPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+        window.scrollBy({ top: deltaY, behavior: 'smooth' });
+    }
+
     function updateUI(question, kor, eng, showBridge=false) {
-        document.getElementById('ui-topic-title').innerText = `[현재 학습중] ${db[currentTopicIndex].title}`;
-        document.getElementById('ui-question-box').innerText = "Q. " + question;
+        document.getElementById('ui-topic-title').innerText = db[currentTopicIndex].title;
+        syncMissionLayout(question);
         document.getElementById('ui-kor-text').innerHTML = kor;
         document.getElementById('ui-eng-text').innerHTML = eng;
         setReadingGuideVisible(false);
         document.getElementById('ui-bridge-box').style.display = showBridge ? 'block' : 'none';
         
         fbBox.style.display = 'none';
-        fbBox.className = 'feedback'; 
+        fbBox.className = 'feedback mission-feedback';
+        setMissionWorkDimmed(false);
         uiRetryCount.innerText = '';
         currentMissedWordsList = [];
         fbBtnGroup.innerHTML = '';
@@ -2427,7 +2672,7 @@
         let data = db[currentTopicIndex];
         const minimal = typeof PracticeTrack !== 'undefined' && PracticeTrack.isMinimalPhase1();
         const korHint = minimal
-            ? '<div class="recall-hint">[1단계 · 맥락] 4컷과 질문만 듣고 다음으로. (통문장 TTS 생략)</div>' +
+            ? '<div class="recall-hint">질문만 듣고 Space로 다음 (4컷은 아래 참고)</div>' +
               escapeHtml(getTopicDisplayKor(data).slice(0, 280)) +
               (getTopicDisplayKor(data).length > 280 ? '…' : '')
             : getTopicDisplayKor(data);
@@ -2466,19 +2711,27 @@
         const n = sents.length;
         const isBridgeLine = mSentIdx === 0 && !!getTopicBridgeEn(data);
         const lineLabel = isBridgeLine ? '브릿지' : '문장';
-        let sentKor = `[${lineLabel} ${mSentIdx + 1}/${n}] ` + sents[mSentIdx][0];
+        let sentKor =
+            '<span style="font-size:12px;color:#94A3B8;font-weight:700">' +
+            lineLabel +
+            ' ' +
+            (mSentIdx + 1) +
+            '/' +
+            n +
+            '</span> ' +
+            sents[mSentIdx][0];
         let sentEng = sents[mSentIdx][1];
         currentTargetEng = sentEng;
         onCueShown();
 
         setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
         let engHtml;
-        if (isInterviewPracticeTrack() && typeof ClozeHint !== 'undefined') {
+        if (typeof PracticeTrack !== 'undefined' && PracticeTrack.useClozeDisplay(2) && typeof ClozeHint !== 'undefined') {
             const ck = ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
             const clozeLvl = ClozeHint.getLevel(ck);
             if (clozeLvl > 0) {
                 engHtml =
-                    '<div class="cloze-level-tag">가리기 L' +
+                    '<div class="cloze-level-tag">끝→앞 L' +
                     clozeLvl +
                     ' · 말하기 통과 시 더 많이 가려집니다</div>' +
                     '<div class="english-text">' +
@@ -2500,6 +2753,7 @@
             data = await ComicHint.showForPhase(data, 2);
             db[currentTopicIndex] = data;
         }
+        syncMissionLayout(data.question);
         persistProgress();
         speakText(sentEng, 'en');
     }
@@ -2512,7 +2766,7 @@
         loadPhase3Sentence(false);
     }
 
-    async function loadPhase3Sentence(isTorment) {
+    async function loadPhase3Sentence(isTorment, startBlind) {
         retryCount = 0;
         syncCurrentRecordingRefs();
         mPhase = 3;
@@ -2525,23 +2779,47 @@
         currentTargetEng = sentEng;
         onCueShown();
         setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
+        fbBox.style.display = 'none';
+        fbBox.className = 'feedback mission-feedback';
+
+        const useClozeFlow =
+            typeof PracticeTrack !== 'undefined' &&
+            PracticeTrack.phase3UsesClozeBlindFlow() &&
+            typeof ClozeHint !== 'undefined';
+
+        if (useClozeFlow && !isTorment && !startBlind) {
+            phase3Substep = 'cloze';
+            initPhase3PrepLevel();
+        } else {
+            phase3Substep = 'blind';
+        }
+
         let korHtml =
             (isTorment ? tormentBannerHtml() : '') +
-            '<div class="recall-hint">[3단계 · 문장 회상] 아래 한글 한 문장만 보고 영어로 말하세요. (' +
-            (isBridgeLine ? '브릿지 · ' : '') +
-            (mSentIdx + 1) + '/' + sents.length + ')</div>' +
+            '<div class="recall-hint">' +
+            (isBridgeLine ? '브릿지 · ' : '문장 ') +
+            (mSentIdx + 1) +
+            '/' +
+            sents.length +
+            (phase3Substep === 'cloze'
+                ? ' · 한글 + cloze(끝→앞)로 맞춰보기'
+                : ' · 한글만 보고 영어로') +
+            '</div>' +
             escapeHtml(sentKor);
-        updateUI(
-            data.question,
-            korHtml,
-            '<div class="eng-hidden">영어는 숨김 · 다 말한 뒤 Enter로 점검</div>',
-            false
-        );
+        updateUI(data.question, korHtml, '', false);
         document.getElementById('ui-eng-text').className = 'english-text';
+        if (phase3Substep === 'cloze') {
+            refreshPhase3ClozeView();
+        } else {
+            document.getElementById('ui-eng-text').innerHTML =
+                '<div class="eng-hidden">영어 숨김 · 🎤 말한 뒤 Enter</div>';
+            updateMissionPhaseGoalText();
+        }
         if (window.ComicHint) {
             data = await ComicHint.showForPhase(data, 3);
             db[currentTopicIndex] = data;
         }
+        syncMissionLayout(data.question);
         persistProgress();
     }
 
@@ -2560,7 +2838,7 @@
             if (clozeLvl > 0) {
                 korHtml +=
                     '<div class="recall-hint">[4단계 · 통문장 cloze] 빈칸을 채우며 <b>영어 통문장 전체</b>를 말하세요.</div>' +
-                    '<div class="cloze-level-tag">가리기 L' +
+                    '<div class="cloze-level-tag">끝→앞 L' +
                     clozeLvl +
                     '</div>';
                 engHtml =
@@ -2593,8 +2871,8 @@
         onCueShown();
         updateUI(
             data.question,
-            '<div class="recall-hint">[5단계 · 질문 회상] 질문만 보고 영어 답변 전체를 말하세요.</div>',
-            '<div class="eng-hidden">한글·영어 힌트 숨김 · 다 말한 뒤 Enter로 점검 · Space로 다음</div>',
+            '<div class="recall-hint">위 질문만 보고 영어 답변 전체를 말하세요.</div>',
+            '<div class="eng-hidden">한글·영어 숨김 · Enter 점검 · Space 다음</div>',
             false
         );
         document.getElementById('ui-kor-text').innerHTML = '';
@@ -2616,8 +2894,8 @@
         onCueShown();
         updateUI(
             data.altQuestion,
-            '<div class="recall-hint">[6단계 · 피벗] 다른 질문 → <b>외운 브릿지</b>로 시작해 통문장을 말하세요.</div>',
-            '👀 영어 스크립트 숨김 · 다 말한 뒤 Enter로 점검',
+            '<div class="recall-hint">위 질문 → <b>브릿지</b>로 시작해 통문장을 말하세요.</div>',
+            '<div class="eng-hidden">영어 숨김 · Enter 점검 · Space 다음</div>',
             true
         );
         document.getElementById('ui-bridge-box').innerHTML =
@@ -2708,9 +2986,7 @@
 
         const mastery = applyMasteryAfterEval(isPass);
         isPass = mastery.pass;
-        if (mastery.fluHint) {
-            resHtml += '<div style="font-size:12px;color:#B45309;margin-top:8px;">' + escapeHtml(mastery.fluHint) + '</div>';
-        }
+        const fixHint = mastery.fluHint || '';
         const passLabel = isInterviewPracticeTrack()
             ? (azureStrictPass
                   ? '✅ 말하기 OK · ' + scoreLine
@@ -2718,42 +2994,39 @@
             : '✅ ' + scoreLine;
         showEvalResult(
             isPass,
-            passLabel + ' · Space로 다음',
-            '❌ ' + scoreLine + ' · Enter로 재연습',
+            passLabel + ' · Space 다음',
+            '❌ ' + scoreLine + ' · Enter 재연습' + (canSkipCurrentPhase() ? ' · Space 넘어가기' : ''),
             resHtml,
-            uniqueMissed
+            fixHint
         );
     }
 
-    function showEvalResult(isPass, passMsg, failMsg, resHtml, uniqueMissed) {
+    function showEvalResult(isPass, passMsg, failMsg, detailHtml, fixHint) {
+        fbBox.style.display = 'block';
+        fbBtnGroup.innerHTML = '';
+        setMissionWorkDimmed(true);
+        scrollFeedbackIntoView();
         if (isPass) {
             bumpClozeAfterPass();
-            fbBox.className = 'feedback pass';
-            fbRes.innerHTML = '<div class="fb-status">' + passMsg + '</div>' + (resHtml || '');
+            fbBox.className = 'feedback mission-feedback pass';
+            fbRes.innerHTML = buildFeedbackHtml(passMsg, detailHtml, fixHint);
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
             uiRetryCount.innerText = '';
         } else {
             retryCount++;
             uiRetryCount.innerText = '재도전: ' + retryCount + ' / 20';
+            let statusMsg = failMsg;
             if (retryCount >= 20) {
-                fbBox.className = 'feedback fail';
-                const overMsg =
-                    isInterviewPracticeTrack() && mPhase >= 5
-                        ? '⚠️ 재도전 초과 · Space로 다음'
-                        : mPhase === 2 && !isInterviewPracticeTrack()
-                          ? '⚠️ 재도전 20회 · 합격할 때까지 Enter로 재연습'
-                          : isInterviewPracticeTrack()
-                            ? '⚠️ 재도전 초과 · Space로 다음'
-                            : '⚠️ 재도전 초과 · Space로 다음';
-                fbRes.innerHTML = '<div class="fb-status">' + overMsg + '</div>' + (resHtml || '');
-            } else {
-                fbBox.className = 'feedback fail';
-                fbRes.innerHTML = '<div class="fb-status">' + failMsg + '</div>' + (resHtml || '');
-                document.getElementById('ui-eng-text').classList.remove('mode-blur');
-                if (mPhase >= 3 && canSkipCurrentPhase()) {
-                    fbBtnGroup.innerHTML += '<button id="btn-force-pass" class="btn-force-pass" style="display:block;" onclick="forceNextPhase()">⏭️ 일단 넘어가기 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">Space</span></button>';
-                }
+                statusMsg =
+                    isInterviewPracticeTrack() || mPhase >= 5
+                        ? '⚠️ 재도전 초과 · Space 다음'
+                        : mPhase === 2
+                          ? '⚠️ 재도전 20회 · Enter 재연습'
+                          : '⚠️ 재도전 초과 · Space 다음';
             }
+            fbBox.className = 'feedback mission-feedback fail';
+            fbRes.innerHTML = buildFeedbackHtml(statusMsg, detailHtml, fixHint);
+            document.getElementById('ui-eng-text').classList.remove('mode-blur');
         }
     }
 
@@ -2781,15 +3054,16 @@
 
         const bracketLine = buildBracketFeedbackHtml(currentTargetEng, cleanSpoken);
         let resHtml = '<div class="bracket-feedback-line">' + bracketLine + '</div>';
-        resHtml += '<div style="font-size:13px;color:#64748B;margin-top:6px;">회상 단계 · 참고 일치율 ' + matchRate + '% (Space로 다음)</div>';
-        if (mastery.fluHint) {
-            resHtml += '<div style="font-size:12px;color:#B45309;margin-top:8px;">' + escapeHtml(mastery.fluHint) + '</div>';
-        }
+        resHtml += '<div style="font-size:13px;color:#64748B;margin-top:6px;">일치율 ' + matchRate + '% (참고)</div>';
 
-        fbBox.style.display = 'block';
         fbBtnGroup.innerHTML = '';
-        appendRecordingPlaybackButtons();
-        showEvalResult(isPass, '✅ 회상 OK · Space로 다음', '❌ 더 말해 보세요 (짧음)', resHtml, []);
+        showEvalResult(
+            isPass,
+            '✅ 회상 OK · Space 다음',
+            '❌ 더 말해 보세요 · Enter 재연습' + (canSkipCurrentPhase() ? ' · Space 넘어가기' : ''),
+            resHtml,
+            mastery.fluHint || ''
+        );
     }
 
     function stopRecordingSilently() {
@@ -2888,7 +3162,7 @@
         stopAllPlayback();
         stopRecordingSilently();
         if(mPhase === 2) loadCurrentSentence();
-        else if(mPhase === 3) loadPhase3Sentence(tormentActive);
+        else if(mPhase === 3) loadPhase3Sentence(tormentActive, true);
         else if(mPhase === 4) runPhase4RecallKeywords();
         else if(mPhase === 5) runPhase5RecallQuestion();
         else if(mPhase === 6) runPhase6Pivot(progress.checkpoint.bridge);
@@ -3243,10 +3517,7 @@
     }
 
     function appendRecordingPlaybackButtons() {
-        if (isMobile) return;
-        fbBtnGroup.innerHTML +=
-            '<button type="button" class="btn-play-audio" onclick="playFirstAudio()">🎧 최초 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">←</span></button>' +
-            '<button type="button" class="btn-play-audio" onclick="playUserAudio()">🎧 최근 녹음 <span class="shortcut-key" style="margin-left:5px; font-size:12px; background:rgba(0,0,0,0.2);">→</span></button>';
+        /* 녹음 비교는 ← → 단축키만 (버튼 제거) */
     }
 
     window.playFirstAudio = function() {
@@ -3543,13 +3814,16 @@
 
         const mastery = applyMasteryAfterEval(isPass);
         isPass = mastery.pass;
-        if (mastery.fluHint) {
-            resHtml += '<div style="font-size:12px;color:#B45309;margin-top:8px;">' + escapeHtml(mastery.fluHint) + '</div>';
-        }
         const passMsg = isInterviewPracticeTrack()
-            ? '✅ 말하기 OK · Space로 다음'
-            : '✅ 완벽합니다 · Space로 다음';
-        showEvalResult(isPass, passMsg, '❌ 다시 말해 보세요', resHtml, uniqueMissed);
+            ? '✅ 말하기 OK · Space 다음'
+            : '✅ 완벽합니다 · Space 다음';
+        showEvalResult(
+            isPass,
+            passMsg,
+            '❌ 다시 말해 보세요 · Enter 재연습' + (canSkipCurrentPhase() ? ' · Space 넘어가기' : ''),
+            resHtml,
+            mastery.fluHint || ''
+        );
     }
 
     function goHome() {
@@ -3597,6 +3871,7 @@
         if (typeof DashboardSettings !== 'undefined') {
             DashboardSettings.loadAndApply();
         }
+        bindMissionReferencePanel();
         renderPracticeTrackPanel();
         renderDifficultyPanel();
         renderTtsSpeedPanel();
