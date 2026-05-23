@@ -10,6 +10,7 @@ import {
   ttsCacheKey,
   writeCachedMp3,
 } from './tts-rest.js';
+import { evolinkConfigured, generateInterviewScript } from './script-evolink.js';
 
 /** Deployed pronunciation-rest.js 가 오래된 경우에도 서버가 기동되도록 로컬 검증 */
 function validateWav16kMono(buffer) {
@@ -228,6 +229,28 @@ function pronounceAssessParser(req, res, next) {
  */
 app.post('/api/pronounce-assess', pronounceAssessParser, handlePronounceAssess);
 
+/** 면접 스크립트 AI 생성 (EvoLink) */
+app.post('/api/generate-script', async (req, res) => {
+  try {
+    const result = await generateInterviewScript(req.body || {});
+    res.json({ ok: true, topic: result.topic, model: result.model });
+  } catch (err) {
+    const status = err.status || 500;
+    const code = err.message || 'server_error';
+    console.error('generate-script', code, err.detail || '');
+    res.status(status).json({
+      ok: false,
+      error: code,
+      detail: err.detail ? String(err.detail).slice(0, 200) : undefined,
+      raw: err.raw,
+    });
+  }
+});
+
+app.get('/api/generate-script/status', (_req, res) => {
+  res.json({ ok: true, configured: evolinkConfigured() });
+});
+
 const parentDir = path.join(__dirname, '..');
 app.use(express.static(parentDir));
 
@@ -236,4 +259,7 @@ app.listen(PORT, () => {
   console.log(`앱: http://localhost:${PORT}/index.html`);
   console.log(`2단계 발음: POST /api/pronounce-assess (Short Audio REST)`);
   console.log(`TTS 캐시: POST /api/tts → ${TTS_CACHE_DIR}`);
+  console.log(
+    `스크립트 AI: POST /api/generate-script (EvoLink ${evolinkConfigured() ? '설정됨' : '미설정 — EVOLINK_API_KEY'})`
+  );
 });

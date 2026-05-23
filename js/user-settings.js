@@ -18,6 +18,8 @@ window.INTERVIEW_SETTINGS = {
     pronounceAssessUrl: '/api/pronounce-assess',
     /** TTS 합성 (디스크 캐시) */
     ttsUrl: '/api/tts',
+    /** 면접 스크립트 AI (EvoLink 프록시) */
+    generateScriptUrl: '/api/generate-script',
 };
 
 /** 2단계 Azure 합격선 프리셋 (난이도) */

@@ -1,5 +1,5 @@
 /**
- * 대시보드 — 스크립트 추가(폼) · 삭제(콤보)
+ * 대시보드 — 스크립트 추가(폼) · 삭제(콤보) · AI 초안
  */
 (function (global) {
     function el(id) {
@@ -64,6 +64,16 @@
         for (let i = 0; i < n; i++) wrap.appendChild(createSentenceRow('', ''));
     }
 
+    function setSentenceRows(sentences) {
+        const wrap = el('topic-sentence-rows');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        const list = sentences && sentences.length ? sentences : [['', '']];
+        list.forEach(function (s) {
+            wrap.appendChild(createSentenceRow(s[0], s[1]));
+        });
+    }
+
     function readSentencesFromForm() {
         const rows = document.querySelectorAll('#topic-sentence-rows .topic-sentence-row');
         const sentences = [];
@@ -77,6 +87,46 @@
         return sentences;
     }
 
+    function readDraftFromForm() {
+        return {
+            title: ((el('topic-add-title') || {}).value || '').trim(),
+            question: ((el('topic-add-question') || {}).value || '').trim(),
+            altQuestion: ((el('topic-add-alt') || {}).value || '').trim(),
+            bridgeKo: ((el('topic-add-bridge-ko') || {}).value || '').trim(),
+            bridge: ((el('topic-add-bridge') || {}).value || '').trim(),
+            kor: ((el('topic-add-kor') || {}).value || '').trim(),
+            sentences: readSentencesFromForm(),
+        };
+    }
+
+    function hasDraftOutput() {
+        const d = readDraftFromForm();
+        return !!(
+            d.title ||
+            d.question ||
+            d.kor ||
+            d.bridge ||
+            d.bridgeKo ||
+            (d.sentences && d.sentences.length)
+        );
+    }
+
+    function fillFormFromTopic(topic) {
+        if (!topic) return;
+        const set = function (id, val) {
+            const node = el(id);
+            if (node) node.value = val || '';
+        };
+        set('topic-add-title', topic.title);
+        set('topic-add-question', topic.question);
+        set('topic-add-alt', topic.altQuestion);
+        set('topic-add-bridge-ko', topic.bridgeKo);
+        set('topic-add-bridge', topic.bridge);
+        set('topic-add-kor', topic.kor);
+        setSentenceRows(topic.sentences || []);
+        updateAiModeHint();
+    }
+
     function clearAddForm() {
         ['topic-add-title', 'topic-add-question', 'topic-add-alt', 'topic-add-bridge-ko', 'topic-add-bridge', 'topic-add-kor'].forEach(
             function (id) {
@@ -85,16 +135,40 @@
             }
         );
         resetSentenceRows(2);
+        const prompt = el('topic-ai-prompt');
+        if (prompt) prompt.value = '';
+        setAiStatus('');
+        updateAiModeHint();
+    }
+
+    function setAiStatus(msg, isError) {
+        const st = el('topic-ai-status');
+        if (!st) return;
+        st.textContent = msg || '';
+        st.className = 'topic-ai-status' + (isError ? ' is-error' : msg ? ' is-ok' : '');
+    }
+
+    function updateAiModeHint() {
+        const hint = el('topic-ai-mode-hint');
+        if (!hint) return;
+        if (hasDraftOutput()) {
+            hint.textContent =
+                '초안이 있음 → 다음 생성 시 「요청」+ 「아래 초안」을 함께 보내 수정합니다.';
+        } else {
+            hint.textContent =
+                '초안 없음 → 생성 시 「요청」+ 「기존 스크립트」를 참고해 새 스크립트를 만듭니다.';
+        }
     }
 
     function buildTopicFromForm(serverTopics) {
-        const title = (el('topic-add-title') || {}).value.trim();
-        const question = (el('topic-add-question') || {}).value.trim();
-        const altQuestion = (el('topic-add-alt') || {}).value.trim();
-        const bridgeKo = (el('topic-add-bridge-ko') || {}).value.trim();
-        const bridge = (el('topic-add-bridge') || {}).value.trim();
-        const kor = (el('topic-add-kor') || {}).value.trim();
-        const sentences = readSentencesFromForm();
+        const d = readDraftFromForm();
+        const title = d.title;
+        const question = d.question;
+        const altQuestion = d.altQuestion;
+        const bridgeKo = d.bridgeKo;
+        const bridge = d.bridge;
+        const kor = d.kor;
+        const sentences = d.sentences;
 
         if (!title) throw new Error('제목을 입력해 주세요.');
         if (!question) throw new Error('면접 질문(영어)을 입력해 주세요.');
@@ -116,11 +190,61 @@
         };
     }
 
+    async function runAiGenerate(getTopics) {
+        const promptEl = el('topic-ai-prompt');
+        const userPrompt = promptEl ? promptEl.value.trim() : '';
+        if (!userPrompt) {
+            setAiStatus('요청 내용을 입력해 주세요.', true);
+            return;
+        }
+        if (typeof global.ScriptAI === 'undefined') {
+            setAiStatus('ScriptAI 모듈을 불러오지 못했습니다.', true);
+            return;
+        }
+
+        const btn = el('btn-ai-generate-script');
+        const topics = typeof getTopics === 'function' ? getTopics() : [];
+        const currentDraft = hasDraftOutput() ? readDraftFromForm() : null;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '생성 중…';
+        }
+        setAiStatus(
+            currentDraft
+                ? 'AI가 초안을 수정하는 중…'
+                : 'AI가 새 스크립트를 만드는 중… (기존 스크립트 참고)'
+        );
+
+        try {
+            const topic = await global.ScriptAI.generateScript(userPrompt, {
+                topics: topics,
+                currentDraft: currentDraft,
+            });
+            fillFormFromTopic(topic);
+            setAiStatus('초안을 채웠습니다. 아래에서 고친 뒤 「추가하기」를 누르세요.');
+            const block = el('topic-draft-fields');
+            if (block) block.open = true;
+        } catch (e) {
+            setAiStatus(e.message || String(e), true);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'AI 스크립트 생성';
+            }
+            updateAiModeHint();
+        }
+    }
+
     function bind(options) {
         options = options || {};
         const onChange = options.onTopicsChanged || function () {};
+        const getTopics = options.getTopics || function () {
+            return global.db || [];
+        };
 
         resetSentenceRows(2);
+        updateAiModeHint();
 
         const btnAddRow = el('btn-add-sentence-row');
         if (btnAddRow && !btnAddRow.dataset.bound) {
@@ -130,6 +254,32 @@
                 if (wrap) wrap.appendChild(createSentenceRow('', ''));
             };
         }
+
+        const btnAi = el('btn-ai-generate-script');
+        if (btnAi && !btnAi.dataset.bound) {
+            btnAi.dataset.bound = '1';
+            btnAi.onclick = function () {
+                runAiGenerate(getTopics);
+            };
+        }
+
+        const btnClearDraft = el('btn-clear-topic-draft');
+        if (btnClearDraft && !btnClearDraft.dataset.bound) {
+            btnClearDraft.dataset.bound = '1';
+            btnClearDraft.onclick = function () {
+                if (!hasDraftOutput() && !(el('topic-ai-prompt') || {}).value) return;
+                if (!confirm('AI 초안과 입력란을 비울까요?')) return;
+                clearAddForm();
+            };
+        }
+
+        ['topic-add-title', 'topic-add-question', 'topic-add-alt', 'topic-add-kor'].forEach(function (id) {
+            const node = el(id);
+            if (node && !node.dataset.aiHintBound) {
+                node.dataset.aiHintBound = '1';
+                node.addEventListener('input', updateAiModeHint);
+            }
+        });
 
         const btnAdd = el('btn-add-topic');
         if (btnAdd && !btnAdd.dataset.bound) {
@@ -183,6 +333,9 @@
     global.ContentManagerUI = {
         renderDeleteSelect: renderDeleteSelect,
         clearAddForm: clearAddForm,
+        fillFormFromTopic: fillFormFromTopic,
+        readDraftFromForm: readDraftFromForm,
+        hasDraftOutput: hasDraftOutput,
         bind: bind,
     };
 })(window);

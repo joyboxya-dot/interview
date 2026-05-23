@@ -297,6 +297,24 @@
         #btn-add-topic {
             background: var(--primary); color: #fff; border-color: var(--primary);
         }
+        #btn-ai-generate-script {
+            background: #7C3AED; color: #fff; border-color: #6D28D9;
+        }
+        #btn-ai-generate-script:disabled { opacity: 0.65; cursor: wait; }
+        .topic-ai-prompt {
+            width: 100%; box-sizing: border-box; min-height: 72px; resize: vertical;
+            padding: 8px 10px; font-size: 12px; line-height: 1.45;
+            border: 1px solid #C4B5FD; border-radius: 8px; background: #FAF5FF;
+        }
+        .topic-ai-mode-hint { font-size: 10px; color: #6D28D9; margin: 4px 0 8px; line-height: 1.35; }
+        .topic-ai-status { font-size: 11px; margin-top: 6px; min-height: 1.2em; line-height: 1.4; }
+        .topic-ai-status.is-error { color: #B91C1C; }
+        .topic-ai-status.is-ok { color: #047857; }
+        .topic-draft-fields { margin-top: 10px; }
+        .topic-draft-fields summary {
+            font-size: 11px; font-weight: 700; color: #475569; cursor: pointer;
+            margin-bottom: 8px;
+        }
         .content-hint { margin-top: 4px; font-size: 10px; color: #94A3B8; line-height: 1.35; }
         .rg-chunks-line { font-size: 15px; line-height: 1.55; margin-top: 6px; }
         .rg-chunk { font-weight: 600; color: #1E293B; }
@@ -499,6 +517,18 @@
                     <details class="topic-add-block" open>
                         <summary>＋ 새 스크립트 추가</summary>
                         <div class="topic-field">
+                            <label class="topic-field-label" for="topic-ai-prompt">AI 요청 (만들 내용 · 수정 지시)</label>
+                            <textarea id="topic-ai-prompt" class="topic-ai-prompt" rows="3" placeholder="예: 모르는 툴 질문이 올 때 답하는 스크립트. 파이썬은 업무에 쓴 적 없고 C 문법이 비슷하다고 설명."></textarea>
+                            <p class="topic-ai-mode-hint" id="topic-ai-mode-hint"></p>
+                            <div class="topic-add-actions" style="margin-top:0">
+                                <button type="button" id="btn-ai-generate-script">AI 스크립트 생성</button>
+                                <button type="button" id="btn-clear-topic-draft">초안 비우기</button>
+                            </div>
+                            <p class="topic-ai-status" id="topic-ai-status" aria-live="polite"></p>
+                        </div>
+                        <details class="topic-draft-fields" id="topic-draft-fields" open>
+                            <summary>AI 초안 · 직접 수정 후 「추가하기」</summary>
+                        <div class="topic-field">
                             <label class="topic-field-label" for="topic-add-title">제목 (한글)</label>
                             <input type="text" id="topic-add-title" class="topic-input" placeholder="예: 업무 효율화 경험" />
                         </div>
@@ -531,6 +561,7 @@
                             <button type="button" id="btn-add-topic">추가하기</button>
                             <button type="button" id="btn-reload-content">목록 새로고침</button>
                         </div>
+                        </details>
                     </details>
                 </div>
                 <div class="tts-speed-panel" id="tts-speed-panel">
@@ -612,6 +643,7 @@
 <script src="js/dashboard-settings.js"></script>
 <script src="js/topic-store.js"></script>
 <script src="js/content-loader.js"></script>
+<script src="js/script-ai.js"></script>
 <script src="js/content-manager-ui.js"></script>
 <script src="js/l2-fluency.js"></script>
 <script src="js/mastery-engine.js"></script>
@@ -1027,9 +1059,31 @@
         updateMasteryQueueBadge();
     }
 
+    async function checkScriptAiStatus() {
+        const st = document.getElementById('topic-ai-status');
+        if (!st) return;
+        try {
+            const res = await fetch('/api/generate-script/status', { cache: 'no-store' });
+            const data = await res.json();
+            if (data.configured) {
+                st.textContent = 'EvoLink AI 연결 가능 (서버 키 설정됨)';
+                st.className = 'topic-ai-status is-ok';
+            } else {
+                st.textContent = 'AI 미설정: speech-server/.env 에 EVOLINK_API_KEY 추가 후 npm start';
+                st.className = 'topic-ai-status is-error';
+            }
+        } catch (e) {
+            st.textContent = 'AI 서버에 연결되지 않음 — http://localhost:3001/index.html 로 여세요.';
+            st.className = 'topic-ai-status is-error';
+        }
+    }
+
     function bindContentPanelActions() {
         if (typeof ContentManagerUI === 'undefined') return;
         ContentManagerUI.bind({
+            getTopics: function () {
+                return db;
+            },
             onTopicsChanged: function () {
                 syncContentUi();
             },
@@ -1038,6 +1092,7 @@
                 alert('목록을 새로 불러왔습니다. (' + db.length + '개)');
             },
         });
+        checkScriptAiStatus();
     }
 
     function updateMissionDifficultyBadge() {
