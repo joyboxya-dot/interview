@@ -567,6 +567,32 @@
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;
         }
         .pa-timeline-axis { font-size: 10px; color: #94A3B8; margin-top: 3px; text-align: right; }
+        .pitch-compare {
+            margin: 12px 0; padding: 10px; border-radius: 10px;
+            background: #F0F9FF; border: 1px solid #BAE6FD;
+        }
+        .pitch-compare-title { font-size: 12px; font-weight: 800; color: #0369A1; margin-bottom: 4px; }
+        .pitch-compare-meta { font-size: 11px; color: #64748B; margin-bottom: 8px; }
+        .pitch-chart-wrap { width: 100%; border-radius: 6px; overflow: hidden; background: #fff; }
+        .pitch-chart-svg { width: 100%; height: 100px; display: block; }
+        .pitch-line-ref { stroke: #2563EB; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        .pitch-line-user { stroke: #EA580C; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+        .pitch-word-line { stroke: #CBD5E1; stroke-width: 1; stroke-dasharray: 2 2; }
+        .pitch-word-label { font-size: 8px; fill: #94A3B8; font-weight: 700; }
+        .pitch-legend { display: flex; gap: 12px; margin-top: 6px; font-size: 11px; font-weight: 700; }
+        .pitch-legend-ref { color: #2563EB; }
+        .pitch-legend-user { color: #EA580C; }
+        .pitch-controls { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .pitch-slider-label, .pitch-align-label { font-size: 12px; color: #334155; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pitch-rate-slider { flex: 1; min-width: 120px; max-width: 220px; }
+        .pitch-rate-val { font-weight: 800; color: #0369A1; min-width: 36px; }
+        .pitch-play-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .pitch-play-ref, .pitch-play-user {
+            padding: 6px 12px; border-radius: 8px; border: none; font-size: 12px; font-weight: 800;
+            cursor: pointer;
+        }
+        .pitch-play-ref { background: #2563EB; color: #fff; }
+        .pitch-play-user { background: #EA580C; color: #fff; }
         .pa-viz + .missed-word-btns { margin-top: 10px; }
         .pa-err-none, .pa-tl-word.pa-err-none { background: #22C55E; }
         .pa-err-mis, .pa-tl-word.pa-err-mis, .pa-word-card.pa-err-mis .pa-word-badge { background: #FEE2E2; color: #991B1B; }
@@ -797,6 +823,7 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js"></script>
 <script src="js/pronunciation-viz.js"></script>
+<script src="js/pitch-compare.js"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>
@@ -893,15 +920,15 @@
     const PHASE_MISSION_GOALS = {
         1: '목표: 맥락만 잡기 → Space로 다음 (4컷은 아래 참고)',
         2: '목표: 이 문장을 영어로 말하기 → Enter 점검',
-        3: '목표: cloze(끝→앞)로 맞춰보기 → Space 후 한글만·Enter 점검',
+        3: '목표: cloze(끝→앞 1바퀴·랜덤 1바퀴) → Space 후 한글만·Enter 점검',
         4: '목표: 힌트만 보고 통문장 말하기',
         5: '목표: 질문만 보고 답 전체 말하기',
         6: '목표: 다른 질문 → 브릿지 → 통문장',
     };
 
-    /** 3단계: cloze 준비 → blind 회상 */
+    /** 3단계: cloze 준비(끝→앞 1바퀴 + 랜덤 1바퀴) → blind 회상 */
     let phase3Substep = 'cloze';
-    let phase3PrepLevel = 1;
+    let phase3PrepStep = 1;
 
     let tormentActive = false;
     let tormentKey = null;
@@ -970,18 +997,16 @@
         return ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
     }
 
-    function initPhase3PrepLevel() {
-        const key = getPhase3ClozeKey();
-        if (!key || typeof ClozeHint === 'undefined') {
-            phase3PrepLevel = 1;
-            return;
-        }
+    function initPhase3ClozePrep() {
+        phase3PrepStep = 1;
+    }
+
+    function getPhase3ClozePrepConfig() {
         const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
-        const stored = ClozeHint.getLevel(key);
-        phase3PrepLevel = stored > 0 ? stored : 1;
-        if (phase3PrepLevel > ClozeHint.maxLevel(wc)) {
-            phase3PrepLevel = ClozeHint.maxLevel(wc);
+        if (typeof ClozeHint === 'undefined') {
+            return { mode: 'end', hideLevel: 1, lap: 1, lapMax: 1, prepStep: 1, prepMax: 2 };
         }
+        return ClozeHint.prepStepConfig(phase3PrepStep, wc);
     }
 
     function enterPhase3BlindTest() {
@@ -1006,7 +1031,11 @@
         const el = document.getElementById('mission-phase-goal');
         if (!el) return;
         if (mPhase === 3 && phase3Substep === 'cloze') {
-            el.textContent = '목표: 끝 단어부터 cloze로 맞춰보기 → Enter 더 가리기 · Space 말하기 테스트';
+            const cfg = getPhase3ClozePrepConfig();
+            el.textContent =
+                cfg.mode === 'random'
+                    ? '목표: 랜덤 cloze(2바퀴) → Enter 더 가리기 · Space 말하기 테스트'
+                    : '목표: 끝→앞 cloze(1바퀴) → Enter 더 가리기 · Space 말하기 테스트';
         } else if (mPhase === 3) {
             el.textContent = PHASE_MISSION_GOALS[3];
         } else {
@@ -1016,16 +1045,22 @@
 
     function refreshPhase3ClozeView() {
         const key = getPhase3ClozeKey();
-        const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
-        const max = ClozeHint.maxLevel(wc);
+        const cfg = getPhase3ClozePrepConfig();
+        const tag =
+            typeof ClozeHint !== 'undefined'
+                ? ClozeHint.prepTagLabel(cfg)
+                : '가리기 ' + cfg.prepStep + '/' + cfg.prepMax;
         const clozeHtml =
-            '<div class="cloze-level-tag">끝→앞 가리기 ' +
-            phase3PrepLevel +
-            '/' +
-            max +
+            '<div class="cloze-level-tag">' +
+            tag +
             ' · Enter 더 가리기 · Space 말하기 테스트</div>' +
             '<div class="english-text">' +
-            ClozeHint.renderPlain(currentTargetEng, phase3PrepLevel) +
+            ClozeHint.renderPlain(
+                currentTargetEng,
+                cfg.hideLevel,
+                cfg.mode,
+                (key || 'p3') + '-s' + phase3PrepStep
+            ) +
             '</div>';
         document.getElementById('ui-eng-text').innerHTML = clozeHtml;
         document.getElementById('ui-eng-text').className = 'english-text';
@@ -1038,12 +1073,12 @@
             return true;
         }
         const wc = currentTargetEng.split(/\s+/).filter(Boolean).length;
-        const max = ClozeHint.maxLevel(wc);
-        if (phase3PrepLevel >= max) {
+        const prepMax = ClozeHint.maxPrepSteps(wc);
+        if (phase3PrepStep >= prepMax) {
             enterPhase3BlindTest();
             return true;
         }
-        phase3PrepLevel += 1;
+        phase3PrepStep += 1;
         refreshPhase3ClozeView();
         return true;
     }
@@ -2660,7 +2695,7 @@
         syncMissionLayout(question);
         document.getElementById('ui-kor-text').innerHTML = kor;
         document.getElementById('ui-eng-text').innerHTML = eng;
-        setReadingGuideVisible(false);
+        hideReadingGuideFromPhase4();
         document.getElementById('ui-bridge-box').style.display = showBridge ? 'block' : 'none';
         
         fbBox.style.display = 'none';
@@ -2714,6 +2749,9 @@
             : formatEngForDisplay(getTopicFullEng(data).replace(/ /g, ' / '), true);
         updateUI(data.question, korHint, engHint);
         document.getElementById('ui-eng-text').className = 'english-text';
+        if (!minimal) {
+            setReadingGuideVisible(true, buildReadingGuideHtml(getTopicFullEng(data)));
+        }
         if (window.ComicHint) {
             data = await ComicHint.showForPhase(data, 1);
             db[currentTopicIndex] = data;
@@ -2757,7 +2795,6 @@
         currentTargetEng = sentEng;
         onCueShown();
 
-        setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
         let engHtml;
         if (typeof PracticeTrack !== 'undefined' && PracticeTrack.useClozeDisplay(2) && typeof ClozeHint !== 'undefined') {
             const ck = ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
@@ -2782,6 +2819,7 @@
         }
         updateUI(data.question, sentKor, engHtml);
         document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
+        setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
         if (window.ComicHint) {
             data = await ComicHint.showForPhase(data, 2);
             db[currentTopicIndex] = data;
@@ -2811,7 +2849,6 @@
         const isBridgeLine = mSentIdx === 0 && !!getTopicBridgeEn(data);
         currentTargetEng = sentEng;
         onCueShown();
-        setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
         fbBox.style.display = 'none';
         fbBox.className = 'feedback mission-feedback';
 
@@ -2822,7 +2859,7 @@
 
         if (useClozeFlow && !isTorment && !startBlind) {
             phase3Substep = 'cloze';
-            initPhase3PrepLevel();
+            initPhase3ClozePrep();
         } else {
             phase3Substep = 'blind';
         }
@@ -2848,6 +2885,7 @@
                 '<div class="eng-hidden">영어 숨김 · 🎤 말한 뒤 Enter</div>';
             updateMissionPhaseGoalText();
         }
+        setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
         if (window.ComicHint) {
             data = await ComicHint.showForPhase(data, 3);
             db[currentTopicIndex] = data;
@@ -2859,6 +2897,7 @@
     function runPhase4RecallKeywords(isTorment) {
         mPhase = 4; retryCount = 0;
         if (window.ComicHint) ComicHint.hide();
+        setReadingGuideVisible(false);
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
         currentTargetEng = getTopicFullEng(data);
@@ -2898,6 +2937,7 @@
     function runPhase5RecallQuestion() {
         mPhase = 5; retryCount = 0;
         if (window.ComicHint) ComicHint.hide();
+        setReadingGuideVisible(false);
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
         currentTargetEng = getTopicFullEng(data);
@@ -2916,6 +2956,7 @@
     function runPhase6Pivot(bridgeText) {
         mPhase = 6; retryCount = 0;
         if (window.ComicHint) ComicHint.hide();
+        setReadingGuideVisible(false);
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
         let topicBridge =
@@ -2950,7 +2991,9 @@
         el.textContent = msg;
     }
 
-    function evaluateAnswerFromAzure(assessment) {
+    let lastAssessWavBlob = null;
+
+    async function evaluateAnswerFromAzure(assessment) {
         if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) {
             fbBox.style.display = 'block';
             fbBox.className = 'feedback fail';
@@ -3013,6 +3056,29 @@
             window._azureAssessTrimNote = '';
         }
 
+        if (
+            lastAssessWavBlob &&
+            refText &&
+            typeof PitchCompare !== 'undefined' &&
+            mPhase >= 2 &&
+            mPhase <= 6
+        ) {
+            try {
+                const words =
+                    assessment.detail && assessment.detail.words
+                        ? assessment.detail.words
+                        : assessment.words;
+                const pitchHtml = await PitchCompare.buildCompareBlock({
+                    userWavBlob: lastAssessWavBlob,
+                    refText: refText,
+                    words: words,
+                });
+                if (pitchHtml) resHtml = pitchHtml + resHtml;
+            } catch (pitchErr) {
+                console.warn('PitchCompare', pitchErr);
+            }
+        }
+
         fbBox.style.display = 'block';
         fbBtnGroup.innerHTML = '';
         appendRecordingPlaybackButtons();
@@ -3032,6 +3098,9 @@
             resHtml,
             fixHint
         );
+        if (typeof PitchCompare !== 'undefined') {
+            PitchCompare.bind(fbRes);
+        }
     }
 
     function showEvalResult(isPass, passMsg, failMsg, detailHtml, fixHint) {
@@ -3342,6 +3411,11 @@
         'am', 'its', 'his', 'her', 'their', 'your', 'our'
     ]);
 
+    function shouldShowReadingGuideForPhase(phase) {
+        const p = phase != null ? phase : mPhase;
+        return p >= 1 && p <= 3;
+    }
+
     function setReadingGuideVisible(show, html) {
         const el = document.getElementById('ui-reading-guide');
         if (!el) return;
@@ -3351,6 +3425,12 @@
         } else {
             el.innerHTML = '';
             el.style.display = 'none';
+        }
+    }
+
+    function hideReadingGuideFromPhase4() {
+        if (!shouldShowReadingGuideForPhase(mPhase)) {
+            setReadingGuideVisible(false);
         }
     }
 
@@ -3615,9 +3695,11 @@
                 if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) {
                     fbBox.className = 'feedback fail';
                     fbRes.innerHTML = '음성이 감지되지 않았습니다. 문장을 끝까지 말한 뒤 Enter로 다시 시도하세요.';
+                    lastAssessWavBlob = null;
                     return;
                 }
-                evaluateAnswerFromAzure(assessment);
+                lastAssessWavBlob = wav;
+                await evaluateAnswerFromAzure(assessment);
             } catch (e) {
                 console.warn('Short Audio assess failed', e);
                 const detail = (e && e.message) ? e.message : String(e);

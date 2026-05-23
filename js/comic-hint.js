@@ -140,7 +140,8 @@
             return data;
         }
         const p = Number(phase);
-        if (p === 1) {
+        /* 1~3단계: 4컷 항상 참고에 표시 · 4단계부터 숨김 */
+        if (p >= 1 && p <= 3) {
             let topic = data;
             if (!getTopicComic(topic)) {
                 topic = await ensureTopicComic(topic);

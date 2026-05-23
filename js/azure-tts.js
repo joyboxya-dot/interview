@@ -259,6 +259,17 @@
         }
     }
 
+    async function getModelEnBlob(text) {
+        const safe = String(text || '').trim();
+        if (!safe) return null;
+        const langKey = 'en';
+        const rate = normalPlaybackRate(langKey);
+        if (isTtsReady()) {
+            return getCachedMp3Blob(safe, langKey, 'normal', rate);
+        }
+        return fetchMp3FromServer(safe, langKey, 'normal', rate);
+    }
+
     global.AzureTts = {
         initAzureTts: initAzureTts,
         isTtsReady: isTtsReady,
@@ -266,5 +277,6 @@
         speakPractice: speakPractice,
         stopPlayback: stopPlayback,
         practicePlaybackRate: practicePlaybackRate,
+        getModelEnBlob: getModelEnBlob,
     };
 })(window);
