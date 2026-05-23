@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="솔직히 저는 그 자리에서…">
-  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
-  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
-  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">1 상황</text>
-  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
-  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
-  <circle cx="80" cy="45" r="14" fill="#6366F1"/>
-  <rect x="68" y="57" width="24" height="28" rx="6" fill="#6366F1"/><rect x="55" y="88" width="40" height="24" rx="12" fill="#FEF3C7"/>
-  <text x="75" y="105" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#92400E">상황</text>
-  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">솔직히 저는 그 자리에서…</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" role="img" aria-hidden="true">
+  <rect width="200" height="120" fill="#F8FAFC" rx="8"/>
+  <text x="36" y="58" font-size="28">🎤</text><rect x="72" y="22" width="108" height="76" rx="6" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="80" y="30" width="92" height="56" rx="4" fill="#FFFFFF"/>
+  <text x="126" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="800" fill="#DC2626">Q</text><rect x="118" y="12" width="86" height="22" rx="11" fill="#FEE2E2"/>
+  <text x="161" y="28" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#B91C1C">pressure</text>
 </svg>

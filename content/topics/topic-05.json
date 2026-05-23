@@ -25,12 +25,26 @@
   "bridgeKo": "제가 일하는 방식과 관련해서 솔직히 말씀드리면,",
   "bridge": "To be honest, that relates to how I prepare and double-check under pressure.",
   "topicComic": {
-    "captionKo": "솔직히 저는 그 자리에서… → 하지만 이를 알기에 매우… → 금융 IT에서는 속도보다… → 클라우드 경험이 부족하지…",
+    "captionKo": "",
     "panels": [
       "/content/comics/topic-05/panel-1.svg",
       "/content/comics/topic-05/panel-2.svg",
       "/content/comics/topic-05/panel-3.svg",
       "/content/comics/topic-05/panel-4.svg"
+    ],
+    "panelKeywords": [
+      [
+        "면접 압박"
+      ],
+      [
+        "긴장·순발력"
+      ],
+      [
+        "두 번 체크"
+      ],
+      [
+        "100%·AWS"
+      ]
     ]
   }
 }

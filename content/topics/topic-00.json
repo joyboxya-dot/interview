@@ -33,12 +33,29 @@
   "bridgeKo": "NPS 고도화 이후 운영 업무로 말씀드리면,",
   "bridge": "That connects to my work as an operations engineer after the NPS modernization.",
   "topicComic": {
-    "captionKo": "NPS 고도화 프로젝트 … → 팀원들은 이 이중 확인을… → 읽기 전용 로그 화면을 … → 결과적으로 이중 접속을 …",
+    "captionKo": "",
     "panels": [
       "/content/comics/topic-00/panel-1.svg",
       "/content/comics/topic-00/panel-2.svg",
       "/content/comics/topic-00/panel-3.svg",
       "/content/comics/topic-00/panel-4.svg"
+    ],
+    "panelKeywords": [
+      [
+        "NPS 합류",
+        "운영"
+      ],
+      [
+        "ETL·로그",
+        "이중·slow"
+      ],
+      [
+        "야간 shell"
+      ],
+      [
+        "UI 통합",
+        "시간 절약"
+      ]
     ]
   }
 }

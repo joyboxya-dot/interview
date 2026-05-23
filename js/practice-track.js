@@ -63,7 +63,11 @@
     }
 
     function useClozeDisplay(phase) {
-        return isInterviewTrack() && (phase === 2 || phase === 4);
+        return phase === 2 || phase === 3 || phase === 4;
+    }
+
+    function phase3UsesClozeBlindFlow() {
+        return true;
     }
 
     function phase4UsesCloze() {
@@ -94,6 +98,7 @@
         shouldDrainTormentAtTopicEnd: shouldDrainTormentAtTopicEnd,
         shouldApplyL2ToMastery: shouldApplyL2ToMastery,
         useClozeDisplay: useClozeDisplay,
+        phase3UsesClozeBlindFlow: phase3UsesClozeBlindFlow,
         phase4UsesCloze: phase4UsesCloze,
         isMinimalPhase1: isMinimalPhase1,
         canAlwaysSkipPhase: canAlwaysSkipPhase,

@@ -44,9 +44,11 @@
         }
         panels = panels.filter(Boolean);
         if (panels.length < 4) return null;
+        const panelKeywords = Array.isArray(item.panelKeywords) ? item.panelKeywords : null;
         return {
             panels: panels.slice(0, 4).map(resolvePanelUrl),
             captionKo: captionKo,
+            panelKeywords: panelKeywords,
         };
     }
 
@@ -70,6 +72,8 @@
         }
     }
 
+    const STEP_UI = ['1 상황', '2 문제', '3 행동', '4 결과'];
+
     function show(comic, opts) {
         const strip = document.getElementById('ui-comic-strip');
         const grid = document.getElementById('ui-comic-panels');
@@ -85,34 +89,31 @@
             label.textContent = labelText;
             label.style.display = labelText ? 'block' : 'none';
         }
+        const kw = comic.panelKeywords;
         grid.innerHTML = comic.panels
             .map(function (url, i) {
-                const alt =
-                    (comic.captionKo ? comic.captionKo + ' · ' : '답변 4컷 · ') +
-                    (i + 1) +
-                    '/4';
+                const step = STEP_UI[i] || String(i + 1);
+                let hint = '';
+                if (kw && kw[i] && kw[i].length) {
+                    hint =
+                        '<span class="comic-panel-kw">' +
+                        escapeAttr(kw[i].join(' · ')) +
+                        '</span>';
+                }
                 return (
                     '<figure class="comic-panel">' +
                     '<img src="' +
                     escapeAttr(url) +
-                    '" alt="' +
-                    escapeAttr(alt) +
-                    '" loading="eager" decoding="sync" width="200" height="150" />' +
-                    '<figcaption class="comic-panel-num">' +
-                    (i + 1) +
+                    '" alt="" loading="eager" decoding="sync" width="200" height="120" />' +
+                    '<figcaption class="comic-panel-step">' +
+                    escapeAttr(step) +
+                    hint +
                     '</figcaption></figure>'
                 );
             })
             .join('');
         strip.style.display = 'block';
         strip.setAttribute('aria-hidden', 'false');
-    }
-
-    function labelWithCaption(prefix, comic) {
-        if (!comic) return '';
-        let s = prefix;
-        if (comic.captionKo) s += ' · ' + comic.captionKo;
-        return s;
     }
 
     /** topicComic 없으면 API 또는 브라우저 폴백으로 생성 */
@@ -139,18 +140,13 @@
             return data;
         }
         const p = Number(phase);
-        if (p >= 1 && p <= 3) {
+        if (p === 1) {
             let topic = data;
             if (!getTopicComic(topic)) {
                 topic = await ensureTopicComic(topic);
             }
             const c = getTopicComic(topic);
-            const prefixes = {
-                1: '📖 답변 흐름 (4컷)',
-                2: '🗣️ 답변 흐름 (4컷)',
-                3: '💭 답변 흐름 (4컷)',
-            };
-            show(c, { label: labelWithCaption(prefixes[p] || '📖 답변 흐름', c) });
+            show(c, { label: '4컷 (그림만 · 참고)' });
             return topic;
         }
         hide();

@@ -1,12 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="저희 내부 시스템에도 검…">
-  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
-  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
-  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">3 행동</text>
-  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
-  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
-  <rect x="50" y="38" width="76" height="24" rx="12" fill="#D1FAE5"/>
-  <text x="88" y="55" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#047857">$800B</text><rect x="95" y="42" width="85" height="58" rx="6" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
-  <rect x="103" y="50" width="69" height="36" rx="4" fill="#FFFFFF"/>
-  <text x="137.5" y="66" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#6366F1">SYS</text>
-  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">저희 내부 시스템에도 검…</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" role="img" aria-hidden="true">
+  <rect width="200" height="120" fill="#F8FAFC" rx="8"/>
+  <rect x="24" y="18" width="152" height="80" rx="6" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="32" y="26" width="136" height="60" rx="4" fill="#FFFFFF"/>
+  <text x="100" y="46" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="800" fill="#059669">check</text><rect x="88" y="6" width="86" height="22" rx="11" fill="#D1FAE5"/>
+  <text x="131" y="22" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#047857">validate</text>
 </svg>

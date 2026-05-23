@@ -109,15 +109,14 @@
     }
 
     function formatHint(metrics, result) {
-        const pct = function (n) {
-            return Math.round(n) + 'ms';
-        };
-        let msg = 'L2 기준 · 시작 ' + pct(metrics.ttfbMs) + ' / 발화 ' + pct(metrics.speakDurationMs);
+        const fixes = [];
         if (!result.speedOk) {
-            if (metrics.ttfbMs > result.limits.ttfbLimit) msg += ' · 말 시작이 느림';
-            if (metrics.speakDurationMs > result.limits.durationLimit) msg += ' · 말이 너무 김';
+            if (metrics.ttfbMs > result.limits.ttfbLimit) fixes.push('말 시작이 느림');
+            if (metrics.speakDurationMs > result.limits.durationLimit) fixes.push('말이 너무 김');
         }
-        return msg;
+        if (!result.contentOk) fixes.push('발음·내용 다시 맞추기');
+        if (!fixes.length) return '';
+        return '다음 연습: ' + fixes.join(' · ');
     }
 
     global.L2Fluency = {

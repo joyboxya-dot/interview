@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /** 캐시 키 버전 — 속도·스타일 바꿀 때 올리면 예전 빠른 MP3 무시 */
-export const TTS_CACHE_VERSION = 'v4-practice-rate';
+export const TTS_CACHE_VERSION = 'v5-l2-playback-rate';
 
 /** 서버 TTS 프로필 (클라이언트 user-settings.js 와 맞춤) */
 export const TTS_PROFILES = {
@@ -47,7 +47,14 @@ export function escapeXml(text) {
     .replace(/"/g, '&quot;');
 }
 
-export function buildSsml(text, profile, lang) {
+function ratePercentFromPlayback(playbackRate, fallbackPercent) {
+  const base = parseFloat(String(fallbackPercent || '82%').replace('%', ''));
+  const mult = typeof playbackRate === 'number' && playbackRate > 0 ? playbackRate : 0.82;
+  const pct = Math.round(Math.max(40, Math.min(110, base * (mult / 0.82))));
+  return `${pct}%`;
+}
+
+export function buildSsml(text, profile, lang, options = {}) {
   const langKey = lang === 'ko' ? 'ko' : 'en';
   const xmlLang = langKey === 'ko' ? 'ko-KR' : 'en-US';
   const cfg = (TTS_PROFILES[profile] || TTS_PROFILES.normal)[langKey] || TTS_PROFILES.normal.en;
@@ -57,7 +64,11 @@ export function buildSsml(text, profile, lang) {
     inner = `<emphasis level="strong">${inner}</emphasis>`;
   }
   const prosodyParts = [];
-  if (cfg.rate) prosodyParts.push(`rate="${cfg.rate}"`);
+  const rateStr =
+    options.playbackRate != null
+      ? ratePercentFromPlayback(options.playbackRate, cfg.rate)
+      : cfg.rate;
+  if (rateStr) prosodyParts.push(`rate="${rateStr}"`);
   if (cfg.pitch) prosodyParts.push(`pitch="${cfg.pitch}"`);
   if (prosodyParts.length) {
     inner = `<prosody ${prosodyParts.join(' ')}>${inner}</prosody>`;
@@ -72,15 +83,28 @@ export function buildSsml(text, profile, lang) {
   );
 }
 
-export function ttsCacheKey(profile, lang, text) {
+export function ttsCacheKey(profile, lang, text, playbackRate) {
   const langKey = lang === 'ko' ? 'ko' : 'en';
   const cfg = (TTS_PROFILES[profile] || TTS_PROFILES.normal)[langKey];
   const voice = cfg ? cfg.voice : 'default';
-  const tag = TTS_CACHE_VERSION + '|' + profile + '|' + voice + '|' + (cfg?.style || '') + '|' + (cfg?.rate || '') + '|' + langKey;
+  const rateTag =
+    playbackRate != null ? ratePercentFromPlayback(playbackRate, cfg?.rate) : cfg?.rate || '';
+  const tag =
+    TTS_CACHE_VERSION +
+    '|' +
+    profile +
+    '|' +
+    voice +
+    '|' +
+    (cfg?.style || '') +
+    '|' +
+    rateTag +
+    '|' +
+    langKey;
   return crypto.createHash('sha256').update(`${tag}\n${text}`).digest('hex');
 }
 
-export async function synthesizeToMp3({ speechKey, region, text, profile, lang }) {
+export async function synthesizeToMp3({ speechKey, region, text, profile, lang, playbackRate }) {
   const regionHost = region.toLowerCase();
   const url = `https://${regionHost}.tts.speech.microsoft.com/cognitiveservices/v1`;
   const langKey = lang === 'ko' ? 'ko' : 'en';
@@ -92,7 +116,7 @@ export async function synthesizeToMp3({ speechKey, region, text, profile, lang }
       'Content-Type': 'application/ssml+xml',
       'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
     },
-    body: buildSsml(text, profile, lang),
+    body: buildSsml(text, profile, lang, { playbackRate }),
   });
   if (!res.ok) {
     const detail = await res.text();

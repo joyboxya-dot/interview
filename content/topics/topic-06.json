@@ -25,12 +25,26 @@
   "bridgeKo": "NPS 결산 때 배치 성능을 다뤘던 경험과 연결하면,",
   "bridge": "That connects to settlement batch performance in the NPS project.",
   "topicComic": {
-    "captionKo": "NPS 프로젝트 결산 시… → 오라클 쿼리의 실행 계획… → 적절한 인덱스를 추가하고… → 결과적으로 배치가 훨씬 …",
+    "captionKo": "",
     "panels": [
       "/content/comics/topic-06/panel-1.svg",
       "/content/comics/topic-06/panel-2.svg",
       "/content/comics/topic-06/panel-3.svg",
       "/content/comics/topic-06/panel-4.svg"
+    ],
+    "panelKeywords": [
+      [
+        "NPS 결산"
+      ],
+      [
+        "FULL SCAN"
+      ],
+      [
+        "인덱스·힌트"
+      ],
+      [
+        "배치 fast"
+      ]
     ]
   }
 }

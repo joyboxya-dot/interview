@@ -94,13 +94,17 @@ app.post('/api/tts', async (req, res) => {
     const text = normalizeReferenceText(req.body && req.body.text);
     const lang = (req.body && req.body.lang) === 'ko' ? 'ko' : 'en';
     const profile = req.body && req.body.profile === 'practice' ? 'practice' : 'normal';
+    let playbackRate = parseFloat(req.body && req.body.playbackRate);
+    if (isNaN(playbackRate) || playbackRate < 0.4 || playbackRate > 1.2) {
+      playbackRate = undefined;
+    }
     if (!text) {
       return res.status(400).json({ ok: false, error: 'missing_text' });
     }
     if (text.length > 8000) {
       return res.status(400).json({ ok: false, error: 'text_too_long' });
     }
-    const key = ttsCacheKey(profile, lang, text);
+    const key = ttsCacheKey(profile, lang, text, playbackRate);
     let mp3 = await readCachedMp3(TTS_CACHE_DIR, key);
     if (!mp3) {
       const syn = await synthesizeToMp3({
@@ -109,6 +113,7 @@ app.post('/api/tts', async (req, res) => {
         text,
         profile,
         lang,
+        playbackRate,
       });
       if (!syn.ok) {
         return res.status(502).json({ ok: false, error: 'tts_failed', detail: syn.detail });

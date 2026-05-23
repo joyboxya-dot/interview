@@ -1,10 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="또한 제가 과거에 그랬던…">
-  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
-  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
-  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">4 결과</text>
-  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
-  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
-  <circle cx="85" cy="58" r="26" fill="#ECFDF5" stroke="#059669" stroke-width="3"/>
-      <text x="85" y="66" text-anchor="middle" font-size="20" fill="#059669">✓</text>
-  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">또한 제가 과거에 그랬던…</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" role="img" aria-hidden="true">
+  <rect width="200" height="120" fill="#F8FAFC" rx="8"/>
+  <rect x="48" y="70" width="104" height="16" rx="3" fill="#334155"/><rect x="56" y="52" width="88" height="16" rx="3" fill="#64748B"/><rect x="64" y="34" width="72" height="16" rx="3" fill="#94A3B8"/><rect x="68" y="12" width="50" height="22" rx="11" fill="#E0E7FF"/>
+  <text x="93" y="28" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#3730A3">arch</text><rect x="118" y="78" width="68" height="22" rx="11" fill="#D1FAE5"/>
+  <text x="152" y="94" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#047857">mentor</text>
 </svg>

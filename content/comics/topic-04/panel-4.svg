@@ -1,10 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="덕분에 이 문제는 다시는…">
-  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
-  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
-  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">4 결과</text>
-  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
-  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
-  <circle cx="75" cy="42" r="14" fill="#DB2777"/>
-  <rect x="63" y="54" width="24" height="28" rx="6" fill="#DB2777"/><text x="115" y="72" font-size="32" fill="#DC2626">!</text>
-  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">덕분에 이 문제는 다시는…</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" role="img" aria-hidden="true">
+  <rect width="200" height="120" fill="#F8FAFC" rx="8"/>
+  <rect x="36" y="22" width="128" height="76" rx="6" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="44" y="30" width="112" height="56" rx="4" fill="#FFFFFF"/>
+  <text x="100" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="800" fill="#059669">BATCH</text><path d="M100 38 L118 48 V68 L100 78 L82 68 V48 Z" fill="#DCFCE7" stroke="#059669" stroke-width="2.5"/><text x="100" y="64" text-anchor="middle" font-size="16" font-weight="900" fill="#059669">✓</text>
 </svg>

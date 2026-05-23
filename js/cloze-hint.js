@@ -1,13 +1,8 @@
 /**
- * 점진 가리기(cloze) — 문장·통문장별 레벨
+ * 점진 가리기(cloze) — 끝 단어부터 위로 가림
  */
 (function (global) {
     const STORAGE_KEY = 'interviewClozeLevelsV1';
-
-    const SKIP_WORDS = new Set([
-        'a', 'an', 'the', 'i', 'my', 'we', 'our', 'to', 'of', 'in', 'on', 'at', 'for', 'and', 'or', 'but',
-        'is', 'am', 'are', 'was', 'were', 'be', 'been', 'it', 'its', 'that', 'this', 'as', 'by', 'with',
-    ]);
 
     function loadMap() {
         try {
@@ -64,28 +59,12 @@
             .filter(Boolean);
     }
 
-    /** 가리기 우선: 긴 단어·콘텐츠어 */
-    function indicesToHide(tokens, level) {
+    /** 마지막 단어부터 level개 가림 */
+    function indicesToHideFromEnd(tokens, level) {
         const n = hideCount(tokens.length, level);
-        if (!n) return new Set();
-
-        const ranked = tokens.map(function (tok, i) {
-            const bare = tok.toLowerCase().replace(/[^a-z]/g, '');
-            const skip = SKIP_WORDS.has(bare) || bare.length < 2;
-            return { i: i, score: skip ? -1 : bare.length + (/\d/.test(bare) ? 2 : 0) };
-        });
-        ranked.sort(function (a, b) {
-            return b.score - a.score;
-        });
         const hide = new Set();
-        for (let k = 0; k < ranked.length && hide.size < n; k++) {
-            if (ranked[k].score < 0) continue;
-            hide.add(ranked[k].i);
-        }
-        if (hide.size < n) {
-            for (let j = 0; j < tokens.length && hide.size < n; j++) {
-                hide.add(j);
-            }
+        for (let i = tokens.length - 1; i >= 0 && hide.size < n; i--) {
+            hide.add(i);
         }
         return hide;
     }
@@ -93,7 +72,7 @@
     function renderPlain(text, level) {
         const tokens = tokenize(text);
         if (!tokens.length) return '';
-        const hide = indicesToHide(tokens, level);
+        const hide = indicesToHideFromEnd(tokens, level);
         return tokens
             .map(function (tok, i) {
                 if (!hide.has(i)) return escapeHtml(tok);

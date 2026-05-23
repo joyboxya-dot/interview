@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="운영 업무 중 틈틈이 복…">
-  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
-  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
-  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">3 행동</text>
-  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
-  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
-  <circle cx="50" cy="42" r="14" fill="#6366F1"/>
-  <rect x="38" y="54" width="24" height="28" rx="6" fill="#6366F1"/><line x1="88" y1="62" x2="130" y2="62" stroke="#6366F1" stroke-width="4"/><circle cx="145" cy="42" r="14" fill="#059669"/>
-  <rect x="133" y="54" width="24" height="28" rx="6" fill="#059669"/>
-  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">운영 업무 중 틈틈이 복…</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" role="img" aria-hidden="true">
+  <rect width="200" height="120" fill="#F8FAFC" rx="8"/>
+  <rect x="40" y="16" width="120" height="88" rx="6" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="48" y="24" width="104" height="68" rx="4" fill="#FFFFFF"/>
+  <text x="100" y="44" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="800" fill="#7C3AED">DOC</text><rect x="118" y="10" width="59" height="22" rx="11" fill="#EDE9FE"/>
+  <text x="147.5" y="26" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#5B21B6">+200p</text>
 </svg>
