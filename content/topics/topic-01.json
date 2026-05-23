@@ -23,5 +23,14 @@
     ]
   ],
   "bridgeKo": "NPS 직후 문서화가 없던 시기와 연결하면,",
-  "bridge": "That relates to right after the NPS modernization, when nothing was documented."
+  "bridge": "That relates to right after the NPS modernization, when nothing was documented.",
+  "topicComic": {
+    "captionKo": "NPS 고도화 직후 저희… → 하지만 비즈니스 로직이 … → 운영 업무 중 틈틈이 복… → 팀은 이를 표준으로 사용…",
+    "panels": [
+      "/content/comics/topic-01/panel-1.svg",
+      "/content/comics/topic-01/panel-2.svg",
+      "/content/comics/topic-01/panel-3.svg",
+      "/content/comics/topic-01/panel-4.svg"
+    ]
+  }
 }

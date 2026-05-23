@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="이제 가족이 완전히 정착…">
+  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
+  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
+  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">4 결과</text>
+  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
+  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
+  <circle cx="55" cy="40" r="14" fill="#6366F1"/>
+  <rect x="43" y="52" width="24" height="28" rx="6" fill="#6366F1"/><circle cx="95" cy="40" r="14" fill="#EC4899"/>
+  <rect x="83" y="52" width="24" height="28" rx="6" fill="#EC4899"/><text x="140" y="58" font-size="24">🏠</text>
+  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">이제 가족이 완전히 정착…</text>
+</svg>

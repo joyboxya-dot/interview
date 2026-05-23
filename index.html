@@ -183,6 +183,33 @@
         .azure-status { font-size: 12px; color: #64748B; margin-top: 12px; }
         .azure-status.ok { color: #16A34A; }
         .azure-status.warn { color: #D97706; }
+        .comic-strip {
+            margin: 0 0 12px; padding: 10px 12px; background: #F8FAFC;
+            border: 1px solid #E2E8F0; border-radius: 10px;
+        }
+        .comic-strip-label {
+            margin: 0 0 8px; font-size: 11px; font-weight: 700; color: #64748B;
+        }
+        .comic-panels {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+            max-width: 420px; margin: 0 auto;
+        }
+        .comic-panel {
+            margin: 0; position: relative; border-radius: 6px; overflow: hidden;
+            background: #fff; border: 1px solid #E2E8F0;
+        }
+        .comic-panel img {
+            display: block; width: 100%; height: auto; aspect-ratio: 4 / 3;
+            object-fit: cover;
+        }
+        .comic-panel-num {
+            position: absolute; top: 4px; left: 4px; margin: 0;
+            font-size: 9px; font-weight: 800; color: #64748B;
+            background: rgba(255,255,255,0.85); padding: 1px 5px; border-radius: 4px;
+        }
+        @media (max-width: 400px) {
+            .comic-panels { max-width: 100%; gap: 4px; }
+        }
         .recall-hint { font-size: 14px; color: #64748B; font-weight: 600; margin-bottom: 10px; }
         .recall-keywords { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
         .keyword-chip {
@@ -544,7 +571,7 @@
                 <div class="content-panel" id="content-panel">
                     <div class="difficulty-title">면접 스크립트</div>
                     <p class="tts-speed-hint" id="content-status-hint">로딩 중…</p>
-                    <p class="content-hint">서버: 주제별 JSON · 추가·삭제는 이 기기에 저장됩니다. ID는 자동 부여됩니다.</p>
+                    <p class="content-hint">서버: 주제별 JSON · 추가 시 4컷 자동 생성(topicComic). 기존 주제는 /content/comics/{id}/ (1~3단계).</p>
                     <div class="topic-delete-row">
                         <select id="topic-delete-select" aria-label="삭제할 스크립트"></select>
                         <button type="button" id="btn-delete-topic">삭제</button>
@@ -635,6 +662,11 @@
         <div class="question-box" id="ui-question-box">Q. 질문</div>
         <div class="bridge-box" id="ui-bridge-box"></div>
 
+        <div id="ui-comic-strip" class="comic-strip" style="display:none" aria-hidden="true">
+            <p class="comic-strip-label" id="ui-comic-label" style="display:none"></p>
+            <div class="comic-panels" id="ui-comic-panels"></div>
+        </div>
+
         <div class="korean-text" id="ui-kor-text"></div>
         <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
         <div id="cue-timer" class="cue-timer" style="display:none"></div>
@@ -662,6 +694,8 @@
 <script src="js/l2-fluency.js"></script>
 <script src="js/mastery-engine.js"></script>
 <script src="js/reading-guide.js"></script>
+<script src="js/comic-hint.js"></script>
+<script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js"></script>
 <script src="js/pronunciation-viz.js"></script>
 <script src="js/azure-speech.js"></script>
@@ -2197,6 +2231,10 @@
             formatEngForDisplay(getTopicFullEng(data).replace(/ /g, ' / '), true)
         );
         document.getElementById('ui-eng-text').className = 'english-text';
+        if (window.ComicHint) {
+            ComicHint.showForPhase(data, 1);
+            ComicHint.preloadTopicComic(data);
+        }
 
         speakText(getTopicDisplayKor(data), 'ko', () => {
             speakText(getTopicFullEng(data), 'en', () => {
@@ -2228,6 +2266,7 @@
             '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 아래 노란 「읽기 지도」= 말하기 전 리듬</p>';
         updateUI(data.question, sentKor, engHtml);
         document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
+        if (window.ComicHint) ComicHint.showForPhase(data, 2);
         persistProgress();
         speakText(sentEng, 'en');
     }
@@ -2266,11 +2305,13 @@
             false
         );
         document.getElementById('ui-eng-text').className = 'english-text';
+        if (window.ComicHint) ComicHint.showForPhase(data, 3);
         persistProgress();
     }
 
     function runPhase4RecallKeywords(isTorment) {
         mPhase = 4; retryCount = 0;
+        if (window.ComicHint) ComicHint.hide();
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
         currentTargetEng = getTopicFullEng(data);
@@ -2288,6 +2329,7 @@
 
     function runPhase5RecallQuestion() {
         mPhase = 5; retryCount = 0;
+        if (window.ComicHint) ComicHint.hide();
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
         currentTargetEng = getTopicFullEng(data);
@@ -2305,6 +2347,7 @@
 
     function runPhase6Pivot(bridgeText) {
         mPhase = 6; retryCount = 0;
+        if (window.ComicHint) ComicHint.hide();
         syncCurrentRecordingRefs();
         let data = db[currentTopicIndex];
         let topicBridge =

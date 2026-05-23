@@ -217,12 +217,31 @@
         );
 
         try {
-            const topic = await global.ScriptAI.generateScript(userPrompt, {
+            let topic = await global.ScriptAI.generateScript(userPrompt, {
                 topics: topics,
                 currentDraft: currentDraft,
             });
+            if (typeof global.ComicGenerator !== 'undefined') {
+                setAiStatus('4컷 맥락 이미지 생성 중…');
+                try {
+                    const server =
+                        global.ContentLoader && global.ContentLoader.getServerTopics
+                            ? global.ContentLoader.getServerTopics()
+                            : [];
+                    if (!topic.id) {
+                        topic.id = global.TopicStore.generateTopicId(server);
+                    }
+                    topic = await global.ComicGenerator.attachTopicComic(topic);
+                } catch (comicErr) {
+                    console.warn('comic preview', comicErr);
+                }
+            }
             fillFormFromTopic(topic);
-            setAiStatus('초안을 채웠습니다. 아래에서 고친 뒤 「추가하기」를 누르세요.');
+            setAiStatus(
+                topic.topicComic
+                    ? '초안 + 4컷 미리보기를 채웠습니다. 고친 뒤 「추가하기」를 누르세요.'
+                    : '초안을 채웠습니다. 아래에서 고친 뒤 「추가하기」를 누르세요.'
+            );
             const block = el('topic-draft-fields');
             if (block) block.open = true;
         } catch (e) {
@@ -284,22 +303,40 @@
         const btnAdd = el('btn-add-topic');
         if (btnAdd && !btnAdd.dataset.bound) {
             btnAdd.dataset.bound = '1';
-            btnAdd.onclick = function () {
+            btnAdd.onclick = async function () {
+                const prevLabel = btnAdd.textContent;
                 try {
                     const server =
                         global.ContentLoader && global.ContentLoader.getServerTopics
                             ? global.ContentLoader.getServerTopics()
                             : [];
-                    const topic = buildTopicFromForm(server);
+                    let topic = buildTopicFromForm(server);
+                    if (typeof global.ComicGenerator !== 'undefined') {
+                        btnAdd.disabled = true;
+                        btnAdd.textContent = '4컷 생성 중…';
+                        setAiStatus('답변 4컷 이미지를 만드는 중…');
+                        topic = await global.ComicGenerator.attachTopicComic(topic);
+                    }
                     global.TopicStore.addTopic(topic);
                     if (global.ContentLoader && global.ContentLoader.refreshMergedTopics) {
                         global.ContentLoader.refreshMergedTopics();
                     }
                     clearAddForm();
                     onChange();
-                    alert('추가했습니다: ' + topic.title + '\nID: ' + topic.id);
+                    setAiStatus('');
+                    alert(
+                        '추가했습니다: ' +
+                            topic.title +
+                            '\nID: ' +
+                            topic.id +
+                            (topic.topicComic ? '\n4컷 힌트 포함' : '')
+                    );
                 } catch (e) {
+                    setAiStatus(e.message || String(e), true);
                     alert(e.message || String(e));
+                } finally {
+                    btnAdd.disabled = false;
+                    btnAdd.textContent = prevLabel;
                 }
             };
         }

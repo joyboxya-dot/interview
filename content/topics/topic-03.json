@@ -23,5 +23,14 @@
     ]
   ],
   "bridgeKo": "MTS에서 API를 나눠 안정성을 맞췄던 일과 연결하면,",
-  "bridge": "That connects to the MTS project, when we split APIs to keep the app stable."
+  "bridge": "That connects to the MTS project, when we split APIs to keep the app stable.",
+  "topicComic": {
+    "captionKo": "모바일 팀은 모든 데이터… → 하지만 한 부분이 실패하… → 대신 데이터를 사용자, … → 뉴스 API가 실패해도 …",
+    "panels": [
+      "/content/comics/topic-03/panel-1.svg",
+      "/content/comics/topic-03/panel-2.svg",
+      "/content/comics/topic-03/panel-3.svg",
+      "/content/comics/topic-03/panel-4.svg"
+    ]
+  }
 }

@@ -11,6 +11,7 @@ import {
   writeCachedMp3,
 } from './tts-rest.js';
 import { evolinkConfigured, generateInterviewScript } from './script-evolink.js';
+import { generateTopicComic } from './comic-generator.js';
 
 /** Deployed pronunciation-rest.js 가 오래된 경우에도 서버가 기동되도록 로컬 검증 */
 function validateWav16kMono(buffer) {
@@ -249,6 +250,37 @@ app.post('/api/generate-script', async (req, res) => {
 
 app.get('/api/generate-script/status', (_req, res) => {
   res.json({ ok: true, configured: evolinkConfigured() });
+});
+
+/** 주제 4컷 SVG 생성 — preferFiles:true 시 content/comics/{id}/ 저장 */
+app.post('/api/generate-topic-comic', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const topic = body.topic;
+    if (!topic || !topic.sentences?.length) {
+      return res.status(400).json({ ok: false, error: 'topic_required' });
+    }
+    const parentDir = path.join(__dirname, '..');
+    const contentRoot = path.join(parentDir, 'content');
+    const preferFiles = body.preferFiles === true;
+    let result;
+    try {
+      result = generateTopicComic(topic, {
+        contentRoot,
+        preferFiles,
+      });
+    } catch (writeErr) {
+      result = generateTopicComic(topic, { preferFiles: false });
+    }
+    res.json({
+      ok: true,
+      topicComic: result.topicComic,
+      wroteFiles: result.wroteFiles,
+    });
+  } catch (err) {
+    console.error('generate-topic-comic', err);
+    res.status(500).json({ ok: false, error: 'comic_failed', detail: String(err.message) });
+  }
 });
 
 const parentDir = path.join(__dirname, '..');

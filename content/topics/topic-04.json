@@ -23,5 +23,14 @@
     ]
   ],
   "bridgeKo": "장 개장 전 배치 장애를 처리했던 경험으로 말씀드리면,",
-  "bridge": "That brings me to a batch failure I fixed before the market opened."
+  "bridge": "That brings me to a batch failure I fixed before the market opened.",
+  "topicComic": {
+    "captionKo": "어느 날 파일명에 공백이… → 장이 열리기 전 수동으로… → 저희 내부 시스템에도 검… → 덕분에 이 문제는 다시는…",
+    "panels": [
+      "/content/comics/topic-04/panel-1.svg",
+      "/content/comics/topic-04/panel-2.svg",
+      "/content/comics/topic-04/panel-3.svg",
+      "/content/comics/topic-04/panel-4.svg"
+    ]
+  }
 }

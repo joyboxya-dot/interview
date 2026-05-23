@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="지금 당장 정확한 문법이…">
+  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
+  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
+  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">1 상황</text>
+  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
+  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
+  <rect x="40" y="36" width="120" height="65" rx="6" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="48" y="44" width="104" height="43" rx="4" fill="#FFFFFF"/>
+  <text x="100" y="60" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#6366F1">EN</text><rect x="70" y="88" width="76" height="24" rx="12" fill="#FEF3C7"/>
+  <text x="108" y="105" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#92400E">study</text>
+  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">지금 당장 정확한 문법이…</text>
+</svg>

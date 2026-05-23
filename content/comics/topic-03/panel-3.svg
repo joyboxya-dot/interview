@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="대신 데이터를 사용자, …">
+  <rect width="200" height="150" fill="#F8FAFC" rx="10"/>
+  <rect x="8" y="8" width="56" height="22" rx="11" fill="#E0E7FF"/>
+  <text x="36" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#4338CA">3 행동</text>
+  <rect x="0" y="108" width="200" height="42" fill="#FFFFFF"/>
+  <line x1="0" y1="108" x2="200" y2="108" stroke="#E2E8F0" stroke-width="1"/>
+  <circle cx="70" cy="42" r="14" fill="#6366F1"/>
+  <rect x="58" y="54" width="24" height="28" rx="6" fill="#6366F1"/><rect x="110" y="38" width="70" height="60" rx="6" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="118" y="46" width="54" height="38" rx="4" fill="#FFFFFF"/>
+  <text x="145" y="62" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="800" fill="#6366F1">act</text>
+  <text x="100" y="132" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="12" font-weight="700" fill="#1E293B">대신 데이터를 사용자, …</text>
+</svg>

@@ -23,5 +23,14 @@
     ]
   ],
   "bridgeKo": "MTS 현대화 때 외부 팀과 협업했던 일과 연결하면,",
-  "bridge": "That ties to the MTS modernization, when I worked with an external mobile team."
+  "bridge": "That ties to the MTS modernization, when I worked with an external mobile team.",
+  "topicComic": {
+    "captionKo": "다올증권 입사 직후 MT… → 그들은 빠른 전송을, 저… → 3개월간 백엔드 파트를 … → 약 50개의 새 API를…",
+    "panels": [
+      "/content/comics/topic-02/panel-1.svg",
+      "/content/comics/topic-02/panel-2.svg",
+      "/content/comics/topic-02/panel-3.svg",
+      "/content/comics/topic-02/panel-4.svg"
+    ]
+  }
 }

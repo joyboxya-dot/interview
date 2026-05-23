@@ -23,5 +23,14 @@
     ]
   ],
   "bridgeKo": "실무에서 문법이 바로 안 떠올라도, 이렇게 접근합니다.",
-  "bridge": "If I do not recall the exact syntax, I still connect it to how I work in production."
+  "bridge": "If I do not recall the exact syntax, I still connect it to how I work in production.",
+  "topicComic": {
+    "captionKo": "지금 당장 정확한 문법이… → 실무에서는 안정성을 위해… → 직접적인 경험은 없지만 … → 예를 들어 최근에 AWS…",
+    "panels": [
+      "/content/comics/topic-09/panel-1.svg",
+      "/content/comics/topic-09/panel-2.svg",
+      "/content/comics/topic-09/panel-3.svg",
+      "/content/comics/topic-09/panel-4.svg"
+    ]
+  }
 }

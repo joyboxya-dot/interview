@@ -23,5 +23,14 @@
     ]
   ],
   "bridgeKo": "제가 여기서 지향하는 커리어와 연결하면,",
-  "bridge": "When I think about my path here, I connect it to the engineer I want to become."
+  "bridge": "When I think about my path here, I connect it to the engineer I want to become.",
+  "topicComic": {
+    "captionKo": "5년 뒤 저는 제 경험과… → 복잡한 데이터 파이프라인… → 10년 뒤에는 강력한 미… → 또한 제가 과거에 그랬던…",
+    "panels": [
+      "/content/comics/topic-08/panel-1.svg",
+      "/content/comics/topic-08/panel-2.svg",
+      "/content/comics/topic-08/panel-3.svg",
+      "/content/comics/topic-08/panel-4.svg"
+    ]
+  }
 }
