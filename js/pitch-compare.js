@@ -240,14 +240,18 @@
         }
     }
 
+    function fail(error) {
+        return { html: '', error: error };
+    }
+
     async function buildCompareBlock(opts) {
         opts = opts || {};
         const userWavBlob = opts.userWavBlob;
         const refText = String(opts.refText || '').trim();
-        if (!userWavBlob || !refText) return '';
+        if (!userWavBlob || !refText) return fail('no_input');
 
         const modelBlob = await getModelMp3Blob(refText);
-        if (!modelBlob) return '';
+        if (!modelBlob) return fail('no_model_tts');
 
         const [userMono, modelMono] = await Promise.all([
             blobToMono(await userWavBlob.arrayBuffer()),
@@ -262,7 +266,7 @@
 
         const refDur = durationSec(modelPts);
         const userDur = durationSec(userPts);
-        if (refDur < 0.3 || userDur < 0.3) return '';
+        if (refDur < 0.3 || userDur < 0.3) return fail('too_short');
 
         const ratio = userDur / refDur;
         const id = 'pc' + ++sessionSeq;
@@ -279,11 +283,12 @@
 
         const svg = buildSvgPaths(modelPts, userPts, Math.max(refDur, userDur), sessions[id].words, false);
 
-        return (
+        return {
+            html:
             '<div class="pitch-compare" data-pitch-id="' +
             escapeHtml(id) +
             '">' +
-            '<div class="pitch-compare-title">피치 비교 · 모범(파랑) vs 내 말(주황)</div>' +
+            '<div class="pitch-compare-title">모범 음성 vs 내 녹음 · 피치 겹침</div>' +
             '<div class="pitch-compare-meta">' +
             '모범 ' +
             refDur.toFixed(1) +
@@ -300,15 +305,16 @@
             '<span class="pitch-legend-user">━ 내 말</span>' +
             '</div>' +
             '<div class="pitch-controls">' +
-            '<label class="pitch-slider-label">내 말 재생 속도 <input type="range" class="pitch-rate-slider" min="0.5" max="1.5" step="0.05" value="1" /> <span class="pitch-rate-val">1.0×</span></label>' +
+            '<label class="pitch-slider-label">내 말 재생 속도 <input type="range" class="pitch-rate-slider" min="0.5" max="1.5" step="0.05" value="1" title="내 녹음만 재생 속도 조절" /> <span class="pitch-rate-val">1.0×</span></label>' +
             '<label class="pitch-align-label"><input type="checkbox" class="pitch-align-check" /> 윤곽 맞춤 (내 말 시간만 모범 길이에 맞춤)</label>' +
             '<div class="pitch-play-row">' +
             '<button type="button" class="pitch-play-ref">▶ 모범</button>' +
             '<button type="button" class="pitch-play-user">▶ 내 말</button>' +
             '</div>' +
             '</div>' +
-            '</div>'
-        );
+            '</div>',
+            error: null,
+        };
     }
 
     function playBlob(blob, rate) {

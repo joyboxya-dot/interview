@@ -62,8 +62,9 @@
         return isDeepTrack() && phase >= 3;
     }
 
+    /** 2단계: 강세·발음 연습(전문장) · cloze는 3단계 준비·4단계 통문장만 */
     function useClozeDisplay(phase) {
-        return phase === 2 || phase === 3 || phase === 4;
+        return phase === 3 || phase === 4;
     }
 
     function phase3UsesClozeBlindFlow() {

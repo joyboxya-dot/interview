@@ -139,7 +139,8 @@
         }
         .mission-reference .question-box { margin-top: 6px; font-size: 15px; }
         .mission-reference .comic-strip { margin-top: 6px; }
-        .mission-reference .reading-guide { margin-top: 6px; }
+        .mission-reference .reading-guide { margin-top: 0; margin-bottom: 10px; }
+        .mission-reference .comic-strip { margin-top: 0; }
         .fb-fix-first {
             font-size: 15px; font-weight: 900; color: #B45309; line-height: 1.35;
             margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(180, 83, 9, 0.25);
@@ -593,6 +594,13 @@
         }
         .pitch-play-ref { background: #2563EB; color: #fff; }
         .pitch-play-user { background: #EA580C; color: #fff; }
+        .fb-pitch-prominent { margin: 10px 0 12px; }
+        .fb-pitch-prominent .pitch-compare { margin: 0; }
+        .pitch-compare-unavailable {
+            margin: 10px 0; padding: 10px 12px; border-radius: 10px;
+            background: #FFF7ED; border: 1px dashed #FDBA74; font-size: 12px; color: #9A3412;
+        }
+        .pitch-compare-unavailable strong { display: block; margin-bottom: 4px; color: #C2410C; }
         .pa-viz + .missed-word-btns { margin-top: 10px; }
         .pa-err-none, .pa-tl-word.pa-err-none { background: #22C55E; }
         .pa-err-mis, .pa-tl-word.pa-err-mis, .pa-word-card.pa-err-mis .pa-word-badge { background: #FEE2E2; color: #991B1B; }
@@ -796,13 +804,13 @@
             </div>
         </div>
         <div class="mission-reference" id="mission-reference">
-            <p class="mission-reference-label">참고 4컷·읽기 지도 (그림만) · ↑↓</p>
+            <p class="mission-reference-label">참고 · 읽기 지도 · 4컷 · ↑↓</p>
             <div class="question-box" id="ui-question-box" style="display:none">Q. 질문</div>
+            <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
             <div id="ui-comic-strip" class="comic-strip" style="display:none" aria-hidden="true">
                 <p class="comic-strip-label" id="ui-comic-label" style="display:none"></p>
                 <div class="comic-panels" id="ui-comic-panels"></div>
             </div>
-            <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
         </div>
     </div>
 </div>
@@ -2645,15 +2653,18 @@
         }
     }
 
-    function buildFeedbackHtml(statusMsg, detailHtml, fixHint) {
+    function buildFeedbackHtml(statusMsg, detailHtml, fixHint, pitchHtml) {
         let h = '';
         if (fixHint) {
             h += '<div class="fb-fix-first">' + escapeHtml(fixHint) + '</div>';
         }
         h += '<div class="fb-status">' + statusMsg + '</div>';
+        if (pitchHtml) {
+            h += '<div class="fb-pitch-prominent">' + pitchHtml + '</div>';
+        }
         if (detailHtml) {
             h +=
-                '<details class="fb-details"><summary>발음·자세히 (펼칠 때만)</summary><div class="fb-details-body">' +
+                '<details class="fb-details"><summary>Azure 발음·단어별 (펼치기)</summary><div class="fb-details-body">' +
                 detailHtml +
                 '</div></details>';
         }
@@ -2795,28 +2806,9 @@
         currentTargetEng = sentEng;
         onCueShown();
 
-        let engHtml;
-        if (typeof PracticeTrack !== 'undefined' && PracticeTrack.useClozeDisplay(2) && typeof ClozeHint !== 'undefined') {
-            const ck = ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
-            const clozeLvl = ClozeHint.getLevel(ck);
-            if (clozeLvl > 0) {
-                engHtml =
-                    '<div class="cloze-level-tag">끝→앞 L' +
-                    clozeLvl +
-                    ' · 말하기 통과 시 더 많이 가려집니다</div>' +
-                    '<div class="english-text">' +
-                    ClozeHint.renderPlain(sentEng, clozeLvl) +
-                    '</div>';
-            } else {
-                engHtml =
-                    formatEngForDisplay(sentEng, false, { syllableDots: true }) +
-                    '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 통과 후 단어가 가려집니다</p>';
-            }
-        } else {
-            engHtml =
-                formatEngForDisplay(sentEng, false, { syllableDots: true }) +
-                '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 아래 노란 「읽기 지도」= 말하기 전 리듬</p>';
-        }
+        const engHtml =
+            formatEngForDisplay(sentEng, false, { syllableDots: true }) +
+            '<p class="eng-stress-legend"><span class="syllable-weak">약</span> · <span class="syllable-stress">ZA</span> <span class="syllable-weak">강세</span> · 위 「읽기 지도」= 끊음·강세 · 3단계부터 cloze</p>';
         updateUI(data.question, sentKor, engHtml);
         document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
         setReadingGuideVisible(true, buildReadingGuideHtml(sentEng));
@@ -3056,6 +3048,7 @@
             window._azureAssessTrimNote = '';
         }
 
+        let pitchHtml = '';
         if (
             lastAssessWavBlob &&
             refText &&
@@ -3068,14 +3061,17 @@
                     assessment.detail && assessment.detail.words
                         ? assessment.detail.words
                         : assessment.words;
-                const pitchHtml = await PitchCompare.buildCompareBlock({
+                const built = await PitchCompare.buildCompareBlock({
                     userWavBlob: lastAssessWavBlob,
                     refText: refText,
                     words: words,
                 });
-                if (pitchHtml) resHtml = pitchHtml + resHtml;
+                pitchHtml =
+                    (built && built.html) ||
+                    buildPitchCompareUnavailableHtml(built && built.error);
             } catch (pitchErr) {
                 console.warn('PitchCompare', pitchErr);
+                pitchHtml = buildPitchCompareUnavailableHtml('error');
             }
         }
 
@@ -3096,14 +3092,29 @@
             passLabel + ' · Space 다음',
             '❌ ' + scoreLine + ' · Enter 재연습' + (canSkipCurrentPhase() ? ' · Space 넘어가기' : ''),
             resHtml,
-            fixHint
+            fixHint,
+            pitchHtml
         );
-        if (typeof PitchCompare !== 'undefined') {
-            PitchCompare.bind(fbRes);
-        }
     }
 
-    function showEvalResult(isPass, passMsg, failMsg, detailHtml, fixHint) {
+    function buildPitchCompareUnavailableHtml(reason) {
+        const messages = {
+            no_model_tts:
+                '모범 TTS를 가져오지 못했습니다. speech-server를 켜고 페이지를 새로고침한 뒤 다시 말해 보세요.',
+            too_short:
+                '녹음이 너무 짧아 피치 곡선을 그리지 못했습니다. 1초 이상 말한 뒤 Enter로 종료하세요.',
+            no_input: '비교할 녹음 또는 문장이 없습니다.',
+            error: '피치 비교 처리 중 오류가 났습니다. 콘솔을 확인하세요.',
+        };
+        const msg = messages[reason] || messages.error;
+        return (
+            '<div class="pitch-compare-unavailable"><strong>모범 음성 vs 내 녹음 (피치)</strong>' +
+            escapeHtml(msg) +
+            '</div>'
+        );
+    }
+
+    function showEvalResult(isPass, passMsg, failMsg, detailHtml, fixHint, pitchHtml) {
         fbBox.style.display = 'block';
         fbBtnGroup.innerHTML = '';
         setMissionWorkDimmed(true);
@@ -3111,7 +3122,7 @@
         if (isPass) {
             bumpClozeAfterPass();
             fbBox.className = 'feedback mission-feedback pass';
-            fbRes.innerHTML = buildFeedbackHtml(passMsg, detailHtml, fixHint);
+            fbRes.innerHTML = buildFeedbackHtml(passMsg, detailHtml, fixHint, pitchHtml);
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
             uiRetryCount.innerText = '';
         } else {
@@ -3127,8 +3138,11 @@
                           : '⚠️ 재도전 초과 · Space 다음';
             }
             fbBox.className = 'feedback mission-feedback fail';
-            fbRes.innerHTML = buildFeedbackHtml(statusMsg, detailHtml, fixHint);
+            fbRes.innerHTML = buildFeedbackHtml(statusMsg, detailHtml, fixHint, pitchHtml);
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
+        }
+        if (pitchHtml && typeof PitchCompare !== 'undefined') {
+            PitchCompare.bind(fbRes);
         }
     }
 
