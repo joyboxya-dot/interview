@@ -79,7 +79,18 @@
         .shortcut-key { background: #1E293B; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #FFF; font-family: monospace; font-size: 11px; min-width: auto; text-align: center; margin-left: 4px; }
         
         #mission-area { display: none; background: white; padding: 14px 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-        .stepper { display: flex; justify-content: space-between; margin-bottom: 12px; position: relative; }
+        .srs-mission-bar {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+            margin-bottom: 10px; font-size: 12px; color: #64748B;
+        }
+        .srs-mission-due {
+            font-weight: 800; color: #1D4ED8; background: #EFF6FF;
+            padding: 4px 10px; border-radius: 999px;
+        }
+        .srs-mission-chunk { font-weight: 700; color: #0F172A; }
+        .srs-mission-hint { color: #94A3B8; }
+        .srs-dash-panel { margin-bottom: 12px; }
+        .stepper { display: none !important; }
         .stepper::before { content: ''; position: absolute; top: 12px; left: 0; right: 0; height: 2px; background: #E5E7EB; z-index: 1; }
         .stepper .step {
             position: relative; z-index: 2; flex: 1;
@@ -624,26 +635,7 @@
 <body>
 
 <div class="container">
-    <header id="global-progress" aria-label="전체 진행">
-        <div class="dash-top">
-            <div>
-                <h1 class="dash-title">🏆 전체 스크립트 마스터</h1>
-                <div class="dash-chips">
-                    <span class="day-badge" id="today-badge">전체 1회 훈련</span>
-                    <span class="dash-chip" id="today-targets">10개 주제 · 6단계</span>
-                    <span class="dash-chip dash-chip-muted" id="time-estimate">⏱️ 약 2~3시간</span>
-                    <span class="global-context-chip" id="global-context-chip"></span>
-                </div>
-            </div>
-            <div class="dash-top-right">
-                <span id="overall-progress-text" class="progress-pct">0%</span>
-                <span id="run-count-badge" class="run-count">완주 <strong id="run-count-num">0</strong>회</span>
-            </div>
-        </div>
-        <div class="progress-track">
-            <div class="progress-fill" id="overall-progress-bar"></div>
-        </div>
-        <p class="dash-hint" id="progress-hint">1회 완주 시 100%</p>
+    <header id="global-progress" aria-label="메뉴">
         <nav class="global-nav" aria-label="전역 메뉴">
             <button type="button" class="global-nav-btn" id="btn-nav-home" style="display:none;">🏠 홈</button>
             <button type="button" class="global-nav-btn primary" id="btn-nav-recordings">🎧 녹음 듣기</button>
@@ -654,17 +646,16 @@
     <div id="dashboard" class="home-panel">
         <div class="dash-grid">
             <div class="dash-main">
-                <p id="resume-info" class="dash-resume"></p>
-                <div class="practice-track-panel" id="practice-track-panel">
-                    <div class="difficulty-title">연습 트랙</div>
-                    <div class="practice-track-options" id="practice-track-options"></div>
-                    <p class="practice-track-hint" id="practice-track-hint"></p>
+                <div class="srs-dash-panel" id="srs-dash-panel">
+                    <div class="difficulty-title">체화 연습</div>
+                    <p class="practice-track-hint" id="srs-dash-summary">청크별 망각곡선 · 주제 순서와 무관</p>
+                    <div class="mastery-queue-badge" id="srs-due-dash-badge">복습 due 0</div>
                 </div>
                 <details class="dash-settings-fold" id="dash-settings-fold">
                     <summary>⚙️ 설정</summary>
                     <div class="dash-settings-body">
                 <div class="difficulty-panel" id="difficulty-panel">
-                    <div class="difficulty-title">2단계 발음 난이도</div>
+                    <div class="difficulty-title">발음 난이도</div>
                     <div class="difficulty-options" id="difficulty-options"></div>
                     <div class="difficulty-hint" id="difficulty-hint"></div>
                 </div>
@@ -682,21 +673,12 @@
                     </div>
                     <p class="tts-speed-hint" id="tts-speed-hint"></p>
                 </div>
-                <div class="mastery-dash-panel" id="mastery-dash-panel">
-                    <div class="difficulty-title">숙달 모드 <span id="mastery-panel-sub" style="font-weight:600;color:#94A3B8"></span></div>
-                    <label class="dash-check-row">
-                        <input type="checkbox" id="mastery-mode-check" checked />
-                        못 외운 항목은 큐에서 무한 반복 (넘어가기 제한)
-                    </label>
-                    <div class="mastery-queue-badge" id="mastery-queue-badge">약점 큐 0개</div>
-                </div>
                 <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
                     </div>
                 </details>
                 <div class="content-panel" id="content-panel">
                     <div class="difficulty-title">면접 스크립트</div>
                     <p class="tts-speed-hint" id="content-status-hint">로딩 중…</p>
-                    <p class="content-hint">서버: 주제별 JSON · 추가 시 4컷 자동 생성(topicComic). 기존 주제는 /content/comics/{id}/ (1~3단계).</p>
                     <div class="topic-delete-row">
                         <select id="topic-delete-select" aria-label="삭제할 스크립트"></select>
                         <button type="button" id="btn-delete-topic">삭제</button>
@@ -753,7 +735,7 @@
                 </div>
             </div>
             <nav class="dash-menu" aria-label="학습 메뉴">
-                <button type="button" class="dash-menu-btn dash-menu-primary" id="btn-start-mission" onclick="startMission(false)">학습 시작하기</button>
+                <button type="button" class="dash-menu-btn dash-menu-primary" id="btn-start-mission" onclick="startMission(false)">체화 연습 시작</button>
                 <button type="button" class="dash-menu-btn" id="btn-restart" onclick="startMission(true)" style="display:none;">처음부터 다시</button>
                 <button type="button" class="dash-menu-btn dash-menu-ghost" onclick="resetProgress()">데이터 초기화</button>
             </nav>
@@ -772,21 +754,17 @@
                 <div id="ui-topic-title">주제 제목</div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span class="mission-difficulty-badge" id="mission-difficulty-badge" title="대시보드에서 변경"></span>
-                    <div style="font-size:12px;font-weight:bold;color:var(--danger);" id="retry-counter"></div>
                 </div>
             </div>
-            <div class="stepper" id="stepper" role="navigation" aria-label="학습 단계">
-                <button type="button" class="step" id="step-1" onclick="jumpToMissionPhase(1)" title="1단계로 바로 이동 (앞 단계 생략)"><div class="circle">1</div><span class="step-label">의미</span></button>
-                <button type="button" class="step" id="step-2" onclick="jumpToMissionPhase(2)" title="2단계로 바로 이동"><div class="circle">2</div><span class="step-label">문장</span></button>
-                <button type="button" class="step" id="step-3" onclick="jumpToMissionPhase(3)" title="3단계로 바로 이동"><div class="circle">3</div><span class="step-label">한글</span></button>
-                <button type="button" class="step" id="step-4" onclick="jumpToMissionPhase(4)" title="4단계로 바로 이동"><div class="circle">4</div><span class="step-label">키워드</span></button>
-                <button type="button" class="step" id="step-5" onclick="jumpToMissionPhase(5)" title="5단계로 바로 이동"><div class="circle">5</div><span class="step-label">질문</span></button>
-                <button type="button" class="step" id="step-6" onclick="jumpToMissionPhase(6)" title="6단계로 바로 이동"><div class="circle">6</div><span class="step-label">피벗</span></button>
+            <div class="srs-mission-bar" id="srs-mission-bar" aria-live="polite">
+                <span class="srs-mission-due" id="srs-mission-due">복습 due 0</span>
+                <span class="srs-mission-chunk" id="srs-mission-chunk"></span>
+                <span class="srs-mission-hint" id="srs-mission-hint"></span>
             </div>
             <p class="mission-phase-goal" id="mission-phase-goal"></p>
             <div class="controls mission-controls">
                 <button type="button" class="btn-mic" id="btn-main-mic" onclick="handleMicClick()">🎤 말하기 <span class="shortcut-key">Enter</span></button>
-                <button type="button" class="btn-skip" id="btn-skip" onclick="forceNextPhase()">건너뛰기 <span class="shortcut-key">Space</span></button>
+                <button type="button" class="btn-skip" id="btn-skip" onclick="advanceChunkPractice()">다음 카드 <span class="shortcut-key">Space</span></button>
                 <button type="button" class="btn-stop" onclick="stopAllPlayback()">중단 <span class="shortcut-key">Esc</span></button>
             </div>
             <div id="feedback-box" class="feedback mission-feedback">
@@ -816,7 +794,8 @@
 </div>
 
 <script src="js/user-settings.js"></script>
-<script src="js/practice-track.js"></script>
+<script src="js/chunk-builder.js"></script>
+<script src="js/chunk-srs.js"></script>
 <script src="js/dashboard-settings.js"></script>
 <script src="js/cloze-hint.js"></script>
 <script src="js/topic-store.js"></script>
@@ -831,7 +810,7 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js?v=20260521f"></script>
+<script src="js/pitch-compare.js?v=20260522"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>
@@ -958,7 +937,7 @@
 
     function updateCueTimerUi() {
         const el = document.getElementById('cue-timer');
-        if (!el || mPhase < 3) return;
+        if (!el || !currentChunkKey) return;
         if (!cueShownAt) {
             el.style.display = 'none';
             return;
@@ -985,6 +964,7 @@
     }
 
     function getClozeStorageKey() {
+        if (currentChunkKey) return currentChunkKey;
         if (typeof ClozeHint === 'undefined') return null;
         if (mPhase === 2 || mPhase === 3) return ClozeHint.sentenceKey(currentTopicIndex, mSentIdx);
         if (mPhase === 4) return ClozeHint.fullKey(currentTopicIndex);
@@ -1140,6 +1120,7 @@
     }
 
     function canSkipCurrentPhase() {
+        if (currentChunkKey) return true;
         if (isInterviewPracticeTrack()) {
             if (tormentActive) return false;
             return true;
@@ -1265,43 +1246,199 @@
     }
 
     function applyMasteryAfterEval(contentPass) {
-        const key = tormentActive && tormentKey ? tormentKey : getCurrentMasteryKey();
-        if (isInterviewPracticeTrack()) {
-            if (key && typeof MasteryEngine !== 'undefined') {
-                const metrics = buildFluencyMetrics(contentPass);
-                MasteryEngine.recordAttempt(key, contentPass, metrics);
-                updateMasteryQueueBadge();
-            }
-            return { pass: contentPass, fluHint: '' };
-        }
-        if (!key || typeof MasteryEngine === 'undefined') {
-            return { pass: contentPass, fluHint: '' };
-        }
-        const metrics = buildFluencyMetrics(contentPass);
-        let flu = { pass: true };
-        if (mPhase >= 3 && typeof L2Fluency !== 'undefined') {
-            flu = L2Fluency.evaluateFluency(metrics);
-        }
-        const overallPass = contentPass && (mPhase < 3 || flu.pass);
-        MasteryEngine.recordAttempt(key, overallPass, metrics);
-        updateMasteryQueueBadge();
-        let fluHint = '';
-        if (mPhase >= 3 && !flu.pass && typeof L2Fluency !== 'undefined' && L2Fluency.formatHint) {
-            fluHint = L2Fluency.formatHint(metrics, flu);
-        }
-        if (overallPass && tormentActive) {
+        if (tormentActive) {
             tormentActive = false;
             tormentKey = null;
         }
-        return { pass: overallPass, fluHint: fluHint };
+        if (!currentChunkKey || typeof ChunkSrs === 'undefined') {
+            return { pass: contentPass, fluHint: '' };
+        }
+        const metrics = buildFluencyMetrics(contentPass);
+        const r = ChunkSrs.recordAttempt(currentChunkKey, contentPass, metrics);
+        updateSrsDashBadges();
+        updateSrsMissionBar();
+        let fluHint = r.fluHint || '';
+        if (r.nextDueLabel) {
+            fluHint = (fluHint ? fluHint + ' · ' : '') + '다음 복습: ' + r.nextDueLabel;
+        }
+        return { pass: r.pass, fluHint: fluHint };
     }
 
     function updateMasteryQueueBadge() {
-        const el = document.getElementById('mastery-queue-badge');
-        if (!el || typeof MasteryEngine === 'undefined') return;
-        const n = MasteryEngine.queueCount();
-        el.textContent = '약점 큐 ' + n + '개';
+        updateSrsDashBadges();
     }
+
+    function rebuildAllChunks() {
+        if (typeof ChunkBuilder === 'undefined' || !db.length) {
+            allChunks = [];
+            return allChunks;
+        }
+        allChunks = ChunkBuilder.buildAll(db);
+        if (typeof ChunkSrs !== 'undefined') {
+            ChunkSrs.syncChunkKeys(
+                allChunks.map(function (c) {
+                    return c.key;
+                })
+            );
+        }
+        updateSrsDashBadges();
+        return allChunks;
+    }
+
+    function updateSrsDashBadges() {
+        const due = typeof ChunkSrs !== 'undefined' ? ChunkSrs.dueCount() : 0;
+        const el = document.getElementById('srs-due-dash-badge');
+        if (el) el.textContent = '복습 due ' + due;
+        const sum = document.getElementById('srs-dash-summary');
+        if (sum) {
+            sum.textContent = allChunks.length
+                ? '전체 청크 ' + allChunks.length + '개 · 주제와 무관하게 스케줄'
+                : '청크별 망각곡선 · 주제 순서와 무관';
+        }
+        const missionDue = document.getElementById('srs-mission-due');
+        if (missionDue) missionDue.textContent = '복습 due ' + due;
+    }
+
+    function updateSrsMissionBar() {
+        const roleEl = document.getElementById('srs-mission-chunk');
+        const hintEl = document.getElementById('srs-mission-hint');
+        if (!currentChunk) {
+            if (roleEl) roleEl.textContent = '';
+            if (hintEl) hintEl.textContent = '';
+            return;
+        }
+        const title =
+            typeof ChunkBuilder !== 'undefined'
+                ? ChunkBuilder.getTopicTitle(db, currentChunk.topicIndex)
+                : '';
+        if (roleEl) roleEl.textContent = title + ' · ' + currentChunk.roleLabel;
+        if (hintEl && currentChunkKey && typeof ChunkSrs !== 'undefined') {
+            hintEl.textContent = ChunkSrs.hintLevelLabel(ChunkSrs.getHintLevel(currentChunkKey));
+        }
+    }
+
+    function assignCurrentChunk(key) {
+        rebuildAllChunks();
+        currentChunkKey = key;
+        currentChunk =
+            typeof ChunkBuilder !== 'undefined' ? ChunkBuilder.findChunk(allChunks, key) : null;
+        if (!currentChunk) {
+            currentChunkKey = null;
+            return false;
+        }
+        currentTopicIndex = currentChunk.topicIndex;
+        mPhase = 2;
+        mSentIdx = 0;
+        currentTargetEng = currentChunk.en;
+        progress.currentChunkKey = key;
+        return true;
+    }
+
+    async function loadCurrentChunk() {
+        if (!currentChunkKey || !assignCurrentChunk(currentChunkKey)) return;
+        retryCount = 0;
+        syncCurrentRecordingRefs();
+        invalidateMissionNav();
+        tormentActive = false;
+        tormentKey = null;
+
+        const chunk = currentChunk;
+        const data = db[chunk.topicIndex];
+        const hintLevel =
+            typeof ChunkSrs !== 'undefined' ? ChunkSrs.getHintLevel(currentChunkKey) : 2;
+
+        onCueShown();
+        fbBox.style.display = 'none';
+        fbBox.className = 'feedback mission-feedback';
+        setMissionWorkDimmed(false);
+        currentMissedWordsList = [];
+        fbBtnGroup.innerHTML = '';
+
+        document.getElementById('ui-topic-title').innerText = data.title;
+        document.getElementById('ui-bridge-box').style.display = 'none';
+
+        const roleTag =
+            '<span style="font-size:12px;color:#94A3B8;font-weight:700">' +
+            escapeHtml(chunk.roleLabel) +
+            '</span> ';
+        const korHtml = roleTag + escapeHtml(chunk.ko);
+
+        let engHtml = '';
+        if (hintLevel >= 2) {
+            engHtml = formatEngForDisplay(chunk.en, false, { syllableDots: true });
+            document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
+            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en));
+        } else if (hintLevel === 1 && typeof ClozeHint !== 'undefined') {
+            const wc = chunk.en.split(/\s+/).filter(Boolean).length;
+            const lvl = Math.max(1, Math.min(3, Math.ceil(wc / 4)));
+            engHtml =
+                '<div class="english-text" style="filter:none;opacity:1">' +
+                ClozeHint.renderPlain(chunk.en, lvl) +
+                '</div>';
+            document.getElementById('ui-eng-text').className = 'english-text';
+            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en));
+        } else {
+            engHtml = '<div class="eng-hidden">영어 숨김 · 🎤 말한 뒤 Enter</div>';
+            document.getElementById('ui-eng-text').className = 'english-text';
+            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en));
+        }
+
+        updateUI(data.question, korHtml, engHtml, false);
+
+        const goalEl = document.getElementById('mission-phase-goal');
+        if (goalEl) {
+            goalEl.textContent =
+                '목표: 말하기 → Enter · 힌트 ' +
+                (typeof ChunkSrs !== 'undefined' ? ChunkSrs.hintLevelLabel(hintLevel) : '');
+        }
+        updateSrsMissionBar();
+
+        const qPrimary = document.getElementById('ui-question-primary');
+        if (qPrimary) {
+            const showQ = chunk.role === 'full';
+            qPrimary.style.display = showQ ? 'block' : 'none';
+            if (showQ && data.question) qPrimary.textContent = 'Q. ' + data.question;
+        }
+
+        btnMic.style.display = 'flex';
+        btnSkip.style.display = 'flex';
+        btnSkip.style.flex = '1';
+
+        persistProgress();
+        updateSrsDashBadges();
+
+        if (hintLevel >= 2) speakText(chunk.en, 'en');
+    }
+
+    function advanceChunkPractice() {
+        stopAllPlayback();
+        stopRecordingSilently();
+        tormentActive = false;
+        tormentKey = null;
+        fbBox.style.display = 'none';
+        setMissionWorkDimmed(false);
+
+        if (!allChunks.length) rebuildAllChunks();
+        let key = typeof ChunkSrs !== 'undefined' ? ChunkSrs.pickNextDueKey() : null;
+        if (!key) {
+            alert('연습할 청크가 없습니다. 스크립트를 추가해 주세요.');
+            goHome();
+            return;
+        }
+        if (key === currentChunkKey && allChunks.length > 1) {
+            let guard = 0;
+            let alt = key;
+            while (alt === currentChunkKey && guard < 8) {
+                alt = ChunkSrs.pickNextDueKey();
+                guard++;
+            }
+            if (alt && alt !== currentChunkKey) key = alt;
+        }
+        currentChunkKey = key;
+        loadCurrentChunk();
+    }
+
+    window.advanceChunkPractice = advanceChunkPractice;
 
     function tormentBannerHtml() {
         return '<div class="recall-hint" style="background:#FEF3C7;border-color:#F59E0B">🔁 약점 숙달 · 통과할 때까지 반복</div>';
@@ -1345,7 +1482,8 @@
         }
         updateContentStatusHint();
         updateDashboard();
-        updateMasteryQueueBadge();
+        rebuildAllChunks();
+        updateSrsDashBadges();
     }
 
     async function bootstrapContent() {
@@ -1601,25 +1739,22 @@
     const KOR_VERB_TAIL = /(?:했습니다|했고|했으며|합니다|있습니다|있었습니다|였습니다|된다|되어|하여|하고|하며|하면서|있는|없는|하는|되는|이다)$/;
 
     function defaultProgress() {
-        return { checkpoint: { topicIndex: 0, phase: 1, sentIdx: 0, bridge: null }, fullRunCompleted: false, fullRunCount: 0 };
+        return { currentChunkKey: null, fullRunCompleted: false, fullRunCount: 0 };
     }
 
     function loadProgress() {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
             const p = JSON.parse(saved);
-            if (p.checkpoint && p.checkpoint.phase > 6) p.checkpoint.phase = 6;
-            if (p.checkpoint && p.checkpoint.phase < 1) p.checkpoint.phase = 1;
+            if (p.currentChunkKey) return p;
+            if (p.checkpoint) {
+                return {
+                    currentChunkKey: null,
+                    fullRunCompleted: !!p.fullRunCompleted,
+                    fullRunCount: p.fullRunCount || 0,
+                };
+            }
             return p;
-        }
-        const legacy = localStorage.getItem('interviewProgressV37');
-        if (legacy) {
-            const old = JSON.parse(legacy);
-            return {
-                checkpoint: { topicIndex: Math.min(old.completedTopics || 0, db.length - 1), phase: 1, sentIdx: 0, bridge: null },
-                fullRunCompleted: false,
-                fullRunCount: 0
-            };
         }
         return defaultProgress();
     }
@@ -1627,7 +1762,10 @@
     let progress = loadProgress();
     let currentTopicIndex = 0;
     
-    let mPhase = 1;
+    let mPhase = 2;
+    let allChunks = [];
+    let currentChunkKey = null;
+    let currentChunk = null;
     /** 스테퍼·단계 전환 시 이전 1단계 TTS 자동 진행 타이머 무효화 */
     let missionNavGen = 0;
     let phase1AdvanceTimer = null;
@@ -1659,6 +1797,8 @@
     let audioChunks = [];
     /** 녹음 시작 시점의 슬롯 키 (onstop이 늦을 때 단계가 바뀌어 다른 키로 저장되는 것 방지) */
     let recordingSaveKey = null;
+    /** 직전 Azure 채점이 저장된 슬롯 키 (피치 최초·최근 blob 조회) */
+    let lastPitchAssessKey = null;
     let userAudioUrl = null;
     let everFirstAudioUrl = null;
     let activeAudio = null;
@@ -1698,7 +1838,6 @@
     const fbBox = document.getElementById('feedback-box');
     const fbRes = document.getElementById('stt-result');
     const fbBtnGroup = document.getElementById('fb-btn-group');
-    const uiRetryCount = document.getElementById('retry-counter');
     const elReviewPage = document.getElementById('recording-review-page');
     const elReviewList = document.getElementById('recording-review-list');
 
@@ -1707,6 +1846,7 @@
     document.getElementById('btn-close-recording-review').onclick = closeRecordingReviewPage;
 
     function getRecordingKey(topicIdx, phase, sentIdx) {
+        if (currentChunkKey) return currentChunkKey;
         const t = topicIdx !== undefined ? topicIdx : currentTopicIndex;
         const p = phase !== undefined ? phase : mPhase;
         const si = sentIdx !== undefined ? sentIdx : mSentIdx;
@@ -1954,7 +2094,10 @@
             recordingArchive[row.key] = {
                 everFirst: everUrl || latUrl,
                 latest: latUrl || everUrl,
-                _everAssessWav: row.data.everAssessWav || null,
+                _firstAssessWav:
+                    row.data.firstAssessWav || row.data.everAssessWav || null,
+                _everAssessWav:
+                    row.data.firstAssessWav || row.data.everAssessWav || null,
                 _latestAssessWav: row.data.latestAssessWav || null,
                 _assessAttempts: row.data.assessAttempts || 0,
             };
@@ -1969,13 +2112,15 @@
         const prev = existing ? existing.data : {};
         const everBlob = prev.everFirst || (slot._everBlob || null);
         const latestBlob = slot._latestBlob;
-        const everAssess = slot._everAssessWav || prev.everAssessWav || null;
+        const firstAssess =
+            slot._firstAssessWav || slot._everAssessWav || prev.firstAssessWav || prev.everAssessWav || null;
         const latestAssess = slot._latestAssessWav || prev.latestAssessWav || null;
-        if (!everBlob && !latestBlob && !everAssess && !latestAssess) return;
+        if (!everBlob && !latestBlob && !firstAssess && !latestAssess) return;
         await idbPutRecording(key, {
             everFirst: everBlob || latestBlob,
             latest: latestBlob || everBlob,
-            everAssessWav: everAssess,
+            firstAssessWav: firstAssess,
+            everAssessWav: firstAssess,
             latestAssessWav: latestAssess,
             assessAttempts: slot._assessAttempts || prev.assessAttempts || 0,
         });
@@ -2018,34 +2163,51 @@
         return key;
     }
 
-    /** Azure 채점 WAV — 피치 비교용 최초·최근 (webm 아카이브와 별도) */
+    function pitchArchiveKey() {
+        return recordingSaveKey || getRecordingKey();
+    }
+
+    function cloneAssessWavBlob(wav) {
+        try {
+            return wav.slice(0, wav.size, wav.type || 'audio/wav');
+        } catch (e) {
+            return wav;
+        }
+    }
+
+    /** Azure 채점 WAV — 피치 비교용 최초(1회)·최근 (webm 아카이브와 별도) */
     function noteAssessWavForPitch(wav) {
         if (!wav || mPhase < 2) return;
-        const key = getRecordingKey();
+        const key = pitchArchiveKey();
         if (!recordingArchive[key]) {
             recordingArchive[key] = {};
         }
         const slot = recordingArchive[key];
-        if (!slot._everAssessWav) {
-            try {
-                slot._everAssessWav = wav.slice(0, wav.size, wav.type || 'audio/wav');
-            } catch (e) {
-                slot._everAssessWav = wav;
-            }
+        const prevAttempts = slot._assessAttempts || 0;
+        if (prevAttempts === 0) {
+            slot._firstAssessWav = cloneAssessWavBlob(wav);
+            slot._everAssessWav = slot._firstAssessWav;
         }
         slot._latestAssessWav = wav;
-        slot._assessAttempts = (slot._assessAttempts || 0) + 1;
+        slot._assessAttempts = prevAttempts + 1;
+        lastPitchAssessKey = key;
         persistSlotToIdb(key, slot);
     }
 
     function getPitchCompareUserBlobs() {
-        const latest = lastAssessWavBlob;
-        if (!latest) return { latest: null, first: null };
-        const key = getRecordingKey();
+        const key = lastPitchAssessKey || pitchArchiveKey();
         const slot = recordingArchive[key];
-        if (!slot || !slot._everAssessWav) return { latest: latest, first: null };
-        if ((slot._assessAttempts || 0) < 2) return { latest: latest, first: null };
-        return { latest: latest, first: slot._everAssessWav };
+        const latest =
+            lastAssessWavBlob || (slot && slot._latestAssessWav) || null;
+        if (!latest) return { latest: null, first: null };
+        if (!slot || (slot._assessAttempts || 0) < 2) {
+            return { latest: latest, first: null };
+        }
+        const first = slot._firstAssessWav || slot._everAssessWav || null;
+        if (!first || first === latest) {
+            return { latest: latest, first: null };
+        }
+        return { latest: latest, first: first };
     }
 
     function getSentenceTextForKey(key) {
@@ -2308,18 +2470,16 @@
                     return;
                 }
                 
-                if (fbBox.classList.contains('pass')) {
-                    forceNextPhase();
-                } else if (fbBox.classList.contains('fail') && canSkipCurrentPhase()) {
-                    forceNextPhase();
-                } else if (mPhase !== 2 && btnSkip.style.display !== 'none') {
-                    forceNextPhase();
+                if (fbBox.classList.contains('pass') || fbBox.classList.contains('fail')) {
+                    advanceChunkPractice();
+                } else if (btnSkip.style.display !== 'none') {
+                    advanceChunkPractice();
                 }
             } 
             else if (event.code === 'Enter') {
                 event.preventDefault();
                 if (fbBox.classList.contains('fail')) {
-                    retryCurrentPhase();
+                    loadCurrentChunk();
                 } else if (handlePhase3EnterKey()) {
                     /* cloze 단계: 더 가리기 또는 blind 전환 */
                 } else {
@@ -2481,125 +2641,50 @@
     }
 
     function hasResumePoint() {
-        const cp = progress.checkpoint;
-        return cp.topicIndex > 0 || cp.phase > 1 || cp.sentIdx > 0;
+        return !!(progress && progress.currentChunkKey);
     }
 
     function getResumeLabel() {
-        const cp = progress.checkpoint;
-        let label = db[cp.topicIndex].title + ' · ' + PHASE_LABELS[cp.phase - 1];
-        if (cp.phase === 2 || cp.phase === 3) {
-            const data = db[cp.topicIndex];
-            const n = getTopicSentenceCount(data);
-            const tag =
-                cp.sentIdx === 0 && getTopicBridgeEn(data) ? '브릿지' : '문장';
-            label += ' · ' + tag + ' ' + (cp.sentIdx + 1) + '/' + n;
-        }
-        return label;
+        if (!progress.currentChunkKey || !db.length) return '체화 연습';
+        rebuildAllChunks();
+        const ch = ChunkBuilder.findChunk(allChunks, progress.currentChunkKey);
+        if (!ch) return '체화 연습';
+        return ChunkBuilder.getTopicTitle(db, ch.topicIndex) + ' · ' + ch.roleLabel;
     }
 
     function persistProgress() {
-        const bridge = mPhase === 6 ? (progress.checkpoint && progress.checkpoint.bridge) || null : null;
-        progress.checkpoint = {
-            topicIndex: currentTopicIndex,
-            phase: mPhase,
-            sentIdx: mSentIdx,
-            bridge: bridge
-        };
+        progress.currentChunkKey = currentChunkKey;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
         updateGlobalProgress();
     }
 
     function updateGlobalProgress() {
-        const cp = progress.checkpoint;
-        const total = getTotalSteps();
-        const done = getCompletedSteps(cp);
-        let pct = total > 0 ? Math.round((done / total) * 100) : 0;
-        pct = Math.min(100, pct);
-
-        const runCount = progress.fullRunCount || 0;
-        document.getElementById('run-count-num').innerText = runCount;
-
-        const hintEl = document.getElementById('progress-hint');
-        const ctxChip = document.getElementById('global-context-chip');
-
-        if (progress.fullRunCompleted) pct = 100;
-
-        document.getElementById('overall-progress-text').innerText = pct + '%';
-        document.getElementById('overall-progress-bar').style.width = pct + '%';
-        hintEl.innerText = progress.fullRunCompleted
-            ? (runCount > 1 ? '누적 ' + runCount + '회 완주' : '이번 회차 100% 달성')
-            : (runCount > 0 ? '이번 회차 진행 중 · 완주 ' + runCount + '회' : '1회 완주 시 100%');
-
-        if (progress.fullRunCompleted) {
-            document.getElementById('today-badge').innerText = '🎉 1회 완주!';
-            document.getElementById('today-targets').innerText = '1회 완주';
-            document.getElementById('time-estimate').innerText = '복습 가능';
-        } else {
-            document.getElementById('today-badge').innerText = '전체 1회';
-            document.getElementById('today-targets').innerText = db.length + '주제 · 6단계';
-            const remainMin = Math.max(10, Math.round((total - done) * 2));
-            document.getElementById('time-estimate').innerText = '⏱️ 약 ' + remainMin + '분';
-        }
-
-        if (elMission.style.display === 'block') {
-            ctxChip.style.display = 'inline';
-            ctxChip.textContent = '📍 ' + getResumeLabel();
-        } else {
-            ctxChip.style.display = 'none';
-        }
+        /* 진행률·완주 배지 UI 제거 — 저장 로직만 유지 */
     }
 
     function updateDashboard() {
         updateGlobalProgress();
-
-        const resumeEl = document.getElementById('resume-info');
         const btnStart = document.getElementById('btn-start-mission');
         const btnRestart = document.getElementById('btn-restart');
 
-        if (progress.fullRunCompleted) {
-            resumeEl.style.display = 'none';
-            btnStart.innerHTML = '다시 1회 돌리기';
-            btnRestart.style.display = 'none';
-        } else {
-            if (hasResumePoint()) {
-                resumeEl.style.display = 'block';
-                resumeEl.innerText = '📍 ' + getResumeLabel();
-                btnStart.innerHTML = '이어서 학습';
-                btnRestart.style.display = 'block';
-            } else {
-                resumeEl.style.display = 'none';
-                btnStart.innerHTML = '학습 시작';
-                btnRestart.style.display = 'none';
-            }
-        }
+        btnStart.innerHTML = hasResumePoint() ? '이어서 체화 연습' : '체화 연습 시작';
+        btnRestart.style.display = hasResumePoint() ? 'block' : 'none';
+        rebuildAllChunks();
     }
 
     function resetProgress() {
-        if(confirm("모든 학습 데이터가 지워집니다. 녹음 아카이브(최초·최근)도 함께 삭제됩니다. 계속할까요?")) {
+        if(confirm("모든 학습 데이터가 지워집니다. 청크 스케줄·녹음 아카이브도 함께 삭제됩니다. 계속할까요?")) {
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem('interviewProgressV37');
             progress = defaultProgress();
+            if (typeof ChunkSrs !== 'undefined') ChunkSrs.resetAll();
             if (typeof MasteryEngine !== 'undefined') MasteryEngine.resetAll();
+            currentChunkKey = null;
+            currentChunk = null;
             clearRecordingArchive();
             updateDashboard();
-            updateMasteryQueueBadge();
+            updateSrsDashBadges();
         }
-    }
-
-    function resumeFromCheckpoint() {
-        const cp = progress.checkpoint;
-        currentTopicIndex = cp.topicIndex;
-        mPhase = cp.phase;
-        mSentIdx = cp.sentIdx || 0;
-        retryCount = 0;
-
-        if (mPhase === 1) runPhase1();
-        else if (mPhase === 2) loadCurrentSentence();
-        else if (mPhase === 3) loadPhase3Sentence();
-        else if (mPhase === 4) runPhase4RecallKeywords();
-        else if (mPhase === 5) runPhase5RecallQuestion();
-        else if (mPhase === 6) runPhase6Pivot(cp.bridge);
     }
 
     async function startMission(fromBeginning) {
@@ -2608,10 +2693,15 @@
             return;
         }
         updateRecordingNavUi();
-        if (fromBeginning && (hasResumePoint() || progress.fullRunCompleted)) {
-            if (!confirm('저장된 진행 위치가 사라지고 처음부터 시작합니다. 계속할까요?')) return;
+        if (fromBeginning && hasResumePoint()) {
+            if (!confirm('저장된 청크 위치가 사라지고 due 순서대로 다시 시작합니다. 계속할까요?')) return;
             progress = defaultProgress();
             persistProgress();
+        }
+        rebuildAllChunks();
+        if (!allChunks.length) {
+            alert('연습할 청크가 없습니다.');
+            return;
         }
         progress.fullRunCompleted = false;
         persistProgress();
@@ -2620,12 +2710,21 @@
         elMission.style.display = 'block';
         updateGlobalProgress();
         updateRecordingNavUi();
-        if (fromBeginning || !hasResumePoint()) {
-            currentTopicIndex = 0;
-            runPhase1();
-        } else {
-            resumeFromCheckpoint();
+
+        let key = null;
+        if (!fromBeginning && progress.currentChunkKey) {
+            key = progress.currentChunkKey;
         }
+        if (!key || !assignCurrentChunk(key)) {
+            key = ChunkSrs.pickNextDueKey();
+            if (!key) {
+                alert('연습할 청크가 없습니다.');
+                goHome();
+                return;
+            }
+            assignCurrentChunk(key);
+        }
+        loadCurrentChunk();
     }
 
     function updateStepper(phase) {
@@ -2666,7 +2765,6 @@
         retryCount = 0;
         mSentIdx = 0;
         currentMissedWordsList = [];
-        uiRetryCount.innerText = '';
 
         if (p === 1) runPhase1({ noAutoAdvance: true });
         else if (p === 2) runPhase2();
@@ -2744,14 +2842,17 @@
         fbBox.style.display = 'none';
         fbBox.className = 'feedback mission-feedback';
         setMissionWorkDimmed(false);
-        uiRetryCount.innerText = '';
         currentMissedWordsList = [];
         fbBtnGroup.innerHTML = '';
         
         updateStepper(mPhase);
         updateMissionDifficultyBadge();
-        
-        if(mPhase === 1) {
+
+        if (currentChunkKey) {
+            btnMic.style.display = 'flex';
+            btnSkip.style.display = 'flex';
+            btnSkip.style.flex = '1';
+        } else if(mPhase === 1) {
             btnMic.style.display = 'none';
             btnSkip.style.display = 'flex';
             btnSkip.style.flex = "3";
@@ -3056,10 +3157,6 @@
         if (pro != null) {
             isPass = isPass && pro >= needPro;
         }
-        const azureStrictPass = isPass;
-        if (isInterviewPracticeTrack()) {
-            isPass = isInterviewAzurePass(assessment, refText);
-        }
         const scoreLine =
             `정확도 ${acc} · 유창성 ${flu} · 완성도 ${comp}` +
             (pro != null ? ` · 운율 ${pro}` : '');
@@ -3134,11 +3231,7 @@
         const mastery = applyMasteryAfterEval(isPass);
         isPass = mastery.pass;
         const fixHint = mastery.fluHint || '';
-        const passLabel = isInterviewPracticeTrack()
-            ? (azureStrictPass
-                  ? '✅ 말하기 OK · ' + scoreLine
-                  : '✅ 말하기 OK (발음 참고: ' + scoreLine + ')')
-            : '✅ ' + scoreLine;
+        const passLabel = '✅ ' + scoreLine;
         showEvalResult(
             isPass,
             passLabel,
@@ -3176,10 +3269,8 @@
             fbBox.className = 'feedback mission-feedback pass';
             fbRes.innerHTML = buildFeedbackHtml(passMsg, detailHtml, fixHint, pitchHtml);
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
-            uiRetryCount.innerText = '';
         } else {
             retryCount++;
-            uiRetryCount.innerText = '재도전: ' + retryCount + ' / 20';
             let statusMsg = failMsg;
             if (retryCount >= 20) {
                 statusMsg =
@@ -3283,57 +3374,14 @@
         persistProgress();
     }
 
-    function forceNextPhase() { 
-        stopAllPlayback();
-        stopRecordingSilently();
-        if (!canSkipCurrentPhase()) {
-            const detail = getSkipBlockReason();
-            alert(
-                '숙달 모드: 아직 이 항목을 건너뛸 수 없습니다.\n\n' +
-                    (detail || '발음·L2 기준으로 통과한 뒤 진행해 주세요.')
-            );
-            return;
-        }
-        if (tormentActive) {
-            tormentActive = false;
-            tormentKey = null;
-            if (drainTormentForTopic(currentTopicIndex)) {
-                persistProgress();
-                return;
-            }
-        }
-        
-        if(mPhase === 1) runPhase2();
-        else if(mPhase === 2) {
-            if (mSentIdx < getTopicSentenceCount(db[currentTopicIndex]) - 1) {
-                mSentIdx++;
-                loadCurrentSentence();
-            }
-            else runPhase3RecallKor();
-        }
-        else if(mPhase === 3) {
-            const data = db[currentTopicIndex];
-            if (mSentIdx < getTopicSentenceCount(data) - 1) {
-                mSentIdx++;
-                loadPhase3Sentence(false);
-            } else {
-                runPhase4RecallKeywords();
-            }
-        }
-        else if(mPhase === 4) runPhase5RecallQuestion();
-        else if(mPhase === 5) runPhase6Pivot();
-        else if(mPhase === 6) handleTopicComplete();
-        persistProgress();
+    function forceNextPhase() {
+        advanceChunkPractice();
     }
-    
+
     function retryCurrentPhase() {
         stopAllPlayback();
         stopRecordingSilently();
-        if(mPhase === 2) loadCurrentSentence();
-        else if(mPhase === 3) loadPhase3Sentence(tormentActive, true);
-        else if(mPhase === 4) runPhase4RecallKeywords();
-        else if(mPhase === 5) runPhase5RecallQuestion();
-        else if(mPhase === 6) runPhase6Pivot(progress.checkpoint.bridge);
+        loadCurrentChunk();
     }
 
     function handleTopicCompleteByForce() {
@@ -3363,7 +3411,7 @@
             progress.fullRunCount = newCount;
             progress.fullRunCompleted = true;
             persistProgress();
-            alert('🎉 전체 스크립트 1회 완료! (누적 ' + newCount + '회)');
+            alert('전체 스크립트를 마쳤습니다.');
             goHome();
         }
     }
@@ -4055,14 +4103,11 @@
         if (typeof DashboardSettings !== 'undefined') {
             DashboardSettings.loadAndApply();
         }
-        renderPracticeTrackPanel();
         renderDifficultyPanel();
         renderTtsSpeedPanel();
-        renderMasteryDashPanel();
         bindContentPanelActions();
         if (typeof DashboardSettings !== 'undefined') DashboardSettings.applyToUI();
         updateMissionDifficultyBadge();
-        updateMasteryPanelForTrack();
         const inits = [bootstrapContent()];
         if (typeof AzureSpeech !== 'undefined') {
             inits.push(AzureSpeech.initAzureSpeech());

@@ -769,14 +769,12 @@
                 '<div class="pitch-compare-title">모범 vs 내 녹음 · 피치 (최초·최근 겹침)</div>' +
                 scoreHtml +
                 '<div class="pitch-compare-meta">' +
-                '말한 구간 · 모범 ' +
+                '모범 ' +
                 refDur.toFixed(1) +
                 's · 최근 ' +
                 userDur.toFixed(1) +
                 's' +
                 firstMeta +
-                (ratio > 1.05 ? ' · 최근이 ' + ratio.toFixed(2) + '× 길음' : ratio < 0.95 ? ' · 최근이 ' + (1 / ratio).toFixed(2) + '× 빠름' : '') +
-                trimNote +
                 (useEnvelope ? ' · <span class="pitch-mode-tag">음량 윤곽</span>' : '') +
                 '</div>' +
                 '<div class="pitch-chart-wrap">' +
