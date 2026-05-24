@@ -127,10 +127,40 @@
         return new Blob([out], { type: 'audio/wav' });
     }
 
+    /** 앞쪽 N초 제거 (스페이스·Enter로 녹음 시작할 때 키 소리 등) */
+    async function trimWavLeadingSeconds(wavBlob, trimSec) {
+        const sec = typeof trimSec === 'number' ? trimSec : 0;
+        if (sec <= 0) return wavBlob;
+        const ab = await wavBlob.arrayBuffer();
+        const view = new DataView(ab);
+        if (ab.byteLength < 44) return wavBlob;
+        const byteRate = view.getUint32(28, true);
+        const dataSize = view.getUint32(40, true);
+        if (!byteRate || dataSize < 4) return wavBlob;
+
+        let skipBytes = Math.floor(byteRate * sec);
+        skipBytes -= skipBytes % 2;
+        if (skipBytes <= 0) return wavBlob;
+        if (skipBytes >= dataSize - 64) return wavBlob;
+
+        const newDataSize = dataSize - skipBytes;
+        const newSize = 44 + newDataSize;
+        const out = new ArrayBuffer(newSize);
+        const outView = new DataView(out);
+        const srcBytes = new Uint8Array(ab);
+        const dstBytes = new Uint8Array(out);
+        dstBytes.set(srcBytes.slice(0, 44));
+        outView.setUint32(4, 36 + newDataSize, true);
+        outView.setUint32(40, newDataSize, true);
+        dstBytes.set(srcBytes.slice(44 + skipBytes, 44 + dataSize), 44);
+        return new Blob([out], { type: 'audio/wav' });
+    }
+
     global.AudioWav = {
         blobTo16kMonoWav: blobTo16kMonoWav,
         getWavDurationSec: getWavDurationSec,
         trimWavToMaxSeconds: trimWavToMaxSeconds,
+        trimWavLeadingSeconds: trimWavLeadingSeconds,
         TARGET_SAMPLE_RATE: TARGET_RATE,
     };
 })(window);

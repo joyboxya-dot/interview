@@ -1,6 +1,6 @@
 /**
- * 모범 TTS vs 내 녹음 — 피치 곡선 겹침 + 재생 속도 슬라이더
- * · 앞뒤 무음 자동 트림 후 비교 · Web Audio 재생 속도
+ * 모범 TTS vs 내 녹음 — 피치 곡선 겹침 + 유사도
+ * · 앞뒤 무음 자동 트림 후 비교 · Web Audio 재생
  */
 (function (global) {
     const sessions = {};
@@ -290,6 +290,53 @@
         return points[points.length - 1].semi;
     }
 
+    /** 모범 윤곽과 겹침 정도 (0~100). align=true면 길이를 모범에 맞춰 비교 */
+    function computeModelSimilarity(modelPts, userPts, refDur, userSpeechDur, align) {
+        if (!modelPts.length || !userPts.length || refDur <= 0) return null;
+        const hop = 0.03;
+        const ms = [];
+        const us = [];
+        for (let t = 0; t <= refDur + hop * 0.5; t += hop) {
+            const tUser =
+                align && userSpeechDur > 0 ? t * (userSpeechDur / refDur) : t;
+            const m = interpolateSemi(modelPts, t);
+            const u = interpolateSemi(userPts, Math.min(tUser, userSpeechDur));
+            if (m == null || u == null) continue;
+            ms.push(m);
+            us.push(u);
+        }
+        if (ms.length < 5) return null;
+        let meanM = 0;
+        let meanU = 0;
+        for (let i = 0; i < ms.length; i++) {
+            meanM += ms[i];
+            meanU += us[i];
+        }
+        meanM /= ms.length;
+        meanU /= ms.length;
+        let num = 0;
+        let denM = 0;
+        let denU = 0;
+        for (let i = 0; i < ms.length; i++) {
+            const dm = ms[i] - meanM;
+            const du = us[i] - meanU;
+            num += dm * du;
+            denM += dm * dm;
+            denU += du * du;
+        }
+        const denom = Math.sqrt(denM * denU);
+        if (denom < 1e-8) return null;
+        const r = num / denom;
+        return Math.round(Math.max(0, Math.min(100, (r + 1) * 50)));
+    }
+
+    function formatSimilarityDelta(latestScore, firstScore) {
+        if (latestScore == null || firstScore == null) return '';
+        const d = latestScore - firstScore;
+        const sign = d >= 0 ? '+' : '';
+        return sign + d + '%p';
+    }
+
     /** 문장 끝까지 곡선이 이어지게 — 모범 TTS 끝이 평평하게 끊기는 현상 완화 */
     function ensureDenseCoverage(points, speechDur) {
         const hop = 0.03;
@@ -559,11 +606,6 @@
         return { html: '', error: error };
     }
 
-    function suggestPlaybackRate(refDur, userDur) {
-        if (!userDur || userDur < 0.2) return 1;
-        return Math.min(1.5, Math.max(0.5, refDur / userDur));
-    }
-
     async function playTrimmedSamples(samples, sampleRate, rate) {
         if (!samples || !samples.length) return;
         if (typeof global.stopAllPlayback === 'function') {
@@ -617,13 +659,34 @@
             modelContour.mode === 'envelope' ||
             latestData.mode === 'envelope' ||
             (firstData && firstData.mode === 'envelope');
-        const suggestRate = suggestPlaybackRate(refDur, userDur);
         const shiftedWords = sortWordsByOffset(
             shiftWordOffsets(opts.words || [], latestData.trimOffsetSec)
         );
         const trimNote =
             latestData.trimOffsetSec > 0.08
                 ? ' · 앞 무음 ' + latestData.trimOffsetSec.toFixed(1) + 's 제거'
+                : '';
+
+        const alignCompare = true;
+        const latestSimilarity = computeModelSimilarity(
+            modelPts,
+            latestData.pts,
+            refDur,
+            userDur,
+            alignCompare
+        );
+        const firstSimilarity = firstData
+            ? computeModelSimilarity(
+                  modelPts,
+                  firstData.pts,
+                  refDur,
+                  firstData.speechDur,
+                  alignCompare
+              )
+            : null;
+        const similarityDelta =
+            latestSimilarity != null && firstSimilarity != null
+                ? formatSimilarityDelta(latestSimilarity, firstSimilarity)
                 : '';
 
         const userTracks = [];
@@ -658,8 +721,6 @@
             firstSpeechDur: firstData ? firstData.speechDur : 0,
             words: shiftedWords,
             alignUser: true,
-            suggestRate: suggestRate,
-            playbackRateDefault: 1,
         };
 
         const svg = buildSvgPaths(modelPts, refDur, userTracks, shiftedWords, true);
@@ -674,12 +735,39 @@
             ? '<button type="button" class="pitch-play-first">▶ 최초</button>'
             : '';
 
+        let scoreHtml = '';
+        if (latestSimilarity != null) {
+            scoreHtml =
+                '<div class="pitch-score-row">' +
+                '<span class="pitch-score-item">모범 유사도 <strong class="pitch-score-val">' +
+                latestSimilarity +
+                '%</strong></span>';
+            if (similarityDelta) {
+                const deltaClass =
+                    latestSimilarity >= (firstSimilarity || 0) ? 'pitch-delta-up' : 'pitch-delta-down';
+                scoreHtml +=
+                    '<span class="pitch-score-item ' +
+                    deltaClass +
+                    '">최초 대비 <strong class="pitch-score-val">' +
+                    similarityDelta +
+                    '</strong></span>';
+            }
+            if (firstSimilarity != null) {
+                scoreHtml +=
+                    '<span class="pitch-score-item pitch-score-first-ref">최초 ' +
+                    firstSimilarity +
+                    '%</span>';
+            }
+            scoreHtml += '</div>';
+        }
+
         return {
             html:
                 '<div class="pitch-compare" data-pitch-id="' +
                 escapeHtml(id) +
                 '">' +
                 '<div class="pitch-compare-title">모범 vs 내 녹음 · 피치 (최초·최근 겹침)</div>' +
+                scoreHtml +
                 '<div class="pitch-compare-meta">' +
                 '말한 구간 · 모범 ' +
                 refDur.toFixed(1) +
@@ -700,13 +788,6 @@
                 '<span class="pitch-legend-user">━ 최근</span>' +
                 '</div>' +
                 '<div class="pitch-controls">' +
-                '<label class="pitch-slider-label">최근 말 느리게/빠르게 <input type="range" class="pitch-rate-slider" min="0.5" max="1.5" step="0.05" value="1" /> <span class="pitch-rate-val">1.0×</span>' +
-                (Math.abs(suggestRate - 1) > 0.08
-                    ? ' <span class="pitch-slider-hint">(▶ 최근 = 실제 속도 1.0× · 차트 길이 맞춤은 ' +
-                      suggestRate.toFixed(2) +
-                      '×)</span>'
-                    : ' <span class="pitch-slider-hint">(▶ 최근 = 실제 녹음 속도)</span>') +
-                '</label>' +
                 '<label class="pitch-align-label"><input type="checkbox" class="pitch-align-check" checked /> 윤곽 맞춤 (길이를 모범에 맞춤)</label>' +
                 '<div class="pitch-play-row">' +
                 '<button type="button" class="pitch-play-ref">▶ 모범</button>' +
@@ -739,24 +820,11 @@
         const session = sessions[id];
         if (!session) return;
 
-        const slider = el.querySelector('.pitch-rate-slider');
-        const rateVal = el.querySelector('.pitch-rate-val');
         const alignCheck = el.querySelector('.pitch-align-check');
         const btnRef = el.querySelector('.pitch-play-ref');
         const btnUser = el.querySelector('.pitch-play-user');
         const btnFirst = el.querySelector('.pitch-play-first');
 
-        function currentRate() {
-            return slider ? parseFloat(slider.value) || 1 : session.playbackRateDefault || 1;
-        }
-
-        if (slider && rateVal) {
-            slider.value = String(session.playbackRateDefault || 1);
-            rateVal.textContent = currentRate().toFixed(2) + '×';
-            slider.oninput = function () {
-                rateVal.textContent = currentRate().toFixed(2) + '×';
-            };
-        }
         if (alignCheck) {
             alignCheck.checked = !!session.alignUser;
             alignCheck.onchange = function () {
@@ -771,8 +839,7 @@
         }
         if (btnUser) {
             btnUser.onclick = function () {
-                const rate = currentRate();
-                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, rate);
+                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, 1);
             };
         }
         if (btnFirst && session.firstPlaySamples) {

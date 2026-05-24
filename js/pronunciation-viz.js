@@ -331,7 +331,7 @@
                 '<div class="pa-issues-block">' +
                 '<div class="pa-issue-title">발음 오류 ' +
                 issueWords.length +
-                '개<span class="pa-issue-hint">숫자 키 1~9 = 🔊 발음 듣기 · Enter = 전체 다시 말하기</span></div>' +
+                '개</div>' +
                 buildIssueWordCards(issueWords) +
                 '</div>';
         }

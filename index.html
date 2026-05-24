@@ -126,7 +126,6 @@
         .mission-feedback {
             margin: 0 0 8px; padding: 8px 10px; border-radius: 8px;
             font-weight: bold; display: none; position: relative; z-index: 8;
-            max-height: min(52vh, 420px); overflow-y: auto;
             box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
         }
         .mission-reference {
@@ -145,16 +144,7 @@
             font-size: 15px; font-weight: 900; color: #B45309; line-height: 1.35;
             margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(180, 83, 9, 0.25);
         }
-        .fb-details { margin-top: 8px; font-weight: normal; }
-        .fb-details summary {
-            font-size: 12px; font-weight: 700; color: #64748B; cursor: pointer;
-            list-style: none; user-select: none;
-        }
-        .fb-details summary::-webkit-details-marker { display: none; }
-        .fb-details[open] summary { margin-bottom: 6px; }
-        .fb-shortcut-hint {
-            font-size: 10px; font-weight: 600; color: #94A3B8; margin-top: 6px;
-        }
+        .fb-details-body { margin-top: 8px; font-weight: normal; }
         .controls, .mission-controls { display: flex; gap: 6px; margin: 0 0 8px; align-items: stretch; }
         .btn-mic { flex: 1; background: var(--primary); color: white; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; }
         .btn-mic.recording { background: var(--danger); animation: pulse 1s infinite; }
@@ -583,6 +573,14 @@
             background: #F0F9FF; border: 1px solid #BAE6FD;
         }
         .pitch-compare-title { font-size: 12px; font-weight: 800; color: #0369A1; margin-bottom: 4px; }
+        .pitch-score-row {
+            display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 6px 0 8px;
+            font-size: 12px; font-weight: 700; color: #334155;
+        }
+        .pitch-score-val { font-size: 15px; color: #0369A1; }
+        .pitch-delta-up .pitch-score-val { color: #059669; }
+        .pitch-delta-down .pitch-score-val { color: #DC2626; }
+        .pitch-score-first-ref { font-size: 11px; font-weight: 600; color: #94A3B8; }
         .pitch-compare-meta { font-size: 11px; color: #64748B; margin-bottom: 8px; }
         .pitch-chart-wrap { width: 100%; min-height: 120px; border-radius: 6px; overflow: hidden; background: #fff; }
         .pitch-chart-svg { width: 100%; height: 120px; display: block; }
@@ -597,10 +595,7 @@
         .pitch-legend-user { color: #EA580C; }
         .pitch-legend-first { color: #64748B; }
         .pitch-controls { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .pitch-slider-label, .pitch-align-label { font-size: 12px; color: #334155; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .pitch-rate-slider { flex: 1; min-width: 120px; max-width: 220px; }
-        .pitch-rate-val { font-weight: 800; color: #0369A1; min-width: 36px; }
-        .pitch-slider-hint { font-size: 10px; color: #94A3B8; font-weight: 600; }
+        .pitch-align-label { font-size: 12px; color: #334155; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .pitch-play-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .pitch-play-ref, .pitch-play-user {
             padding: 6px 12px; border-radius: 8px; border: none; font-size: 12px; font-weight: 800;
@@ -844,9 +839,9 @@
 <script src="js/comic-generator-fallback.js"></script>
 <script src="js/comic-hint.js"></script>
 <script src="js/comic-generator.js"></script>
-<script src="js/audio-wav.js"></script>
+<script src="js/audio-wav.js?v=20260521b"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js?v=20260521"></script>
+<script src="js/pitch-compare.js?v=20260521c"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>
@@ -1739,6 +1734,8 @@
     let reviewReturnView = 'dash';
     const RECORDING_IDB_NAME = 'interviewRecordingArchive';
     const RECORDING_IDB_STORE = 'slots';
+    /** 스페이스/Enter로 녹음 시작 시 키 입력 소리 제거 */
+    const RECORDING_LEADING_TRIM_SEC = 1;
 
     const elDash = document.getElementById('dashboard');
     const elMission = document.getElementById('mission-area');
@@ -2031,10 +2028,12 @@
         });
     }
 
-    function saveRecordingToArchive() {
-        if (!audioChunks.length || mPhase < 2) return;
+    function saveRecordingToArchive(optionalBlob) {
+        const blob =
+            optionalBlob ||
+            (audioChunks.length ? new Blob(audioChunks, { type: 'audio/webm' }) : null);
+        if (!blob || !blob.size || mPhase < 2) return;
         const key = recordingSaveKey || getRecordingKey();
-        const blob = new Blob(audioChunks, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
 
         if (!recordingArchive[key]) {
@@ -2270,22 +2269,28 @@
             const mime = mediaRecorder.mimeType || 'audio/webm';
 
             async function finalizeWav() {
-                try {
-                    if (typeof AudioWav === 'undefined') throw new Error('no_audio_wav');
-                    const blob = new Blob(chunks, { type: mime });
-                    if (!blob.size) throw new Error('empty_audio');
-                    const wav = await AudioWav.blobTo16kMonoWav(blob);
-                    resolve(wav);
-                } catch (err) {
-                    reject(err);
+                if (typeof AudioWav === 'undefined') throw new Error('no_audio_wav');
+                const blob = new Blob(chunks, { type: mime });
+                if (!blob.size) throw new Error('empty_audio');
+                let wav = await AudioWav.blobTo16kMonoWav(blob);
+                if (AudioWav.trimWavLeadingSeconds && RECORDING_LEADING_TRIM_SEC > 0) {
+                    wav = await AudioWav.trimWavLeadingSeconds(wav, RECORDING_LEADING_TRIM_SEC);
+                    window._recordingLeadingTrimNote =
+                        '키 입력 소리 제거 · 앞 ' + RECORDING_LEADING_TRIM_SEC + '초 잘림';
                 }
+                return wav;
             }
 
             if (mediaRecorder.state === 'recording') {
                 mediaRecorder.onstop = async function () {
                     await new Promise(function (r) { setTimeout(r, 80); });
-                    saveRecordingToArchive();
-                    await finalizeWav();
+                    try {
+                        const wav = await finalizeWav();
+                        saveRecordingToArchive(wav);
+                        resolve(wav);
+                    } catch (err) {
+                        reject(err);
+                    }
                 };
                 try {
                     if (typeof mediaRecorder.requestData === 'function') {
@@ -2296,8 +2301,12 @@
                     reject(err);
                 }
             } else if (chunks.length) {
-                saveRecordingToArchive();
-                finalizeWav();
+                finalizeWav()
+                    .then(function (wav) {
+                        saveRecordingToArchive(wav);
+                        resolve(wav);
+                    })
+                    .catch(reject);
             } else {
                 reject(new Error('not_recording'));
             }
@@ -2719,9 +2728,7 @@
     }
 
     function scrollFeedbackIntoView() {
-        if (fbBox && fbBox.style.display !== 'none') {
-            fbBox.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }
+        /* 피드백 영역 자동 스크롤 없음 */
     }
 
     function buildFeedbackHtml(statusMsg, detailHtml, fixHint, pitchHtml) {
@@ -2734,14 +2741,7 @@
             h += '<div class="fb-pitch-prominent">' + pitchHtml + '</div>';
         }
         if (detailHtml) {
-            h +=
-                '<details class="fb-details"><summary>Azure 발음·단어별 (펼치기)</summary><div class="fb-details-body">' +
-                detailHtml +
-                '</div></details>';
-        }
-        if (!isMobile) {
-            h +=
-                '<div class="fb-shortcut-hint">Enter 재시도 · Space 다음 · ←→ 녹음 · Shift+↑ 이전 문장 · ↑↓ 참고 스크롤</div>';
+            h += '<div class="fb-details-body">' + detailHtml + '</div>';
         }
         return h;
     }
@@ -3126,8 +3126,14 @@
         if (!isPass && practiceWords.length && !resHtml.includes('pa-word-speak-btn')) {
             resHtml += buildMissedWordBtnsHtml(practiceWords);
         }
-        if (window._azureAssessTrimNote) {
-            resHtml = '<div style="font-size:12px;color:#64748B;margin-bottom:8px;">' + window._azureAssessTrimNote + '</div>' + resHtml;
+        const trimNotes = [window._recordingLeadingTrimNote, window._azureAssessTrimNote]
+            .filter(Boolean)
+            .join(' · ');
+        if (trimNotes) {
+            resHtml =
+                '<div style="font-size:12px;color:#64748B;margin-bottom:8px;">' + trimNotes + '</div>' +
+                resHtml;
+            window._recordingLeadingTrimNote = '';
             window._azureAssessTrimNote = '';
         }
 
@@ -3174,8 +3180,8 @@
             : '✅ ' + scoreLine;
         showEvalResult(
             isPass,
-            passLabel + ' · Space 다음',
-            '❌ ' + scoreLine + ' · Enter 재연습' + (canSkipCurrentPhase() ? ' · Space 넘어가기' : ''),
+            passLabel,
+            '❌ ' + scoreLine,
             resHtml,
             fixHint,
             pitchHtml
@@ -3217,10 +3223,10 @@
             if (retryCount >= 20) {
                 statusMsg =
                     isInterviewPracticeTrack() || mPhase >= 5
-                        ? '⚠️ 재도전 초과 · Space 다음'
+                        ? '⚠️ 재도전 초과'
                         : mPhase === 2
-                          ? '⚠️ 재도전 20회 · Enter 재연습'
-                          : '⚠️ 재도전 초과 · Space 다음';
+                          ? '⚠️ 재도전 20회'
+                          : '⚠️ 재도전 초과';
             }
             fbBox.className = 'feedback mission-feedback fail';
             fbRes.innerHTML = buildFeedbackHtml(statusMsg, detailHtml, fixHint, pitchHtml);
@@ -3260,8 +3266,8 @@
         fbBtnGroup.innerHTML = '';
         showEvalResult(
             isPass,
-            '✅ 회상 OK · Space 다음',
-            '❌ 더 말해 보세요 · Enter 재연습' + (canSkipCurrentPhase() ? ' · Space 넘어가기' : ''),
+            '✅ 회상 OK',
+            '❌ 더 말해 보세요',
             resHtml,
             mastery.fluHint || ''
         );
@@ -3768,6 +3774,7 @@
             fbBox.className = 'feedback';
             fbRes.innerHTML = '<div class="listening-hint">Azure 채점 중… (Short Audio)</div>';
             window._azureAssessTrimNote = '';
+            window._recordingLeadingTrimNote = '';
             try {
                 let wav = await stopMediaRecorderAndGetWav();
                 let refForAzure = (currentTargetEng || '').replace(/\s+/g, ' ').trim();
@@ -4030,12 +4037,12 @@
         const mastery = applyMasteryAfterEval(isPass);
         isPass = mastery.pass;
         const passMsg = isInterviewPracticeTrack()
-            ? '✅ 말하기 OK · Space 다음'
-            : '✅ 완벽합니다 · Space 다음';
+            ? '✅ 말하기 OK'
+            : '✅ 완벽합니다';
         showEvalResult(
             isPass,
             passMsg,
-            '❌ 다시 말해 보세요 · Enter 재연습' + (canSkipCurrentPhase() ? ' · Space 넘어가기' : ''),
+            '❌ 다시 말해 보세요',
             resHtml,
             mastery.fluHint || ''
         );
