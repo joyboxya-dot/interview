@@ -606,16 +606,6 @@
         return { html: '', error: error };
     }
 
-    function recordingPlaybackRate() {
-        if (typeof global.getRecordingPlaybackRate === 'function') {
-            return global.getRecordingPlaybackRate();
-        }
-        if (typeof global.getModelEnglishTtsRate === 'function') {
-            return global.getModelEnglishTtsRate();
-        }
-        return 1;
-    }
-
     async function playTrimmedSamples(samples, sampleRate, rate) {
         if (!samples || !samples.length) return;
         if (typeof global.stopAllPlayback === 'function') {
@@ -842,7 +832,7 @@
                 redrawChart(el, session);
             };
         }
-        const userRate = recordingPlaybackRate();
+        /* 모범: TTS가 설정 속도로 이미 합성됨 → 1.0×. 최근/최초: 원속 녹음 → 1.0× */
         if (btnRef) {
             btnRef.onclick = function () {
                 playTrimmedSamples(session.modelPlaySamples, session.modelPlayRate, 1);
@@ -850,12 +840,12 @@
         }
         if (btnUser) {
             btnUser.onclick = function () {
-                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, userRate);
+                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, 1);
             };
         }
         if (btnFirst && session.firstPlaySamples) {
             btnFirst.onclick = function () {
-                playTrimmedSamples(session.firstPlaySamples, session.firstPlayRate, userRate);
+                playTrimmedSamples(session.firstPlaySamples, session.firstPlayRate, 1);
             };
         }
     }

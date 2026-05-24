@@ -95,6 +95,9 @@
     }
 
     function practicePlaybackRate() {
+        if (typeof global.getPracticeWordTtsRate === 'function') {
+            return global.getPracticeWordTtsRate();
+        }
         if (typeof global.getSavedTtsPracticeRate === 'function') return global.getSavedTtsPracticeRate();
         const r = settings().ttsPracticePlaybackRate;
         return typeof r === 'number' && r > 0 && r <= 1.5 ? r : 0.65;

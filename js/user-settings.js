@@ -80,7 +80,7 @@ window.formatPassThresholdLine = function (t) {
     return '정확도 ' + t.passAccuracy + ' · 유창성 ' + t.passFluency + ' · 운율 ' + t.passProsody;
 };
 
-/** TTS·녹음 재생 속도 (대시보드 「모범」 콤보, localStorage) */
+/** TTS 속도 (대시보드 콤보, localStorage) */
 window.TTS_SPEED_OPTIONS = [
     { rate: 0.5, label: '50% · 아주 느림' },
     { rate: 0.55, label: '55%' },
@@ -138,14 +138,22 @@ window.setSavedTtsPracticeRate = function (rate) {
     localStorage.setItem(window.TTS_PRACTICE_SPEED_KEY, String(closestTtsOptionRate(rate)));
 };
 
-/** 영어 모범 TTS·내 녹음 재생 — 대시보드 「모범」 속도와 동일 */
+/**
+ * 영어 모범 TTS — Azure 합성 시 이 비율로 느리게/빠르게 만든 뒤 1.0× 재생.
+ * (▶ 모범, 문장 안내 영어, 피치 비교 모범)
+ */
 window.getModelEnglishTtsRate = function () {
     return window.getSavedTtsNormalRate();
 };
 
-/** 녹음본(아카이브·피치 ▶) 재생 속도 */
+/** 내 녹음 — 원 속도 녹음 · 원 속도(1.0×) 재생. 모범 속도에 맞춰 말하기 연습용. */
 window.getRecordingPlaybackRate = function () {
-    return window.getModelEnglishTtsRate();
+    return 1;
+};
+
+/** 틀린 단어 TTS — Azure practice 프로필 합성 속도 */
+window.getPracticeWordTtsRate = function () {
+    return window.getSavedTtsPracticeRate();
 };
 
 window.getTtsPlaybackRates = function () {
@@ -170,11 +178,11 @@ window.formatTtsSpeedHint = function () {
         return Math.round(x * 100) + '%';
     };
     return (
-        '모범·내 녹음 ' +
+        '모범(영어) ' +
         pct(r.modelEnglish) +
+        ' · 녹음 재생 원속(100%) · 틀린 단어 ' +
+        pct(r.practice) +
         ' · 한글 안내 ' +
-        pct(r.normal) +
-        ' · 틀린 단어 ' +
-        pct(r.practice)
+        pct(r.normal)
     );
 };
