@@ -136,7 +136,176 @@
         });
     }
 
-    /** 강세 단어 시점 — Azure offset 우선, 없으면 문장 내 위치 비율 */
+    /** 단어 길이 가중 — 균등 n분할보다 실제 발화 타이밍에 가깝게 */
+    function tokenWeightedTimeSec(refText, clean, refDurSafe) {
+        const refTokens = String(refText || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        if (!refTokens.length) return refDurSafe * 0.5;
+        const weights = refTokens.map(function (t) {
+            const c = tokenCleanAlpha(t);
+            return Math.max(1, c ? c.length : 1);
+        });
+        let total = 0;
+        let i;
+        for (i = 0; i < weights.length; i++) total += weights[i];
+        if (!total) return refDurSafe * 0.5;
+        let cum = 0;
+        for (i = 0; i < refTokens.length; i++) {
+            const c = tokenCleanAlpha(refTokens[i]);
+            const w = weights[i];
+            if (c === clean) {
+                return ((cum + w * 0.42) / total) * refDurSafe;
+            }
+            cum += w;
+        }
+        const idx = refTokens.findIndex(function (t) {
+            return tokenCleanAlpha(t) === clean;
+        });
+        const pos = idx >= 0 ? idx : 0;
+        return ((pos + 0.5) / refTokens.length) * refDurSafe;
+    }
+
+    function extractRmsFrames(samples, sampleRate) {
+        const frameSize = 512;
+        const hop = 128;
+        const minFrame = 192;
+        const out = [];
+        for (let start = 0; start < samples.length; start += hop) {
+            const end = Math.min(start + frameSize, samples.length);
+            const len = end - start;
+            if (len < minFrame) break;
+            out.push({
+                t: (start + len / 2) / sampleRate,
+                rms: frameRms(samples.subarray(start, end)),
+            });
+        }
+        return out;
+    }
+
+    /** 모범 음성 envelope 피크·온셋에 강세 시점 스냅 */
+    function alignPlanToEnvelope(plan, samples, sampleRate, speechDur) {
+        if (!plan || !plan.length || !samples || !sampleRate || !speechDur) return plan;
+        const rmsList = extractRmsFrames(samples, sampleRate);
+        if (!rmsList.length) return plan;
+
+        return plan.map(function (slot) {
+            const expected = slot.tCenter != null ? slot.tCenter : speechDur * 0.5;
+            const halfWin = Math.min(0.28, Math.max(0.1, speechDur * 0.09));
+            const tMin = Math.max(0, expected - halfWin);
+            const tMax = Math.min(speechDur, expected + halfWin);
+
+            let peakT = expected;
+            let peakR = 0;
+            rmsList.forEach(function (p) {
+                if (p.t < tMin || p.t > tMax) return;
+                if (p.rms > peakR) {
+                    peakR = p.rms;
+                    peakT = p.t;
+                }
+            });
+
+            let onsetT = peakT;
+            if (peakR > 1e-6) {
+                const thresh = peakR * 0.32;
+                for (let i = 0; i < rmsList.length; i++) {
+                    const p = rmsList[i];
+                    if (p.t < tMin || p.t > peakT) continue;
+                    if (p.rms <= thresh) onsetT = p.t;
+                }
+                onsetT = Math.min(peakT, onsetT + 0.035);
+            }
+
+            const blended = expected * 0.25 + onsetT * 0.75;
+            const tCenter = Math.max(0, Math.min(speechDur, blended));
+            return Object.assign({}, slot, {
+                tCenter: tCenter,
+                t0: Math.max(0, tCenter - 0.09),
+                t1: Math.min(speechDur, tCenter + 0.14),
+            });
+        });
+    }
+
+    const modelListenTimingCache = {};
+
+    /** 모범 TTS 디코드 → 트림·envelope 정렬 → 리듬 노트 (듣기 동기용) */
+    async function buildModelListenTiming(refText) {
+        const safe = String(refText || '').trim();
+        const fallbackDur =
+            global.L2Fluency && global.L2Fluency.countWords && global.L2Fluency.expectedDurationMs
+                ? global.L2Fluency.expectedDurationMs(global.L2Fluency.countWords(safe)) / 1000
+                : Math.max(0.8, safe.split(/\s+/).filter(Boolean).length * 0.42);
+
+        if (!safe) {
+            return {
+                speechDur: fallbackDur,
+                audioLeadIn: 0,
+                fullAudioDur: fallbackDur,
+                plan: [],
+                modelPts: null,
+                notes: [],
+            };
+        }
+
+        const cacheKey = 'v2|' + safe;
+        if (modelListenTimingCache[cacheKey]) {
+            return modelListenTimingCache[cacheKey];
+        }
+
+        let speechDur = fallbackDur;
+        let audioLeadIn = 0;
+        let fullAudioDur = fallbackDur;
+        let modelPts = null;
+        let trimSamples = null;
+        let trimRate = 8000;
+
+        try {
+            const blob = await getModelMp3Blob(safe);
+            if (blob) {
+                const mono = await blobToMono(await blob.arrayBuffer());
+                const trim = trimSpeechBounds(mono.samples, mono.sampleRate);
+                speechDur = Math.max(0.25, trim.speechDur);
+                audioLeadIn = trim.offsetSec || 0;
+                fullAudioDur = mono.samples.length / mono.sampleRate;
+                trimSamples = trim.samples;
+                trimRate = mono.sampleRate;
+                const ds = downsample(trim.samples, mono.sampleRate, 8000);
+                const contour = buildDisplayContour(ds.samples, ds.sampleRate);
+                modelPts = contour.points;
+            }
+        } catch (e) {
+            console.warn('buildModelListenTiming', e);
+        }
+
+        let plan = buildStressedWordPlan(safe, speechDur, []);
+        if (trimSamples && trimSamples.length) {
+            plan = alignPlanToEnvelope(plan, trimSamples, trimRate, speechDur);
+        }
+
+        let notes = [];
+        if (global.RhythmNotesBuilder && global.RhythmNotesBuilder.buildRhythmNotes) {
+            notes = global.RhythmNotesBuilder.buildRhythmNotes({
+                refText: safe,
+                refDur: speechDur,
+                plan: plan,
+                modelPts: modelPts,
+            });
+        }
+
+        const pack = {
+            speechDur: speechDur,
+            audioLeadIn: audioLeadIn,
+            fullAudioDur: fullAudioDur,
+            plan: plan,
+            modelPts: modelPts,
+            notes: notes,
+        };
+        modelListenTimingCache[cacheKey] = pack;
+        return pack;
+    }
+
+    /** 강세 단어 시점 — Azure offset 우선, 없으면 길이 가중 + envelope 정렬(듣기 시) */
     function buildStressedWordPlan(refText, refDur, azureWords) {
         const items = listStressedWordsFromText(refText);
         const refDurSafe = refDur || 0.1;
@@ -165,21 +334,9 @@
             }
             return Object.assign({}, item, { tCenter: tCenter });
         });
-        const refTokens = String(refText || '')
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean);
-        const tokenIndex = {};
-        refTokens.forEach(function (t, idx) {
-            const c = tokenCleanAlpha(t);
-            if (c && tokenIndex[c] === undefined) tokenIndex[c] = idx;
-        });
-        const n = Math.max(refTokens.length, 1);
         withTime.forEach(function (w) {
             if (w.tCenter != null) return;
-            const idx = tokenIndex[w.clean];
-            const pos = idx != null ? idx : 0;
-            w.tCenter = ((pos + 0.5) / n) * refDurSafe;
+            w.tCenter = tokenWeightedTimeSec(refText, w.clean, refDurSafe);
         });
         withTime.sort(function (a, b) {
             return a.tCenter - b.tCenter;
@@ -1060,6 +1217,8 @@
             shiftedWords
         );
 
+        plan = alignPlanToEnvelope(plan, modelTrim.samples, modelMono.sampleRate, refDur);
+
         let rhythmNotes = null;
         if (global.RhythmNotesBuilder && global.RhythmNotesBuilder.buildRhythmNotes) {
             rhythmNotes = global.RhythmNotesBuilder.buildRhythmNotes({
@@ -1357,6 +1516,8 @@
         CHART_STYLES: CHART_STYLES,
         getPitchChartStyle: getPitchChartStyle,
         buildStressedWordPlan: buildStressedWordPlan,
+        buildModelListenTiming: buildModelListenTiming,
+        alignPlanToEnvelope: alignPlanToEnvelope,
         evaluateStressSlots: evaluateStressSlots,
         analyzePitchPair: analyzePitchPair,
         buildCompareBlock: buildCompareBlock,

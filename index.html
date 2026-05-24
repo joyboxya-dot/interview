@@ -951,10 +951,10 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js?v=20260528"></script>
+<script src="js/pitch-compare.js?v=20260529"></script>
 <script src="js/rhythm-notes-builder.js?v=20260528"></script>
 <script src="js/rhythm-lane.js?v=20260528"></script>
-<script src="js/stress-timeline.js?v=20260528"></script>
+<script src="js/stress-timeline.js?v=20260529"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js?v=20260527"></script>
 <script>
@@ -1550,6 +1550,7 @@
         btnMic.style.display = 'flex';
         btnSkip.style.display = 'flex';
         btnSkip.style.flex = '1';
+        setChunkMicButton('speak', { first: true, retry: false });
 
         persistProgress();
         updateSrsDashBadges();
@@ -1964,6 +1965,8 @@
     let allChunks = [];
     let currentChunkKey = null;
     let currentChunk = null;
+    /** 청크 연습: Enter 버튼 — speak(말하기) ↔ listen(듣기) 토글 */
+    let chunkMicMode = 'speak';
     /** 스테퍼·단계 전환 시 이전 1단계 TTS 자동 진행 타이머 무효화 */
     let missionNavGen = 0;
     let phase1AdvanceTimer = null;
@@ -2032,6 +2035,38 @@
     const elMission = document.getElementById('mission-area');
     const btnMic = document.getElementById('btn-main-mic');
     const btnSkip = document.getElementById('btn-skip');
+
+    function chunkMicShortcutHtml() {
+        return "<span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
+    }
+
+    function setChunkMicButton(mode, opts) {
+        opts = opts || {};
+        if (!currentChunkKey) return;
+        chunkMicMode = mode === 'listen' ? 'listen' : 'speak';
+        const afterFeedback = fbBox && fbBox.style.display !== 'none';
+        const useRetry = opts.retry != null ? opts.retry : afterFeedback;
+        if (chunkMicMode === 'listen') {
+            btnMic.innerHTML =
+                '🔊 ' + (useRetry ? '다시 듣기' : '듣기') + ' ' + chunkMicShortcutHtml();
+        } else {
+            const label = opts.first ? '말하기' : useRetry ? '다시 말하기' : '말하기';
+            btnMic.innerHTML = '🎤 ' + label + ' ' + chunkMicShortcutHtml();
+        }
+        btnMic.classList.remove('recording');
+    }
+
+    function replayChunkModelAudio() {
+        const text = String(currentTargetEng || (currentChunk && currentChunk.en) || '').trim();
+        if (!text) return;
+        stopAllPlayback();
+        const stHost = document.getElementById('ui-stress-timeline');
+        if (stHost && typeof StressTimeline !== 'undefined' && StressTimeline.playModelSynced) {
+            StressTimeline.playModelSynced(text, stHost, null);
+        } else {
+            speakText(text, 'en');
+        }
+    }
     const btnStart = document.getElementById('btn-start-mission');
     const fbBox = document.getElementById('feedback-box');
     const fbRes = document.getElementById('stt-result');
@@ -3077,7 +3112,12 @@
                 btnSkip.style.display = 'none';
             }
         }
-        btnMic.innerHTML = "🎤 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
+        if (currentChunkKey) {
+            setChunkMicButton('speak', { first: true, retry: false });
+        } else {
+            btnMic.innerHTML = '🎤 말하기 ' + chunkMicShortcutHtml();
+            chunkMicMode = 'speak';
+        }
         updateCueTimerUi();
         btnMic.classList.remove('recording');
     }
@@ -3506,6 +3546,9 @@
         if (pitchHtml && typeof PitchCompare !== 'undefined') {
             PitchCompare.bind(fbRes);
         }
+        if (currentChunkKey) {
+            setChunkMicButton('listen', { retry: true });
+        }
     }
 
     function evaluateAnswerRecall(spokenText) {
@@ -3558,7 +3601,11 @@
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             try { mediaRecorder.stop(); } catch(e){}
         }
-        btnMic.innerHTML = "🎤 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
+        if (currentChunkKey) {
+            setChunkMicButton(chunkMicMode, { retry: fbBox.style.display !== 'none' });
+        } else {
+            btnMic.innerHTML = '🎤 말하기 ' + chunkMicShortcutHtml();
+        }
         btnMic.classList.remove('recording');
     }
 
@@ -3989,7 +4036,11 @@
         useAzureMic = false;
         clearTimeout(recordTimer);
         
-        btnMic.innerHTML = "🎤 다시 말하기 <span class='shortcut-key' style='margin-left:8px; background:rgba(0,0,0,0.2);'>Enter</span>";
+        if (currentChunkKey) {
+            setChunkMicButton('speak', { retry: true });
+        } else {
+            btnMic.innerHTML = '🎤 다시 말하기 ' + chunkMicShortcutHtml();
+        }
         btnMic.classList.remove('recording');
 
         if (!wasAzure) {
@@ -4068,15 +4119,21 @@
     }
 
     async function handleMicClick() {
-        if(isRecording) {
+        if (isRecording) {
             await stopRecordingAndEvaluate(finalTranscript + ' ' + currentInterim);
-        } else {
-            stopAllPlayback();
-            finalTranscript = '';
-            currentInterim = '';
-            currentMissedWordsList = [];
-            
-            useAzureMic = typeof AzureSpeech !== 'undefined' && AzureSpeech.shouldUseAzureForPhase(mPhase);
+            return;
+        }
+        if (currentChunkKey && chunkMicMode === 'listen') {
+            replayChunkModelAudio();
+            setChunkMicButton('speak', { retry: true });
+            return;
+        }
+        stopAllPlayback();
+        finalTranscript = '';
+        currentInterim = '';
+        currentMissedWordsList = [];
+
+        useAzureMic = typeof AzureSpeech !== 'undefined' && AzureSpeech.shouldUseAzureForPhase(mPhase);
             recordingSaveKey = getRecordingKey();
             recordStartedAt = Date.now();
 
@@ -4129,7 +4186,6 @@
                 }
                 startBrowserRecognition();
             }
-        }
     }
 
     function startBrowserRecognition() {

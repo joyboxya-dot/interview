@@ -7,8 +7,39 @@
     let listenRefDur = 1;
     let listenNotes = [];
     let listenPlan = null;
+    let listenModelPts = null;
     let notesBuiltAtDur = 1;
+    let listenAudioLeadIn = 0;
     let browserSyncRaf = null;
+
+    function syncTimeFromAudio(current, fullDuration) {
+        if (!fullDuration || fullDuration <= 0) return 0;
+        const speechDur = Math.max(0.2, fullDuration - listenAudioLeadIn);
+        return Math.max(0, Math.min(listenRefDur || speechDur, current - listenAudioLeadIn));
+    }
+
+    async function loadListenTiming(refText, words) {
+        if (global.PitchCompare && global.PitchCompare.buildModelListenTiming) {
+            const timing = await global.PitchCompare.buildModelListenTiming(refText);
+            listenRefDur = timing.speechDur;
+            listenAudioLeadIn = timing.audioLeadIn || 0;
+            listenPlan = timing.plan || planFromText(refText, listenRefDur, words);
+            listenModelPts = timing.modelPts;
+            listenNotes =
+                timing.notes && timing.notes.length
+                    ? timing.notes
+                    : buildNotes(refText, listenRefDur, words, listenModelPts, listenPlan, null);
+            notesBuiltAtDur = listenRefDur;
+            return timing;
+        }
+        listenAudioLeadIn = 0;
+        listenRefDur = await estimateModelDuration(refText);
+        listenPlan = planFromText(refText, listenRefDur, words || []);
+        listenModelPts = null;
+        listenNotes = buildNotes(refText, listenRefDur, words, null, listenPlan, null);
+        notesBuiltAtDur = listenRefDur;
+        return null;
+    }
 
     function escapeHtml(s) {
         return String(s)
@@ -107,32 +138,31 @@
         return Math.max(0.8, wc * 0.42);
     }
 
-    function rebuildNotesIfDuration(refText, duration, words) {
-        if (!duration || duration <= 0) return;
+    function rebuildNotesIfDuration(refText, fullDuration, words) {
+        if (!fullDuration || fullDuration <= 0) return;
+        const measuredSpeech = Math.max(0.25, fullDuration - listenAudioLeadIn);
         const prevDur = notesBuiltAtDur;
-        listenRefDur = duration;
-        listenPlan = planFromText(refText, duration, words || []);
+        if (Math.abs(measuredSpeech - prevDur) < 0.03) return;
+
+        listenRefDur = measuredSpeech;
         if (
             global.RhythmNotesBuilder &&
             global.RhythmNotesBuilder.rescaleNotes &&
             listenNotes.length &&
-            prevDur &&
-            Math.abs(prevDur - duration) > 0.03
+            prevDur
         ) {
-            listenNotes = global.RhythmNotesBuilder.rescaleNotes(listenNotes, prevDur, duration);
+            listenNotes = global.RhythmNotesBuilder.rescaleNotes(listenNotes, prevDur, measuredSpeech);
         } else {
-            listenNotes = buildNotes(refText, duration, words, null, listenPlan, null);
+            listenPlan = planFromText(refText, measuredSpeech, words || []);
+            listenNotes = buildNotes(refText, measuredSpeech, words, listenModelPts, listenPlan, null);
         }
-        notesBuiltAtDur = duration;
+        notesBuiltAtDur = measuredSpeech;
         if (activeLane) activeLane.setNotes(listenNotes);
     }
 
     async function playModelSynced(refText, root, onDone) {
         listenRefText = refText;
-        listenRefDur = await estimateModelDuration(refText);
-        notesBuiltAtDur = listenRefDur;
-        listenPlan = planFromText(refText, listenRefDur, []);
-        listenNotes = buildNotes(refText, listenRefDur, [], null, listenPlan, null);
+        await loadListenTiming(refText, []);
 
         if (root) {
             mountLaneOnContainer(root, {
@@ -155,7 +185,7 @@
                 rebuildNotesIfDuration(refText, duration, []);
             }
             if (activeLane) {
-                activeLane.setTime(current);
+                activeLane.setTime(syncTimeFromAudio(current, duration));
             }
         }
 
@@ -222,10 +252,7 @@
         }
         const autoPlay = options.autoPlay !== false;
         if (!autoPlay) {
-            Promise.resolve(options.refDur || estimateModelDuration(refText)).then(function (dur) {
-                listenRefDur = dur;
-                listenPlan = planFromText(refText, listenRefDur, options.words || []);
-                listenNotes = buildNotes(refText, dur, options.words, null, listenPlan, null);
+            loadListenTiming(refText, options.words || []).then(function () {
                 mountLaneOnContainer(container, {
                     mode: 'listen',
                     notes: listenNotes,
@@ -285,5 +312,6 @@
         playModelSynced: playModelSynced,
         bindReplay: bindReplay,
         stop: stop,
+        stopModelPlaybackOnly: stopModelPlaybackOnly,
     };
 })(window);
