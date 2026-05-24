@@ -622,6 +622,22 @@
             background: #FFF7ED; border: 1px dashed #FDBA74; font-size: 12px; color: #9A3412;
         }
         .pitch-compare-unavailable strong { display: block; margin-bottom: 4px; color: #C2410C; }
+        .chart-style-panel { margin-bottom: 12px; }
+        .chart-style-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+        .chart-style-btn {
+            padding: 8px 14px; border-radius: 8px; border: 2px solid #E2E8F0;
+            background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; color: #334155;
+        }
+        .chart-style-btn.active { border-color: #2563EB; background: #EFF6FF; color: #1D4ED8; }
+        .chart-style-hint { font-size: 11px; color: #64748B; margin-top: 6px; line-height: 1.4; }
+        .rhythm-nodes-svg { height: 132px; }
+        .rn-node-model { fill: #94A3B8; opacity: 0.55; }
+        .rn-node-user { fill: #EA580C; opacity: 0.92; }
+        .rn-node-first { fill: none; stroke: #64748B; stroke-width: 2; stroke-dasharray: 3 2; opacity: 0.85; }
+        .rn-node-match { fill: none; stroke: #EAB308; stroke-width: 2.5; opacity: 0.95; }
+        .rn-beat-label { font-size: 11px; fill: #64748B; font-weight: 800; }
+        .pitch-legend-match { color: #CA8A04; font-size: 11px; font-weight: 700; }
+        .pitch-compare-rhythm .pitch-chart-wrap { min-height: 132px; }
         .pa-viz + .missed-word-btns { margin-top: 10px; }
         .pa-err-none, .pa-tl-word.pa-err-none { background: #22C55E; }
         .pa-err-mis, .pa-tl-word.pa-err-mis, .pa-word-card.pa-err-mis .pa-word-badge { background: #FEE2E2; color: #991B1B; }
@@ -658,6 +674,11 @@
                     <div class="difficulty-title">발음 난이도</div>
                     <div class="difficulty-options" id="difficulty-options"></div>
                     <div class="difficulty-hint" id="difficulty-hint"></div>
+                </div>
+                <div class="chart-style-panel" id="chart-style-panel">
+                    <div class="difficulty-title">피드백 차트</div>
+                    <div class="chart-style-options" id="chart-style-options"></div>
+                    <p class="chart-style-hint" id="chart-style-hint"></p>
                 </div>
                 <div class="tts-speed-panel" id="tts-speed-panel">
                     <div class="difficulty-title">음성 재생 속도</div>
@@ -810,7 +831,7 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js?v=20260522"></script>
+<script src="js/pitch-compare.js?v=20260524"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>
@@ -892,6 +913,9 @@
         "mobile": "<span class='syllable-stress'>mo</span>bile",
         "system": "<span class='syllable-stress'>sys</span>tem",
         "systems": "<span class='syllable-stress'>sys</span>tems"
+    };
+    window.getInterviewStressDict = function () {
+        return stressDict;
     };
 
     let db = [];
@@ -1668,6 +1692,49 @@
             : selectedRate;
         selectEl.value = String(snapped);
     }
+
+    function renderChartStylePanel() {
+        const container = document.getElementById('chart-style-options');
+        const hint = document.getElementById('chart-style-hint');
+        if (!container) return;
+        const styles =
+            typeof DashboardSettings !== 'undefined' && DashboardSettings.CHART_STYLES
+                ? DashboardSettings.CHART_STYLES
+                : {
+                      'rhythm-nodes': { id: 'rhythm-nodes', label: '리듬 노드' },
+                      line: { id: 'line', label: '피치 곡선' },
+                  };
+        let current = 'rhythm-nodes';
+        if (typeof DashboardSettings !== 'undefined' && DashboardSettings.get) {
+            current = DashboardSettings.get().pitchChartStyle || 'rhythm-nodes';
+        } else if (typeof PitchCompare !== 'undefined' && PitchCompare.getPitchChartStyle) {
+            current = PitchCompare.getPitchChartStyle();
+        }
+        container.innerHTML = '';
+        Object.keys(styles).forEach(function (key) {
+            const st = styles[key];
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'chart-style-btn' + (st.id === current ? ' active' : '');
+            btn.textContent = st.label;
+            btn.dataset.id = st.id;
+            btn.onclick = function () {
+                if (typeof DashboardSettings !== 'undefined' && DashboardSettings.save) {
+                    DashboardSettings.save({ pitchChartStyle: st.id });
+                }
+                renderChartStylePanel();
+                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
+            };
+            container.appendChild(btn);
+        });
+        if (hint) {
+            hint.textContent =
+                current === 'rhythm-nodes'
+                    ? '리듬 박자마다 강세 단어 1개 · ①②③ · 금색 링=모범과 가까움'
+                    : '모범·최근 피치 곡선 · 강세 단어 라벨만';
+        }
+    }
+    window.renderChartStylePanel = renderChartStylePanel;
 
     function renderTtsSpeedPanel() {
         const selNormal = document.getElementById('tts-speed-normal');
@@ -4104,6 +4171,7 @@
             DashboardSettings.loadAndApply();
         }
         renderDifficultyPanel();
+        renderChartStylePanel();
         renderTtsSpeedPanel();
         bindContentPanelActions();
         if (typeof DashboardSettings !== 'undefined') DashboardSettings.applyToUI();

@@ -3,10 +3,211 @@
  * · 앞뒤 무음 자동 트림 후 비교 · Web Audio 재생
  */
 (function (global) {
+    const CHART_STYLES = {
+        'rhythm-nodes': 'rhythm-nodes',
+        line: 'line',
+    };
+
+    const GLUE_WORDS = new Set([
+        'a', 'an', 'the', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'it', 'and', 'but', 'or', 'for', 'with', 'as', 'by',
+        'i', 'my', 'our', 'we', 'so', 'if', 'not', 'also', 'just', 'only',
+    ]);
+
     const sessions = {};
     let sessionSeq = 0;
     let pitchPlayCtx = null;
     let pitchPlaySource = null;
+
+    function getPitchChartStyle() {
+        if (global.DashboardSettings && global.DashboardSettings.get) {
+            const id = global.DashboardSettings.get().pitchChartStyle;
+            if (id === CHART_STYLES.line) return CHART_STYLES.line;
+        }
+        return CHART_STYLES['rhythm-nodes'];
+    }
+
+    function beatCircledNum(n) {
+        if (n >= 1 && n <= 20) return String.fromCharCode(0x2460 + n - 1);
+        return String(n);
+    }
+
+    function isGlueToken(token) {
+        const w = String(token || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+        if (!w) return true;
+        return GLUE_WORDS.has(w) || w.length <= 2;
+    }
+
+    function tokenCleanAlpha(token) {
+        const m = String(token || '').match(/[A-Za-z0-9]+/);
+        return m ? m[0].toLowerCase() : '';
+    }
+
+    function getStressDict() {
+        if (typeof global.getInterviewStressDict === 'function') {
+            return global.getInterviewStressDict();
+        }
+        return null;
+    }
+
+    /** reading-guide 박자마다 강세 단어 1개 (stressDict 우선, 없으면 박자 내 최장어) */
+    function pickStressedTokenInGroup(tokens) {
+        const dict = getStressDict();
+        const candidates = tokens.filter(function (t) {
+            return !isGlueToken(t) && tokenCleanAlpha(t);
+        });
+        if (!candidates.length) return null;
+        let i;
+        for (i = 0; i < candidates.length; i++) {
+            const c = tokenCleanAlpha(candidates[i]);
+            if (dict && dict[c]) return candidates[i];
+        }
+        let best = candidates[0];
+        let bestLen = tokenCleanAlpha(best).length;
+        candidates.forEach(function (t) {
+            const len = tokenCleanAlpha(t).length;
+            if (len > bestLen) {
+                bestLen = len;
+                best = t;
+            }
+        });
+        return best;
+    }
+
+    function listStressedWordsFromText(refText) {
+        const items = [];
+        const seen = new Set();
+        let chunks = [];
+        if (global.ReadingGuide && global.ReadingGuide.getChunks) {
+            chunks = global.ReadingGuide.getChunks({ en: refText });
+        } else if (global.ReadingGuide && global.ReadingGuide.autoChunksFromEn) {
+            chunks = global.ReadingGuide.autoChunksFromEn(refText);
+        } else {
+            chunks = [{ text: refText, pauseAfterSec: 0 }];
+        }
+        const dict = getStressDict();
+        chunks.forEach(function (c) {
+            const tokens = String((c && c.text) || '')
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean);
+            const picked = pickStressedTokenInGroup(tokens);
+            if (!picked) return;
+            const clean = tokenCleanAlpha(picked);
+            if (!clean || seen.has(clean)) return;
+            seen.add(clean);
+            items.push({
+                word: picked,
+                clean: clean,
+                stressScore: dict && dict[clean] ? 3 : 2,
+            });
+        });
+        if (!items.length) {
+            const all = String(refText || '')
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean);
+            const picked = pickStressedTokenInGroup(all);
+            if (picked) {
+                const clean = tokenCleanAlpha(picked);
+                items.push({ word: picked, clean: clean, stressScore: 2 });
+            }
+        }
+        return items;
+    }
+
+    function cleanAzureWord(word) {
+        return String(word || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+    }
+
+    function filterWordsToStressedOnly(words, refText) {
+        if (!refText || !words || !words.length) return [];
+        const allowed = new Set(
+            listStressedWordsFromText(refText).map(function (w) {
+                return w.clean;
+            })
+        );
+        if (!allowed.size) return [];
+        return words.filter(function (w) {
+            return allowed.has(cleanAzureWord(w.word));
+        });
+    }
+
+    /** 강세 단어 시점 — Azure offset 우선, 없으면 문장 내 위치 비율 */
+    function buildStressedWordPlan(refText, refDur, azureWords) {
+        const items = listStressedWordsFromText(refText);
+        const refDurSafe = refDur || 0.1;
+        if (!items.length) {
+            return [
+                {
+                    beatIndex: 1,
+                    word: '',
+                    t0: 0,
+                    t1: refDurSafe,
+                    tCenter: refDurSafe / 2,
+                    stressScore: 2,
+                },
+            ];
+        }
+        const sorted = sortWordsByOffset(azureWords || []);
+        const withTime = items.map(function (item) {
+            let tCenter = null;
+            let i;
+            for (i = 0; i < sorted.length; i++) {
+                const aw = sorted[i];
+                if (cleanAzureWord(aw.word) === item.clean && aw.offsetMs != null) {
+                    tCenter = aw.offsetMs / 1000;
+                    break;
+                }
+            }
+            return Object.assign({}, item, { tCenter: tCenter });
+        });
+        const refTokens = String(refText || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        const tokenIndex = {};
+        refTokens.forEach(function (t, idx) {
+            const c = tokenCleanAlpha(t);
+            if (c && tokenIndex[c] === undefined) tokenIndex[c] = idx;
+        });
+        const n = Math.max(refTokens.length, 1);
+        withTime.forEach(function (w) {
+            if (w.tCenter != null) return;
+            const idx = tokenIndex[w.clean];
+            const pos = idx != null ? idx : 0;
+            w.tCenter = ((pos + 0.5) / n) * refDurSafe;
+        });
+        withTime.sort(function (a, b) {
+            return a.tCenter - b.tCenter;
+        });
+        return withTime.map(function (w, i) {
+            return {
+                beatIndex: i + 1,
+                word: w.word,
+                clean: w.clean,
+                stressScore: w.stressScore,
+                tCenter: w.tCenter,
+                t0: Math.max(0, w.tCenter - 0.1),
+                t1: Math.min(refDurSafe, w.tCenter + 0.1),
+            };
+        });
+    }
+
+    function sampleSemiAt(pts, t, speechDur, alignUser, refDur) {
+        let tt = t;
+        if (alignUser && speechDur > 0 && refDur > 0) {
+            tt = t * (speechDur / refDur);
+        }
+        return interpolateSemi(pts, Math.max(0, tt));
+    }
+
+    function nodeRadiusFromStress(stressScore) {
+        return Math.min(14, Math.max(7, 6 + stressScore * 0.8));
+    }
 
     function escapeHtml(s) {
         return String(s)
@@ -437,7 +638,7 @@
         };
     }
 
-    function buildSvgPaths(modelPts, refSpeechDur, userTracks, words, alignUser) {
+    function buildSvgPaths(modelPts, refSpeechDur, userTracks, words, alignUser, refText) {
         const W = 560;
         const H = 120;
         const pad = { l: 8, r: 8, t: 10, b: 18 };
@@ -446,7 +647,7 @@
         const refDur = refSpeechDur || 0.1;
         const latestTrack = userTracks.length ? userTracks[userTracks.length - 1] : null;
         const latestSpeechDur = latestTrack ? latestTrack.speechDur : refDur;
-        const sortedWords = sortWordsByOffset(words);
+        const sortedWords = filterWordsToStressedOnly(sortWordsByOffset(words), refText || '');
 
         let axisDur = refDur;
         if (alignUser) {
@@ -592,6 +793,148 @@
         );
     }
 
+    function buildRhythmNodesSvg(modelPts, refSpeechDur, userTracks, refText, alignUser, showFirst, azureWords) {
+        const W = 560;
+        const H = 132;
+        const pad = { l: 12, r: 12, t: 14, b: 28 };
+        const iw = W - pad.l - pad.r;
+        const ih = H - pad.t - pad.b;
+        const refDur = refSpeechDur || 0.1;
+        const beats = buildStressedWordPlan(refText || '', refDur, azureWords);
+        const latestTrack = userTracks.length ? userTracks[userTracks.length - 1] : null;
+        const firstTrack = userTracks.length > 1 ? userTracks[0] : null;
+
+        function xAt(t) {
+            return pad.l + (Math.min(t, refDur) / refDur) * iw;
+        }
+
+        function yAt(semi) {
+            if (semi == null) return pad.t + ih / 2;
+            const clamped = Math.max(-6, Math.min(6, semi));
+            return pad.t + ih * (1 - (clamped + 6) / 12);
+        }
+
+        let nodesHtml = '';
+        let labelsHtml = '';
+        beats.forEach(function (beat) {
+            const tm = beat.tCenter != null ? beat.tCenter : (beat.t0 + beat.t1) * 0.5;
+            const x = xAt(tm);
+            const mSemi = sampleSemiAt(modelPts, tm, refDur, false, refDur);
+            const rModel = nodeRadiusFromStress(beat.stressScore);
+            const yModel = yAt(mSemi);
+
+            nodesHtml +=
+                '<circle class="rn-node rn-node-model" cx="' +
+                x.toFixed(1) +
+                '" cy="' +
+                yModel.toFixed(1) +
+                '" r="' +
+                rModel +
+                '"/>';
+
+            if (latestTrack) {
+                const uSemi = sampleSemiAt(latestTrack.pts, tm, latestTrack.speechDur, alignUser, refDur);
+                const yUser = yAt(uSemi);
+                const rUser = Math.max(6, rModel - 2);
+                const match =
+                    mSemi != null && uSemi != null && Math.abs(mSemi - uSemi) < 1.35;
+                if (match) {
+                    nodesHtml +=
+                        '<circle class="rn-node rn-node-match" cx="' +
+                        x.toFixed(1) +
+                        '" cy="' +
+                        yUser.toFixed(1) +
+                        '" r="' +
+                        (rUser + 4) +
+                        '"/>';
+                }
+                nodesHtml +=
+                    '<circle class="rn-node rn-node-user" cx="' +
+                    x.toFixed(1) +
+                    '" cy="' +
+                    yUser.toFixed(1) +
+                    '" r="' +
+                    rUser +
+                    '"/>';
+            }
+
+            if (showFirst && firstTrack && firstTrack.label === 'first') {
+                const fSemi = sampleSemiAt(firstTrack.pts, tm, firstTrack.speechDur, alignUser, refDur);
+                nodesHtml +=
+                    '<circle class="rn-node rn-node-first" cx="' +
+                    x.toFixed(1) +
+                    '" cy="' +
+                    yAt(fSemi).toFixed(1) +
+                    '" r="5"/>';
+            }
+
+            labelsHtml +=
+                '<text class="rn-beat-label" x="' +
+                x.toFixed(1) +
+                '" y="' +
+                (H - 6) +
+                '" text-anchor="middle">' +
+                beatCircledNum(beat.beatIndex) +
+                '</text>';
+        });
+
+        return (
+            '<svg class="pitch-chart-svg rhythm-nodes-svg" viewBox="0 0 ' +
+            W +
+            ' ' +
+            H +
+            '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+            '<rect x="' +
+            pad.l +
+            '" y="' +
+            pad.t +
+            '" width="' +
+            iw +
+            '" height="' +
+            ih +
+            '" fill="#F8FAFC" rx="6"/>' +
+            '<line x1="' +
+            pad.l +
+            '" y1="' +
+            (pad.t + ih / 2) +
+            '" x2="' +
+            (W - pad.r) +
+            '" y2="' +
+            (pad.t + ih / 2) +
+            '" stroke="#E2E8F0" stroke-width="1"/>' +
+            nodesHtml +
+            labelsHtml +
+            '</svg>'
+        );
+    }
+
+    function buildChartForSession(session) {
+        if (session.chartStyle === CHART_STYLES.line) {
+            return buildSvgPaths(
+                session.modelPts,
+                session.refSpeechDur,
+                session.userTracks,
+                session.words,
+                session.alignUser,
+                session.refText
+            );
+        }
+        const tracks = session.showFirstTrack
+            ? session.userTracks
+            : session.userTracks.filter(function (tr) {
+                  return tr.label !== 'first';
+              });
+        return buildRhythmNodesSvg(
+            session.modelPts,
+            session.refSpeechDur,
+            tracks.length ? tracks : session.userTracks.slice(-1),
+            session.refText,
+            session.alignUser,
+            !!session.showFirstTrack,
+            session.words
+        );
+    }
+
     async function getModelMp3Blob(refText) {
         if (typeof global.AzureTts === 'undefined' || !global.AzureTts.getModelEnBlob) return null;
         try {
@@ -705,6 +1048,9 @@
             label: 'latest',
         });
 
+        const chartStyle = getPitchChartStyle();
+        const isRhythm = chartStyle === CHART_STYLES['rhythm-nodes'];
+
         const id = 'pc' + ++sessionSeq;
         sessions[id] = {
             modelPlaySamples: modelTrim.samples,
@@ -721,19 +1067,27 @@
             firstSpeechDur: firstData ? firstData.speechDur : 0,
             words: shiftedWords,
             alignUser: true,
+            chartStyle: chartStyle,
+            refText: refText,
+            showFirstTrack: !isRhythm && !!firstData,
         };
 
-        const svg = buildSvgPaths(modelPts, refDur, userTracks, shiftedWords, true);
+        const svg = buildChartForSession(sessions[id]);
 
-        const firstMeta = firstData
-            ? ' · 최초 ' + firstData.speechDur.toFixed(1) + 's'
-            : '';
-        const legendFirst = firstData
-            ? '<span class="pitch-legend-first">╌ 최초</span>'
-            : '';
-        const btnFirst = firstData
-            ? '<button type="button" class="pitch-play-first">▶ 최초</button>'
-            : '';
+        const firstMeta =
+            firstData && (!isRhythm || sessions[id].showFirstTrack)
+                ? ' · 최초 ' + firstData.speechDur.toFixed(1) + 's'
+                : '';
+        const legendFirst =
+            firstData && sessions[id].showFirstTrack
+                ? isRhythm
+                    ? '<span class="pitch-legend-first">○ 최초</span>'
+                    : '<span class="pitch-legend-first">╌ 최초</span>'
+                : '';
+        const btnFirst =
+            firstData && sessions[id].showFirstTrack
+                ? '<button type="button" class="pitch-play-first">▶ 최초</button>'
+                : '';
 
         let scoreHtml = '';
         if (latestSimilarity != null) {
@@ -761,12 +1115,35 @@
             scoreHtml += '</div>';
         }
 
+        const chartTitle = isRhythm
+            ? '모범 vs 내 녹음 · 리듬 노드'
+            : '모범 vs 내 녹음 · 피치 (최초·최근 겹침)';
+        const legendHtml = isRhythm
+            ? '<span class="pitch-legend-ref">● 모범</span>' +
+              legendFirst +
+              '<span class="pitch-legend-user">● 최근</span>' +
+              '<span class="pitch-legend-match">◎ 일치</span>'
+            : '<span class="pitch-legend-ref">━ 모범</span>' +
+              legendFirst +
+              '<span class="pitch-legend-user">━ 최근</span>';
+        const showFirstCheck =
+            isRhythm && firstData
+                ? '<label class="pitch-align-label"><input type="checkbox" class="pitch-show-first-check" /> 최초 녹음 노드 표시</label>'
+                : '';
+        const alignLabel = isRhythm
+            ? '길이를 모범에 맞춤'
+            : '윤곽 맞춤 (길이를 모범에 맞춤)';
+
         return {
             html:
-                '<div class="pitch-compare" data-pitch-id="' +
+                '<div class="pitch-compare' +
+                (isRhythm ? ' pitch-compare-rhythm' : '') +
+                '" data-pitch-id="' +
                 escapeHtml(id) +
                 '">' +
-                '<div class="pitch-compare-title">모범 vs 내 녹음 · 피치 (최초·최근 겹침)</div>' +
+                '<div class="pitch-compare-title">' +
+                chartTitle +
+                '</div>' +
                 scoreHtml +
                 '<div class="pitch-compare-meta">' +
                 '모범 ' +
@@ -775,18 +1152,20 @@
                 userDur.toFixed(1) +
                 's' +
                 firstMeta +
-                (useEnvelope ? ' · <span class="pitch-mode-tag">음량 윤곽</span>' : '') +
+                (useEnvelope && !isRhythm ? ' · <span class="pitch-mode-tag">음량 윤곽</span>' : '') +
+                (isRhythm ? ' · 강세 단어만 ①②③' : ' · 강세 단어 라벨만') +
                 '</div>' +
                 '<div class="pitch-chart-wrap">' +
                 svg +
                 '</div>' +
                 '<div class="pitch-legend">' +
-                '<span class="pitch-legend-ref">━ 모범</span>' +
-                legendFirst +
-                '<span class="pitch-legend-user">━ 최근</span>' +
+                legendHtml +
                 '</div>' +
                 '<div class="pitch-controls">' +
-                '<label class="pitch-align-label"><input type="checkbox" class="pitch-align-check" checked /> 윤곽 맞춤 (길이를 모범에 맞춤)</label>' +
+                showFirstCheck +
+                '<label class="pitch-align-label"><input type="checkbox" class="pitch-align-check" checked /> ' +
+                alignLabel +
+                '</label>' +
                 '<div class="pitch-play-row">' +
                 '<button type="button" class="pitch-play-ref">▶ 모범</button>' +
                 btnFirst +
@@ -801,13 +1180,7 @@
     function redrawChart(root, session) {
         const wrap = root.querySelector('.pitch-chart-wrap');
         if (!wrap) return;
-        wrap.innerHTML = buildSvgPaths(
-            session.modelPts,
-            session.refSpeechDur,
-            session.userTracks,
-            session.words,
-            session.alignUser
-        );
+        wrap.innerHTML = buildChartForSession(session);
     }
 
     function bind(root) {
@@ -819,9 +1192,18 @@
         if (!session) return;
 
         const alignCheck = el.querySelector('.pitch-align-check');
+        const showFirstCheck = el.querySelector('.pitch-show-first-check');
         const btnRef = el.querySelector('.pitch-play-ref');
         const btnUser = el.querySelector('.pitch-play-user');
         const btnFirst = el.querySelector('.pitch-play-first');
+
+        if (showFirstCheck) {
+            showFirstCheck.checked = !!session.showFirstTrack;
+            showFirstCheck.onchange = function () {
+                session.showFirstTrack = !!showFirstCheck.checked;
+                redrawChart(el, session);
+            };
+        }
 
         if (alignCheck) {
             alignCheck.checked = !!session.alignUser;
@@ -849,6 +1231,8 @@
     }
 
     global.PitchCompare = {
+        CHART_STYLES: CHART_STYLES,
+        getPitchChartStyle: getPitchChartStyle,
         buildCompareBlock: buildCompareBlock,
         bind: bind,
         stopPlayback: stopPlayback,
