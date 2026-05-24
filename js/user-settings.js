@@ -80,7 +80,7 @@ window.formatPassThresholdLine = function (t) {
     return '정확도 ' + t.passAccuracy + ' · 유창성 ' + t.passFluency + ' · 운율 ' + t.passProsody;
 };
 
-/** TTS·안내 음성 재생 속도 (대시보드 콤보, localStorage) — 녹음본(←→)은 항상 100% */
+/** TTS·녹음 재생 속도 (대시보드 「모범」 콤보, localStorage) */
 window.TTS_SPEED_OPTIONS = [
     { rate: 0.5, label: '50% · 아주 느림' },
     { rate: 0.55, label: '55%' },
@@ -138,21 +138,20 @@ window.setSavedTtsPracticeRate = function (rate) {
     localStorage.setItem(window.TTS_PRACTICE_SPEED_KEY, String(closestTtsOptionRate(rate)));
 };
 
-/** @returns {{ normal: number, practice: number, browserNormal: number, browserPractice: number }} */
+/** 영어 모범 TTS·내 녹음 재생 — 대시보드 「모범」 속도와 동일 */
 window.getModelEnglishTtsRate = function () {
-    if (typeof window.L2Fluency !== 'undefined' && window.L2Fluency.getModelEnglishTtsRate) {
-        return window.L2Fluency.getModelEnglishTtsRate();
-    }
     return window.getSavedTtsNormalRate();
+};
+
+/** 녹음본(아카이브·피치 ▶) 재생 속도 */
+window.getRecordingPlaybackRate = function () {
+    return window.getModelEnglishTtsRate();
 };
 
 window.getTtsPlaybackRates = function () {
     const normal = window.getSavedTtsNormalRate();
     const practice = window.getSavedTtsPracticeRate();
-    const modelEn =
-        typeof window.getModelEnglishTtsRate === 'function'
-            ? window.getModelEnglishTtsRate()
-            : normal;
+    const modelEn = window.getModelEnglishTtsRate();
     return {
         normal: normal,
         practice: practice,
@@ -171,12 +170,11 @@ window.formatTtsSpeedHint = function () {
         return Math.round(x * 100) + '%';
     };
     return (
-        '영어 모범 ' +
+        '모범·내 녹음 ' +
         pct(r.modelEnglish) +
-        ' (L2 말하기 속도) · 한글 안내 ' +
+        ' · 한글 안내 ' +
         pct(r.normal) +
         ' · 틀린 단어 ' +
-        pct(r.practice) +
-        ' · 내 녹음(←→) 100%'
+        pct(r.practice)
     );
 };

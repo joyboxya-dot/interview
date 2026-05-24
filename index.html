@@ -320,7 +320,7 @@
         }
         .dash-settings-fold[open] summary::after { content: ' ▲ 접기'; }
         .dash-settings-body { padding: 8px 10px 10px; border-top: 1px solid #E2E8F0; }
-        .l2-speed-panel, .mastery-dash-panel, .content-panel, .difficulty-panel, .tts-speed-panel {
+        .mastery-dash-panel, .content-panel, .difficulty-panel, .tts-speed-panel {
             text-align: left; margin: 8px 0 0; padding: 8px 10px; background: #fff;
             border-radius: 8px; border: 1px solid #E2E8F0;
         }
@@ -668,15 +668,19 @@
                     <div class="difficulty-options" id="difficulty-options"></div>
                     <div class="difficulty-hint" id="difficulty-hint"></div>
                 </div>
-                <div class="l2-speed-panel" id="l2-speed-panel">
-                    <div class="difficulty-title">L2 말하기 속도 (원어민 아님)</div>
+                <div class="tts-speed-panel" id="tts-speed-panel">
+                    <div class="difficulty-title">음성 재생 속도</div>
                     <div class="tts-speed-row">
                         <div class="tts-speed-field">
-                            <label class="tts-speed-label" for="l2-speed-preset">기준</label>
-                            <select class="tts-speed-select" id="l2-speed-preset" aria-label="L2 속도 프리셋"></select>
+                            <label class="tts-speed-label" for="tts-speed-normal">모범·녹음</label>
+                            <select class="tts-speed-select" id="tts-speed-normal" aria-label="모범 TTS·녹음 재생 속도"></select>
+                        </div>
+                        <div class="tts-speed-field">
+                            <label class="tts-speed-label" for="tts-speed-practice">틀린 단어</label>
+                            <select class="tts-speed-select" id="tts-speed-practice" aria-label="틀린 단어 음성 속도"></select>
                         </div>
                     </div>
-                    <p class="tts-speed-hint" id="l2-speed-hint"></p>
+                    <p class="tts-speed-hint" id="tts-speed-hint"></p>
                 </div>
                 <div class="mastery-dash-panel" id="mastery-dash-panel">
                     <div class="difficulty-title">숙달 모드 <span id="mastery-panel-sub" style="font-weight:600;color:#94A3B8"></span></div>
@@ -685,20 +689,6 @@
                         못 외운 항목은 큐에서 무한 반복 (넘어가기 제한)
                     </label>
                     <div class="mastery-queue-badge" id="mastery-queue-badge">약점 큐 0개</div>
-                </div>
-                <div class="tts-speed-panel" id="tts-speed-panel">
-                    <div class="difficulty-title">음성 재생 속도 (영어 모범 = L2 말하기 속도)</div>
-                    <div class="tts-speed-row">
-                        <div class="tts-speed-field">
-                            <label class="tts-speed-label" for="tts-speed-normal">안내·모범</label>
-                            <select class="tts-speed-select" id="tts-speed-normal" aria-label="안내·모범 음성 속도"></select>
-                        </div>
-                        <div class="tts-speed-field">
-                            <label class="tts-speed-label" for="tts-speed-practice">틀린 단어</label>
-                            <select class="tts-speed-select" id="tts-speed-practice" aria-label="틀린 단어 음성 속도"></select>
-                        </div>
-                    </div>
-                    <p class="tts-speed-hint" id="tts-speed-hint"></p>
                 </div>
                 <div id="azure-status" class="azure-status warn">Azure 연결 확인 중…</div>
                     </div>
@@ -841,7 +831,7 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js?v=20260521c"></script>
+<script src="js/pitch-compare.js?v=20260521e"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>
@@ -1408,43 +1398,6 @@
             }
         }
         el.textContent = db.length + '개 스크립트' + ver + extra + comicNote;
-    }
-
-    function renderL2SpeedPanel() {
-        const sel = document.getElementById('l2-speed-preset');
-        const hint = document.getElementById('l2-speed-hint');
-        if (!sel || typeof L2Fluency === 'undefined') return;
-        if (!sel.dataset.filled) {
-            sel.dataset.filled = '1';
-            Object.keys(L2Fluency.PRESETS).forEach(function (id) {
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = L2Fluency.PRESETS[id].label;
-                sel.appendChild(opt);
-            });
-            sel.value = L2Fluency.getPresetId();
-            sel.onchange = function () {
-                L2Fluency.setPresetId(sel.value);
-                if (hint) {
-                    hint.textContent =
-                        L2Fluency.getPreset().label +
-                        ' · 영어 모범 TTS ' +
-                        Math.round(L2Fluency.getModelEnglishTtsRate() * 100) +
-                        '%';
-                }
-                if (typeof renderTtsSpeedPanel === 'function') renderTtsSpeedPanel();
-                if (typeof persistDashboardSettings === 'function') persistDashboardSettings();
-            };
-        } else {
-            sel.value = L2Fluency.getPresetId();
-        }
-        if (hint) {
-            hint.textContent =
-                L2Fluency.getPreset().label +
-                ' · 영어 모범 TTS ' +
-                Math.round(L2Fluency.getModelEnglishTtsRate() * 100) +
-                '% · 3단계+ 숙달 판정';
-        }
     }
 
     function renderMasteryDashPanel() {
@@ -2137,7 +2090,10 @@
         if (!url) { if (onDone) onDone(); return; }
         stopAllPlayback();
         const audio = new Audio(url);
-        audio.playbackRate = 1;
+        audio.playbackRate =
+            typeof window.getRecordingPlaybackRate === 'function'
+                ? window.getRecordingPlaybackRate()
+                : 1;
         activeAudio = audio;
         audio.onended = function() {
             if (activeAudio === audio) activeAudio = null;
@@ -4102,7 +4058,6 @@
         renderPracticeTrackPanel();
         renderDifficultyPanel();
         renderTtsSpeedPanel();
-        renderL2SpeedPanel();
         renderMasteryDashPanel();
         bindContentPanelActions();
         if (typeof DashboardSettings !== 'undefined') DashboardSettings.applyToUI();

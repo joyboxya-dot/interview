@@ -128,9 +128,6 @@
         if (selNormal) patch.ttsNormalRate = parseFloat(selNormal.value);
         if (selPractice) patch.ttsPracticeRate = parseFloat(selPractice.value);
 
-        const l2 = document.getElementById('l2-speed-preset');
-        if (l2) patch.l2PresetId = l2.value;
-
         const mastery = document.getElementById('mastery-mode-check');
         if (mastery) patch.masteryMode = mastery.checked;
 
@@ -146,8 +143,6 @@
 
     function applyToUI() {
         const s = get();
-        const l2 = document.getElementById('l2-speed-preset');
-        if (l2 && l2.options.length) l2.value = s.l2PresetId;
         const mastery = document.getElementById('mastery-mode-check');
         if (mastery) mastery.checked = !!s.masteryMode;
         if (typeof global.renderPracticeTrackPanel === 'function') {

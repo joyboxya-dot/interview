@@ -606,6 +606,16 @@
         return { html: '', error: error };
     }
 
+    function recordingPlaybackRate() {
+        if (typeof global.getRecordingPlaybackRate === 'function') {
+            return global.getRecordingPlaybackRate();
+        }
+        if (typeof global.getModelEnglishTtsRate === 'function') {
+            return global.getModelEnglishTtsRate();
+        }
+        return 1;
+    }
+
     async function playTrimmedSamples(samples, sampleRate, rate) {
         if (!samples || !samples.length) return;
         if (typeof global.stopAllPlayback === 'function') {
@@ -832,6 +842,7 @@
                 redrawChart(el, session);
             };
         }
+        const userRate = recordingPlaybackRate();
         if (btnRef) {
             btnRef.onclick = function () {
                 playTrimmedSamples(session.modelPlaySamples, session.modelPlayRate, 1);
@@ -839,12 +850,12 @@
         }
         if (btnUser) {
             btnUser.onclick = function () {
-                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, 1);
+                playTrimmedSamples(session.latestPlaySamples, session.latestPlayRate, userRate);
             };
         }
         if (btnFirst && session.firstPlaySamples) {
             btnFirst.onclick = function () {
-                playTrimmedSamples(session.firstPlaySamples, session.firstPlayRate, 1);
+                playTrimmedSamples(session.firstPlaySamples, session.firstPlayRate, userRate);
             };
         }
     }
