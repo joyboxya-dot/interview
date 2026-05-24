@@ -649,6 +649,8 @@
         .rhythm-lane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
         .rhythm-lane-title { font-size: 12px; font-weight: 800; color: #7DD3FC; }
         .rhythm-lane-hint { font-size: 11px; color: #94A3B8; margin: 0 0 8px; line-height: 1.35; }
+        .rg-chunk-single { display: inline; padding: 2px 6px; border-radius: 6px; background: rgba(37, 99, 235, 0.08); }
+        .rg-chunk-single-line { display: block; }
         .rhythm-lane.is-listen-done .rhythm-lane-hint { color: #4ADE80; font-weight: 700; }
         .rhythm-lane.is-listen-done .rhythm-lane-hint::before { content: '✓ '; }
         .rhythm-lane-replay {
@@ -986,10 +988,10 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js?v=20260529"></script>
+<script src="js/pitch-compare.js?v=20260531"></script>
 <script src="js/rhythm-notes-builder.js?v=20260528"></script>
 <script src="js/rhythm-lane.js?v=20260530"></script>
-<script src="js/stress-timeline.js?v=20260530"></script>
+<script src="js/stress-timeline.js?v=20260531"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js?v=20260527"></script>
 <script>
@@ -1509,7 +1511,6 @@
             return false;
         }
         currentTopicIndex = currentChunk.topicIndex;
-        mPhase = 2;
         mSentIdx = 0;
         currentTargetEng = currentChunk.en;
         progress.currentChunkKey = key;
@@ -1552,7 +1553,7 @@
         if (hintLevel >= 2) {
             engHtml = formatEngForDisplay(chunk.en, false, { syllableDots: true, rhythmMarks: true });
             document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
-            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en));
+            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en, { chunkOnly: true }));
         } else if (hintLevel === 1 && typeof ClozeHint !== 'undefined') {
             const wc = chunk.en.split(/\s+/).filter(Boolean).length;
             const lvl = Math.max(1, Math.min(3, Math.ceil(wc / 4)));
@@ -1561,11 +1562,11 @@
                 ClozeHint.renderPlain(chunk.en, lvl) +
                 '</div>';
             document.getElementById('ui-eng-text').className = 'english-text';
-            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en));
+            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en, { chunkOnly: true }));
         } else {
             engHtml = '<div class="eng-hidden">영어 숨김 · 🎤 말한 뒤 Enter</div>';
             document.getElementById('ui-eng-text').className = 'english-text';
-            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en));
+            setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en, { chunkOnly: true }));
         }
 
         updateUI(data.question, korHtml, engHtml, false);
@@ -1579,11 +1580,7 @@
         updateSrsMissionBar();
 
         const qPrimary = document.getElementById('ui-question-primary');
-        if (qPrimary) {
-            const showQ = chunk.role === 'full';
-            qPrimary.style.display = showQ ? 'block' : 'none';
-            if (showQ && data.question) qPrimary.textContent = 'Q. ' + data.question;
-        }
+        if (qPrimary) qPrimary.style.display = 'none';
 
         btnMic.style.display = 'flex';
         btnSkip.style.display = 'flex';
@@ -1638,23 +1635,33 @@
         return '<div class="recall-hint" style="background:#FEF3C7;border-color:#F59E0B">🔁 약점 숙달 · 통과할 때까지 반복</div>';
     }
 
-    function startTormentItem(key) {
-        if (typeof MasteryEngine === 'undefined') return false;
+    function chunkKeyForTormentItem(key) {
+        if (typeof MasteryEngine === 'undefined') return null;
         const p = MasteryEngine.parseKey(key);
-        if (!p) return false;
+        if (!p || !db[p.topicIdx]) return null;
+        rebuildAllChunks();
+        const topicId = db[p.topicIdx].id;
+        if (p.type === 'sent') {
+            const ck = topicId + ':body-' + p.sentIdx;
+            if (ChunkBuilder.findChunk(allChunks, ck)) return ck;
+        }
+        if (p.type === 'full') {
+            const ck = topicId + ':body-0';
+            if (ChunkBuilder.findChunk(allChunks, ck)) return ck;
+        }
+        return null;
+    }
+
+    function startTormentItem(key) {
+        const chunkKey = chunkKeyForTormentItem(key);
+        if (!chunkKey) return false;
         tormentActive = true;
         tormentKey = key;
-        currentTopicIndex = p.topicIdx;
         retryCount = 0;
         stopAllPlayback();
         fbBox.style.display = 'none';
-        if (p.type === 'sent') {
-            mPhase = 3;
-            mSentIdx = p.sentIdx;
-            loadPhase3Sentence(true);
-        } else {
-            runPhase4RecallKeywords(true);
-        }
+        assignCurrentChunk(chunkKey);
+        loadCurrentChunk();
         persistProgress();
         return true;
     }
@@ -2739,11 +2746,6 @@
                 event.preventDefault();
                 if (isRecording) return; // 녹음 중 스페이스 오작동 방지
 
-                if (mPhase === 3 && phase3Substep === 'cloze' && !fbBox.classList.contains('fail')) {
-                    enterPhase3BlindTest();
-                    return;
-                }
-                
                 if (fbBox.classList.contains('pass') || fbBox.classList.contains('fail')) {
                     advanceChunkPractice();
                 } else if (btnSkip.style.display !== 'none') {
@@ -2753,11 +2755,10 @@
             else if (event.code === 'Enter') {
                 event.preventDefault();
                 if (fbBox.classList.contains('fail')) {
-                    loadCurrentChunk();
-                } else if (handlePhase3EnterKey()) {
-                    /* cloze 단계: 더 가리기 또는 blind 전환 */
-                } else {
-                    if(btnMic.style.display !== 'none') btnMic.click();
+                    if (currentChunkKey) loadCurrentChunk();
+                    else retryCurrentPhase();
+                } else if (currentChunkKey || !handlePhase3EnterKey()) {
+                    if (btnMic.style.display !== 'none') btnMic.click();
                 }
             } 
             else if (event.code === 'ArrowLeft') {
@@ -2814,9 +2815,9 @@
         return steps;
     }
 
-    /** 3~6단계: 통문장 회상 — 말을 다 한 뒤 Enter로만 점검 (자동 종료 없음) */
+    /** 청크 체화만 사용 — 구 3~6단계 통문장 회상 모드 비활성 */
     function isRecallManualEndPhase() {
-        return mPhase >= 3;
+        return !currentChunkKey && mPhase >= 3;
     }
 
     function getRecordingMaxWaitMs() {
@@ -3023,36 +3024,10 @@
         }
     }
 
-    /** 스테퍼 번호 클릭 — 숙달·통과 체크 없이 해당 단계로 이동 */
+    /** 구 6단계 스테퍼 — 체화 모드에서는 다음 due 청크로만 이동 */
     function jumpToMissionPhase(targetPhase) {
         if (!elMission || elMission.style.display === 'none' || !db.length) return;
-        const p = Math.max(1, Math.min(6, Number(targetPhase) || 1));
-
-        invalidateMissionNav();
-        stopAllPlayback();
-        stopRecordingSilently();
-        fbBox.style.display = 'none';
-        fbBox.className = 'feedback mission-feedback';
-        setMissionWorkDimmed(false);
-        tormentActive = false;
-        tormentKey = null;
-        retryCount = 0;
-        mSentIdx = 0;
-        currentMissedWordsList = [];
-
-        if (p === 1) runPhase1({ noAutoAdvance: true });
-        else if (p === 2) runPhase2();
-        else if (p === 3) runPhase3RecallKor();
-        else if (p === 4) runPhase4RecallKeywords(false);
-        else if (p === 5) runPhase5RecallQuestion();
-        else if (p === 6) {
-            const bridge =
-                (progress.checkpoint && progress.checkpoint.bridge) ||
-                getTopicBridgeEn(db[currentTopicIndex]) ||
-                null;
-            runPhase6Pivot(bridge);
-        }
-        persistProgress();
+        advanceChunkPractice();
     }
 
     function setMissionWorkDimmed(on) {
@@ -3087,16 +3062,12 @@
         const qRef = document.getElementById('ui-question-box');
         const refPanel = document.getElementById('mission-reference');
         const goalEl = document.getElementById('mission-phase-goal');
-        if (goalEl) {
+        if (goalEl && !currentChunkKey) {
             if (mPhase === 3) updateMissionPhaseGoalText();
             else goalEl.textContent = PHASE_MISSION_GOALS[mPhase] || '';
         }
 
-        const showQuestionCue = mPhase === 5 || mPhase === 6;
-        if (qPrimary) {
-            qPrimary.style.display = showQuestionCue ? 'block' : 'none';
-            if (showQuestionCue && question) qPrimary.textContent = 'Q. ' + question;
-        }
+        if (qPrimary) qPrimary.style.display = 'none';
         if (qRef) qRef.style.display = 'none';
     }
 
@@ -3492,6 +3463,7 @@
                         userWavBlob: recBlobs.latest,
                         refText: refText,
                         words: words,
+                        chunkOnly: !!currentChunkKey,
                     });
                     if (!analysis.error) {
                         pendingRhythmAnalysis = analysis;
@@ -3652,32 +3624,20 @@
         stopRecordingSilently();
         fbBox.style.display = 'none';
         fbBox.className = 'feedback';
-
-        if (mPhase === 2) {
-            if (mSentIdx > 0) {
-                mSentIdx--;
-                loadCurrentSentence();
-            } else {
-                runPhase1({ noAutoAdvance: true });
+        if (!allChunks.length) rebuildAllChunks();
+        if (!currentChunkKey || !allChunks.length) return;
+        let idx = -1;
+        for (let i = 0; i < allChunks.length; i++) {
+            if (allChunks[i].key === currentChunkKey) {
+                idx = i;
+                break;
             }
-        } else if (mPhase === 3) {
-            if (mSentIdx > 0) {
-                mSentIdx--;
-                loadPhase3Sentence(tormentActive);
-            } else {
-                mPhase = 2;
-                mSentIdx = getTopicSentenceCount(db[currentTopicIndex]) - 1;
-                loadCurrentSentence();
-            }
-        } else if (mPhase === 4) {
-            mSentIdx = getTopicSentenceCount(db[currentTopicIndex]) - 1;
-            loadPhase3Sentence(false);
-        } else if (mPhase === 5) {
-            runPhase4RecallKeywords();
-        } else if (mPhase === 6) {
-            runPhase5RecallQuestion();
         }
-        persistProgress();
+        if (idx > 0) {
+            assignCurrentChunk(allChunks[idx - 1].key);
+            loadCurrentChunk();
+            persistProgress();
+        }
     }
 
     function forceNextPhase() {
@@ -3705,21 +3665,7 @@
         }
         tormentActive = false;
         tormentKey = null;
-        const nextTopic = currentTopicIndex + 1;
-        if (nextTopic < db.length) {
-            currentTopicIndex = nextTopic;
-            progress.checkpoint = { topicIndex: nextTopic, phase: 1, sentIdx: 0, bridge: null };
-            persistProgress();
-            runPhase1();
-        } else {
-            const newCount = (progress.fullRunCount || 0) + 1;
-            progress = defaultProgress();
-            progress.fullRunCount = newCount;
-            progress.fullRunCompleted = true;
-            persistProgress();
-            alert('전체 스크립트를 마쳤습니다.');
-            goHome();
-        }
+        advanceChunkPractice();
     }
 
     function stressHtmlToSyllableDisplay(html, useDots) {
@@ -3963,7 +3909,20 @@
         return '<div class="reading-chunk">' + html + '</div>';
     }
 
-    function buildReadingGuideHtml(sentEng) {
+    function buildReadingGuideHtml(sentEng, options) {
+        options = options || {};
+        const text =
+            typeof sentEng === 'string' ? sentEng : sentEng && sentEng.en ? sentEng.en : '';
+        if (
+            options.chunkOnly &&
+            typeof ReadingGuide !== 'undefined' &&
+            ReadingGuide.buildPracticeChunkGuideHtml
+        ) {
+            return (
+                '<div class="reading-guide-title">📖 이 청크 · 강세</div>' +
+                ReadingGuide.buildPracticeChunkGuideHtml(text, stressDict)
+            );
+        }
         if (typeof ReadingGuide !== 'undefined' && ReadingGuide.buildReadingGuideHtml) {
             const sent = typeof sentEng === 'string' ? { en: sentEng } : sentEng;
             return ReadingGuide.buildReadingGuideHtml(sent, stressDict);
@@ -4151,6 +4110,42 @@
             }
         }
 
+        if (
+            currentChunkKey &&
+            wasAzure &&
+            typeof AzureSpeech !== 'undefined'
+        ) {
+            fbBox.style.display = 'block';
+            fbBox.className = 'feedback';
+            fbRes.innerHTML = '<div class="listening-hint">Azure 채점 중… (Short Audio)</div>';
+            window._azureAssessTrimNote = '';
+            window._recordingLeadingTrimNote = '';
+            try {
+                let wav = await stopMediaRecorderAndGetWav();
+                let refForAzure = (currentTargetEng || '').replace(/\s+/g, ' ').trim();
+                if (!refForAzure) {
+                    fbRes.innerHTML = '채점할 영어 문장이 없습니다. 페이지를 새로고침 후 다시 시도하세요.';
+                    return;
+                }
+                const assessment = await AzureSpeech.assessWavBlob(wav, refForAzure);
+                if (!assessment || !hasRecognizedSpeech(assessment.text, assessment.words)) {
+                    fbBox.className = 'feedback fail';
+                    fbRes.innerHTML = '음성이 감지되지 않았습니다. Enter로 다시 시도하세요.';
+                    lastAssessWavBlob = null;
+                    return;
+                }
+                lastAssessWavBlob = wav;
+                noteAssessWavForPitch(wav);
+                await evaluateAnswerFromAzure(assessment);
+            } catch (e) {
+                console.warn('Short Audio assess failed', e);
+                const detail = (e && e.message) ? e.message : String(e);
+                fbBox.className = 'feedback fail';
+                fbRes.innerHTML = 'Azure 채점 실패: ' + escapeHtml(detail);
+            }
+            return;
+        }
+
         if (wasAzure && evalPhase >= 2 && evalPhase <= 6 && typeof AzureSpeech !== 'undefined') {
             fbBox.style.display = 'block';
             fbBox.className = 'feedback';
@@ -4212,6 +4207,11 @@
             return;
         }
 
+        if (currentChunkKey) {
+            evaluateAnswer(textToEval);
+            return;
+        }
+
         if (evalPhase === 2) {
             evaluateAnswer(textToEval);
         } else if (evalPhase >= 3) {
@@ -4234,7 +4234,11 @@
         currentInterim = '';
         currentMissedWordsList = [];
 
-        useAzureMic = typeof AzureSpeech !== 'undefined' && AzureSpeech.shouldUseAzureForPhase(mPhase);
+        useAzureMic =
+            typeof AzureSpeech !== 'undefined' &&
+            AzureSpeech.isAzureReady &&
+            AzureSpeech.isAzureReady() &&
+            (!!currentChunkKey || AzureSpeech.shouldUseAzureForPhase(mPhase));
             recordingSaveKey = getRecordingKey();
             recordStartedAt = Date.now();
 

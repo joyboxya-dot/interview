@@ -56,7 +56,9 @@
 
     function planFromText(refText, refDur, words) {
         if (global.PitchCompare && global.PitchCompare.buildStressedWordPlan) {
-            return global.PitchCompare.buildStressedWordPlan(refText, refDur, words);
+            return global.PitchCompare.buildStressedWordPlan(refText, refDur, words, {
+                chunkOnly: true,
+            });
         }
         return [{ beatIndex: 1, word: refText, tCenter: refDur / 2, t0: 0, t1: refDur }];
     }
@@ -70,6 +72,7 @@
                 modelPts: modelPts,
                 plan: plan,
                 slots: slots,
+                chunkOnly: true,
             });
         }
         return [];

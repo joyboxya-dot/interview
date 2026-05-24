@@ -75,6 +75,28 @@
         return best;
     }
 
+    /** 체화 카드 1장 = 박자 1개 (쉼표·문단으로 쪼개지 않음) */
+    function listStressedWordsForPracticeChunk(refText) {
+        const dict = getStressDict();
+        const tokens = String(refText || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        if (!tokens.length) return [];
+        const picked = pickStressedTokenInGroup(tokens);
+        if (!picked) return [];
+        const clean = tokenCleanAlpha(picked);
+        if (!clean) return [];
+        return [
+            {
+                word: picked,
+                clean: clean,
+                stressScore: dict && dict[clean] ? 3 : 2,
+            },
+        ];
+    }
+
+    /** 읽기 지도용 — 쉼표·절 단위로 여러 박자 */
     function listStressedWordsFromText(refText) {
         const items = [];
         const seen = new Set();
@@ -104,17 +126,17 @@
             });
         });
         if (!items.length) {
-            const all = String(refText || '')
-                .trim()
-                .split(/\s+/)
-                .filter(Boolean);
-            const picked = pickStressedTokenInGroup(all);
-            if (picked) {
-                const clean = tokenCleanAlpha(picked);
-                items.push({ word: picked, clean: clean, stressScore: 2 });
-            }
+            return listStressedWordsForPracticeChunk(refText);
         }
         return items;
+    }
+
+    function stressedItemsForRefText(refText, opts) {
+        opts = opts || {};
+        if (opts.chunkOnly) {
+            return listStressedWordsForPracticeChunk(refText);
+        }
+        return listStressedWordsFromText(refText);
     }
 
     function cleanAzureWord(word) {
@@ -248,7 +270,7 @@
             };
         }
 
-        const cacheKey = 'v2|' + safe;
+        const cacheKey = 'v3-chunk|' + safe;
         if (modelListenTimingCache[cacheKey]) {
             return modelListenTimingCache[cacheKey];
         }
@@ -278,7 +300,7 @@
             console.warn('buildModelListenTiming', e);
         }
 
-        let plan = buildStressedWordPlan(safe, speechDur, []);
+        let plan = buildStressedWordPlan(safe, speechDur, [], { chunkOnly: true });
         if (trimSamples && trimSamples.length) {
             plan = alignPlanToEnvelope(plan, trimSamples, trimRate, speechDur);
         }
@@ -306,8 +328,9 @@
     }
 
     /** 강세 단어 시점 — Azure offset 우선, 없으면 길이 가중 + envelope 정렬(듣기 시) */
-    function buildStressedWordPlan(refText, refDur, azureWords) {
-        const items = listStressedWordsFromText(refText);
+    function buildStressedWordPlan(refText, refDur, azureWords, opts) {
+        opts = opts || {};
+        const items = stressedItemsForRefText(refText, opts);
         const refDurSafe = refDur || 0.1;
         if (!items.length) {
             return [
@@ -1205,7 +1228,9 @@
         const shiftedWords = sortWordsByOffset(
             shiftWordOffsets(opts.words || [], latestData.trimOffsetSec)
         );
-        const plan = buildStressedWordPlan(refText, refDur, shiftedWords);
+        const plan = buildStressedWordPlan(refText, refDur, shiftedWords, {
+            chunkOnly: !!opts.chunkOnly,
+        });
         const alignCompare = true;
         const slots = evaluateStressSlots(
             plan,

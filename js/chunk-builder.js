@@ -49,6 +49,7 @@
             topic.chunks.forEach(function (raw, i) {
                 const en = String(raw.en || '').trim();
                 if (!en) return;
+                if (String(raw.role || 'body') === 'full') return;
                 const chunkId = String(raw.id || raw.chunkId || 'c' + i);
                 order = pushChunk(
                     out,
@@ -100,18 +101,7 @@
         sents.forEach(function (s) {
             if (s[1]) fullParts.push(s[1]);
         });
-        if (fullParts.length > 1) {
-            pushChunk(
-                out,
-                topic,
-                topicIndex,
-                'full',
-                'full',
-                String(topic.kor || '').trim(),
-                fullParts.join(' '),
-                order
-            );
-        }
+        /* 통문장(full) 청크는 생성하지 않음 — 체화는 bridge/body/filler/glue 단위만 */
 
         return out;
     }
@@ -120,7 +110,7 @@
         const all = [];
         (topics || []).forEach(function (topic, topicIndex) {
             buildChunksForTopic(topic, topicIndex).forEach(function (c) {
-                all.push(c);
+                if (c.role !== 'full') all.push(c);
             });
         });
         return all;

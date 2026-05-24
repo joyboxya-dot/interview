@@ -134,10 +134,23 @@
         return '<div class="rg-chunks-line rg-visual-only">' + body + '</div>';
     }
 
+    /** 체화 카드 1장 — 절·문단 분할 없이 en 전체를 한 덩어리 */
+    function buildPracticeChunkGuideHtml(chunkEn, stressDict) {
+        const text = String(chunkEn || '').trim();
+        if (!text) return '';
+        return (
+            '<div class="rg-chunks-line rg-visual-only rg-chunk-single-line">' +
+            '<span class="rg-chunk rg-chunk-single">' +
+            buildChunkRichHtml(text, stressDict) +
+            '</span></div>'
+        );
+    }
+
     global.ReadingGuide = {
         getChunks: getChunks,
         autoChunksFromEn: autoChunksFromEn,
         buildReadingGuideHtml: buildReadingGuideHtml,
+        buildPracticeChunkGuideHtml: buildPracticeChunkGuideHtml,
         buildChunksHtml: buildChunksHtml,
     };
 })(window);

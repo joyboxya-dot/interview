@@ -97,7 +97,8 @@
                 plan = global.PitchCompare.buildStressedWordPlan(
                     refText,
                     refDur,
-                    opts.azureWords || opts.words || []
+                    opts.azureWords || opts.words || [],
+                    { chunkOnly: opts.chunkOnly !== false }
                 );
             } else {
                 plan = [
