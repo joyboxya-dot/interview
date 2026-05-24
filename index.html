@@ -839,7 +839,7 @@
 <script src="js/comic-generator-fallback.js"></script>
 <script src="js/comic-hint.js"></script>
 <script src="js/comic-generator.js"></script>
-<script src="js/audio-wav.js?v=20260521b"></script>
+<script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
 <script src="js/pitch-compare.js?v=20260521c"></script>
 <script src="js/azure-speech.js"></script>
@@ -1734,8 +1734,8 @@
     let reviewReturnView = 'dash';
     const RECORDING_IDB_NAME = 'interviewRecordingArchive';
     const RECORDING_IDB_STORE = 'slots';
-    /** 스페이스/Enter로 녹음 시작 시 키 입력 소리 제거 */
-    const RECORDING_LEADING_TRIM_SEC = 1;
+    /** 앞쪽 무음·키 소리만 제거 (말하기 시작 전까지, 최대 이 길이만) */
+    const RECORDING_LEADING_TRIM_MAX_SEC = 1.2;
 
     const elDash = document.getElementById('dashboard');
     const elMission = document.getElementById('mission-area');
@@ -2273,10 +2273,15 @@
                 const blob = new Blob(chunks, { type: mime });
                 if (!blob.size) throw new Error('empty_audio');
                 let wav = await AudioWav.blobTo16kMonoWav(blob);
-                if (AudioWav.trimWavLeadingSeconds && RECORDING_LEADING_TRIM_SEC > 0) {
-                    wav = await AudioWav.trimWavLeadingSeconds(wav, RECORDING_LEADING_TRIM_SEC);
-                    window._recordingLeadingTrimNote =
-                        '키 입력 소리 제거 · 앞 ' + RECORDING_LEADING_TRIM_SEC + '초 잘림';
+                if (AudioWav.trimWavLeadingSilence) {
+                    const trimmed = await AudioWav.trimWavLeadingSilence(wav, {
+                        maxTrimSec: RECORDING_LEADING_TRIM_MAX_SEC,
+                    });
+                    wav = trimmed.blob;
+                    if (trimmed.trimmedSec > 0.04) {
+                        window._recordingLeadingTrimNote =
+                            '앞쪽 무음·키 소리 ' + trimmed.trimmedSec.toFixed(2) + 's 제거';
+                    }
                 }
                 return wav;
             }

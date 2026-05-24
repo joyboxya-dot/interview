@@ -127,25 +127,74 @@
         return new Blob([out], { type: 'audio/wav' });
     }
 
-    /** 앞쪽 N초 제거 (스페이스·Enter로 녹음 시작할 때 키 소리 등) */
-    async function trimWavLeadingSeconds(wavBlob, trimSec) {
-        const sec = typeof trimSec === 'number' ? trimSec : 0;
-        if (sec <= 0) return wavBlob;
-        const ab = await wavBlob.arrayBuffer();
+    function readWavPcm16(ab) {
         const view = new DataView(ab);
-        if (ab.byteLength < 44) return wavBlob;
+        if (ab.byteLength < 44) return null;
+        if (
+            String.fromCharCode(view.getUint8(8), view.getUint8(9), view.getUint8(10), view.getUint8(11)) !==
+            'WAVE'
+        ) {
+            return null;
+        }
+        const sampleRate = view.getUint32(24, true);
+        const dataSize = view.getUint32(40, true);
+        const numSamples = Math.floor(dataSize / 2);
+        const samples = new Float32Array(numSamples);
+        for (let i = 0; i < numSamples; i++) {
+            samples[i] = view.getInt16(44 + i * 2, true) / 32768;
+        }
+        return { samples: samples, sampleRate: sampleRate, dataSize: dataSize };
+    }
+
+    function frameRms(samples, start, frameSize) {
+        let sum = 0;
+        const end = Math.min(start + frameSize, samples.length);
+        const n = end - start;
+        if (n <= 0) return 0;
+        for (let i = start; i < end; i++) {
+            sum += samples[i] * samples[i];
+        }
+        return Math.sqrt(sum / n);
+    }
+
+    /** 말소리 시작 전까지(무음·키 클릭)만 제거 — 고정 N초 자르지 않음 */
+    function findLeadingSpeechSample(samples, sampleRate, opts) {
+        opts = opts || {};
+        const frameSize = Math.max(64, Math.floor(sampleRate * 0.02));
+        const hop = Math.max(16, Math.floor(sampleRate * 0.005));
+        const gate = opts.gate != null ? opts.gate : 0.01;
+        const needFrames = opts.needFrames != null ? opts.needFrames : 4;
+
+        let streak = 0;
+        let onset = -1;
+        for (let start = 0; start + frameSize <= samples.length; start += hop) {
+            const rms = frameRms(samples, start, frameSize);
+            if (rms >= gate) {
+                if (streak === 0) onset = start;
+                streak++;
+                if (streak >= needFrames) {
+                    return onset;
+                }
+            } else {
+                streak = 0;
+                onset = -1;
+            }
+        }
+        return -1;
+    }
+
+    function sliceWavFromSample(ab, skipSamples) {
+        const view = new DataView(ab);
         const byteRate = view.getUint32(28, true);
         const dataSize = view.getUint32(40, true);
-        if (!byteRate || dataSize < 4) return wavBlob;
-
-        let skipBytes = Math.floor(byteRate * sec);
+        let skipBytes = skipSamples * 2;
         skipBytes -= skipBytes % 2;
-        if (skipBytes <= 0) return wavBlob;
-        if (skipBytes >= dataSize - 64) return wavBlob;
-
+        if (skipBytes <= 0) return { blob: new Blob([ab], { type: 'audio/wav' }), trimmedSec: 0 };
+        if (skipBytes >= dataSize - 64) {
+            return { blob: new Blob([ab], { type: 'audio/wav' }), trimmedSec: 0 };
+        }
         const newDataSize = dataSize - skipBytes;
-        const newSize = 44 + newDataSize;
-        const out = new ArrayBuffer(newSize);
+        const out = new ArrayBuffer(44 + newDataSize);
         const outView = new DataView(out);
         const srcBytes = new Uint8Array(ab);
         const dstBytes = new Uint8Array(out);
@@ -153,14 +202,51 @@
         outView.setUint32(4, 36 + newDataSize, true);
         outView.setUint32(40, newDataSize, true);
         dstBytes.set(srcBytes.slice(44 + skipBytes, 44 + dataSize), 44);
-        return new Blob([out], { type: 'audio/wav' });
+        return { blob: new Blob([out], { type: 'audio/wav' }), trimmedSec: skipBytes / byteRate };
+    }
+
+    /**
+     * 앞쪽 무음·키 소리만 제거 (말하기 시작 직전까지).
+     * @returns {Promise<{blob: Blob, trimmedSec: number}>}
+     */
+    async function trimWavLeadingSilence(wavBlob, options) {
+        options = options || {};
+        const maxTrimSec = options.maxTrimSec != null ? options.maxTrimSec : 1.2;
+        const padBeforeSpeechSec = options.padBeforeSpeechSec != null ? options.padBeforeSpeechSec : 0.03;
+        const fallbackTrimSec = options.fallbackTrimSec != null ? options.fallbackTrimSec : 0.12;
+
+        const ab = await wavBlob.arrayBuffer();
+        const pcm = readWavPcm16(ab);
+        if (!pcm || !pcm.samples.length) {
+            return { blob: wavBlob, trimmedSec: 0 };
+        }
+
+        const speechOnset = findLeadingSpeechSample(pcm.samples, pcm.sampleRate, options);
+        let skipSamples = 0;
+
+        if (speechOnset > 0) {
+            skipSamples = Math.max(
+                0,
+                speechOnset - Math.floor(pcm.sampleRate * padBeforeSpeechSec)
+            );
+        } else if (speechOnset === 0) {
+            skipSamples = 0;
+        } else {
+            skipSamples = Math.floor(pcm.sampleRate * fallbackTrimSec);
+        }
+
+        const maxSkip = Math.floor(pcm.sampleRate * maxTrimSec);
+        skipSamples = Math.min(skipSamples, maxSkip);
+
+        const sliced = sliceWavFromSample(ab, skipSamples);
+        return sliced;
     }
 
     global.AudioWav = {
         blobTo16kMonoWav: blobTo16kMonoWav,
         getWavDurationSec: getWavDurationSec,
         trimWavToMaxSeconds: trimWavToMaxSeconds,
-        trimWavLeadingSeconds: trimWavLeadingSeconds,
+        trimWavLeadingSilence: trimWavLeadingSilence,
         TARGET_SAMPLE_RATE: TARGET_RATE,
     };
 })(window);
