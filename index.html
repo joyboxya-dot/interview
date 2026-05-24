@@ -660,23 +660,34 @@
         }
         .stress-tl-playhead {
             position: absolute; top: 6px; bottom: 6px; width: 2px; margin-left: -1px;
-            background: #2563EB; border-radius: 1px; left: 0; transition: left 0.05s linear;
-            pointer-events: none; z-index: 3;
+            background: #2563EB; border-radius: 1px; left: 0;
+            pointer-events: none; z-index: 3; will-change: left;
         }
         .stress-tl-slots { position: absolute; inset: 0; }
         .stress-tl-slot {
             position: absolute; top: 50%; transform: translate(-50%, -50%);
             text-align: center; min-width: 44px; z-index: 2;
-            transition: opacity 0.15s, transform 0.15s;
+            transition: opacity 0.25s ease;
         }
         .stress-tl-slot .stress-tl-num { display: block; font-size: 11px; color: #94A3B8; font-weight: 800; }
         .stress-tl-slot .stress-tl-word {
-            display: block; font-size: 13px; font-weight: 800; color: #64748B;
-            letter-spacing: 0.02em;
+            display: inline-block; font-size: 13px; font-weight: 800; color: #64748B;
+            letter-spacing: 0.02em; transform-origin: center bottom;
+            transform: scale(calc(1 + 0.18 * var(--stress-prox, 0)));
+            transition: transform 0.08s ease-out, color 0.2s ease, font-size 0.2s ease;
+        }
+        .stress-tl-word.is-pulsing {
+            animation: stress-word-pulse 0.52s cubic-bezier(0.34, 1.35, 0.64, 1);
+        }
+        @keyframes stress-word-pulse {
+            0% { transform: scale(1); }
+            38% { transform: scale(1.34); }
+            72% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
         .stress-tl-slot.is-past { opacity: 0.45; }
         .stress-tl-slot.is-past .stress-tl-word { color: #94A3B8; font-weight: 600; }
-        .stress-tl-slot.is-active { transform: translate(-50%, -50%) scale(1.08); z-index: 4; }
+        .stress-tl-slot.is-active { z-index: 4; }
         .stress-tl-slot.is-active .stress-tl-num { color: #2563EB; }
         .stress-tl-slot.is-active .stress-tl-word {
             color: #0F172A; font-size: 15px;
@@ -900,7 +911,7 @@
 <script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
 <script src="js/pitch-compare.js?v=20260525"></script>
-<script src="js/stress-timeline.js?v=20260525"></script>
+<script src="js/stress-timeline.js?v=20260526"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>

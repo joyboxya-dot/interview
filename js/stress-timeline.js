@@ -7,6 +7,9 @@
     let listenRefText = '';
     let listenRefDur = 1;
     let listenRaf = null;
+    let animRoot = null;
+    let displayRatio = 0;
+    let targetRatio = 0;
 
     function escapeHtml(s) {
         return String(s)
@@ -147,15 +150,7 @@
             cancelAnimationFrame(listenRaf);
             listenRaf = null;
         }
-    }
-
-    function setActiveSlot(root, index) {
-        if (!root) return;
-        root.querySelectorAll('.stress-tl-slot').forEach(function (el, i) {
-            el.classList.remove('is-active', 'is-past');
-            if (i < index) el.classList.add('is-past');
-            if (i === index) el.classList.add('is-active');
-        });
+        animRoot = null;
     }
 
     function setPlayhead(root, ratio) {
@@ -168,21 +163,88 @@
 
     function resetTimelineVisual(root) {
         if (!root) return;
+        displayRatio = 0;
+        targetRatio = 0;
         setPlayhead(root, 0);
         root.querySelectorAll('.stress-tl-slot').forEach(function (el) {
             el.classList.remove('is-active', 'is-past');
+            el.style.removeProperty('--stress-prox');
+            delete el.dataset.pulseAt;
+            const word = el.querySelector('.stress-tl-word');
+            if (word) word.classList.remove('is-pulsing');
         });
+    }
+
+    function triggerWordPulse(el) {
+        const word = el && el.querySelector('.stress-tl-word');
+        if (!word) return;
+        word.classList.remove('is-pulsing');
+        void word.offsetWidth;
+        word.classList.add('is-pulsing');
+        word.addEventListener(
+            'animationend',
+            function onEnd() {
+                word.classList.remove('is-pulsing');
+                word.removeEventListener('animationend', onEnd);
+            },
+            { once: true }
+        );
+    }
+
+    function syncSlotsAndPulse(root, plan, t, dur) {
+        if (!root || !plan || !plan.length) return;
+        const slots = root.querySelectorAll('.stress-tl-slot');
+        let activeIdx = 0;
+        for (let i = 0; i < plan.length; i++) {
+            if ((plan[i].tCenter || 0) <= t + 0.04) activeIdx = i;
+        }
+        const slotSpan = dur / Math.max(plan.length, 1);
+
+        plan.forEach(function (slot, i) {
+            const el = slots[i];
+            if (!el) return;
+            const center = slot.tCenter || 0;
+            const span = Math.max(0.1, ((slot.t1 || 0) - (slot.t0 || 0)) * 0.55 || slotSpan * 0.55);
+            const dist = Math.abs(t - center);
+            const prox = Math.max(0, Math.min(1, 1 - dist / span));
+            el.style.setProperty('--stress-prox', prox.toFixed(3));
+            el.classList.toggle('is-past', i < activeIdx);
+            el.classList.toggle('is-active', i === activeIdx);
+
+            if (t >= center - 0.02 && t < center + span * 0.4 && !el.dataset.pulseAt) {
+                el.dataset.pulseAt = '1';
+                triggerWordPulse(el);
+            }
+            if (t > center + span * 0.5) {
+                delete el.dataset.pulseAt;
+            }
+        });
+    }
+
+    function startPlayheadLoop(root) {
+        clearListenAnim();
+        animRoot = root;
+        displayRatio = 0;
+        targetRatio = 0;
+
+        function frame() {
+            if (!animRoot) return;
+            const diff = targetRatio - displayRatio;
+            if (Math.abs(diff) > 0.0004) {
+                displayRatio += diff * (diff > 0.12 ? 0.28 : 0.18);
+            } else {
+                displayRatio = targetRatio;
+            }
+            setPlayhead(animRoot, displayRatio);
+            listenRaf = requestAnimationFrame(frame);
+        }
+        listenRaf = requestAnimationFrame(frame);
     }
 
     function syncTimelineToTime(root, plan, t, dur) {
         if (!root || !plan || !plan.length || !dur) return;
-        const ratio = t / dur;
-        setPlayhead(root, ratio);
-        let idx = 0;
-        for (let i = 0; i < plan.length; i++) {
-            if ((plan[i].tCenter || 0) <= t + 0.05) idx = i;
-        }
-        setActiveSlot(root, idx);
+        targetRatio = Math.max(0, Math.min(1, t / dur));
+        syncSlotsAndPulse(root, plan, t, dur);
     }
 
     async function estimateModelDuration(refText) {
@@ -204,20 +266,30 @@
             listenRoot = root;
             bindReplay(root, refText);
             resetTimelineVisual(root);
+            startPlayheadLoop(root);
         }
 
         function onTime(current, duration) {
             if (root && duration > 0) {
                 listenRefDur = duration;
+                if (!listenPlan || !listenPlan.length) {
+                    listenPlan = planFromText(refText, duration, []);
+                }
                 syncTimelineToTime(root, listenPlan, current, duration);
             }
         }
 
         function finish() {
             clearListenAnim();
+            targetRatio = 1;
             if (root) {
                 setPlayhead(root, 1);
-                setActiveSlot(root, listenPlan.length);
+                root.querySelectorAll('.stress-tl-slot').forEach(function (el) {
+                    el.classList.add('is-past');
+                    el.classList.remove('is-active');
+                    el.style.removeProperty('--stress-prox');
+                    delete el.dataset.pulseAt;
+                });
             }
             if (onDone) onDone();
         }
@@ -249,14 +321,18 @@
             return;
         }
         const autoPlay = options.autoPlay !== false;
-        Promise.resolve(options.refDur || estimateModelDuration(refText)).then(function (dur) {
-            listenRefDur = dur;
-            listenPlan = planFromText(refText, listenRefDur, options.words || []);
-            container.innerHTML = renderTimelineShell('listen', listenPlan, null);
-            listenRoot = container;
-            bindReplay(container, refText);
-            if (autoPlay) playModelSynced(refText, container, options.onEnd);
-        });
+        if (!autoPlay) {
+            Promise.resolve(options.refDur || estimateModelDuration(refText)).then(function (dur) {
+                listenRefDur = dur;
+                listenPlan = planFromText(refText, listenRefDur, options.words || []);
+                container.innerHTML = renderTimelineShell('listen', listenPlan, null);
+                listenRoot = container;
+                bindReplay(container, refText);
+                resetTimelineVisual(container);
+            });
+            return;
+        }
+        playModelSynced(refText, container, options.onEnd);
     }
 
     function buildFeedbackHtml(analysis) {
@@ -279,9 +355,9 @@
         bindReplay(container, analysis.refText);
     }
 
+    /** 타임라인 애니만 정리 — stopAllPlayback 호출 금지(무한 재귀 방지) */
     function stop() {
         clearListenAnim();
-        if (typeof global.stopAllPlayback === 'function') global.stopAllPlayback();
     }
 
     global.StressTimeline = {
