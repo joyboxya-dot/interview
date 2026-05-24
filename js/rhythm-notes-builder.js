@@ -59,6 +59,9 @@
                 semi: semi,
                 status: st,
                 slotIndex: idx,
+                beatIndex: slot.beatIndex != null ? slot.beatIndex : idx + 1,
+                word: slot.word || '',
+                clean: slot.clean || '',
             });
 
             if (next && nextT - startTime > 0.42) {

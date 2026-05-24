@@ -122,9 +122,29 @@
         }
     }
 
+    function rhythmLaneCallbacks() {
+        return {
+            onStressHit: function (note) {
+                if (
+                    note &&
+                    note.stress &&
+                    typeof global.highlightRhythmStressWord === 'function'
+                ) {
+                    global.highlightRhythmStressWord(note.clean, note.beatIndex, note.word);
+                }
+            },
+            onStressReset: function () {
+                if (typeof global.clearRhythmStressWordHighlight === 'function') {
+                    global.clearRhythmStressWordHighlight();
+                }
+            },
+        };
+    }
+
     function mountLaneOnContainer(container, options) {
         if (!container || !global.RhythmLane || !global.RhythmLane.createLane) return null;
         destroyLane();
+        options = Object.assign({}, rhythmLaneCallbacks(), options || {});
         activeLane = global.RhythmLane.createLane(container, options);
         return activeLane;
     }

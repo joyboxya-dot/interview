@@ -757,6 +757,41 @@
         .rhythm-coach-row.is-late { color: #FCD34D; }
         .rhythm-coach-row.is-low, .rhythm-coach-row.is-weak { color: #FCA5A5; }
         .rhythm-coach-row.is-high { color: #E9D5FF; }
+        .rhythm-word-pop {
+            position: absolute; left: 20%; top: 50%; z-index: 12;
+            transform: translate(-50%, -50%) scale(0.5);
+            pointer-events: none; opacity: 0;
+            font-size: 22px; font-weight: 900; letter-spacing: 0.02em;
+            color: #F8FAFC; text-shadow: 0 0 20px rgba(56, 189, 248, 0.95), 0 2px 8px rgba(0, 0, 0, 0.45);
+            white-space: nowrap;
+        }
+        .rhythm-word-pop.is-active {
+            animation: rhythm-word-pop-float 0.62s cubic-bezier(0.34, 1.35, 0.64, 1) forwards;
+        }
+        @keyframes rhythm-word-pop-float {
+            0% { opacity: 0; transform: translate(-50%, -30%) scale(0.55); }
+            28% { opacity: 1; transform: translate(-50%, -58%) scale(1.18); }
+            62% { opacity: 1; transform: translate(-50%, -52%) scale(1.05); }
+            100% { opacity: 0; transform: translate(-50%, -68%) scale(0.92); }
+        }
+        .english-text .rhythm-word-token {
+            display: inline-block;
+            border-radius: 4px;
+            transition: transform 0.12s ease, color 0.12s ease, background 0.12s ease;
+        }
+        .english-text .rhythm-word-token.is-rhythm-pop {
+            animation: rhythm-cue-word-pop 0.58s cubic-bezier(0.34, 1.3, 0.64, 1);
+            background: rgba(37, 99, 235, 0.14);
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45);
+        }
+        .english-text .rhythm-word-token.is-rhythm-pop .syllable-stress {
+            color: #1D4ED8;
+        }
+        @keyframes rhythm-cue-word-pop {
+            0% { transform: scale(1); }
+            32% { transform: scale(1.14); }
+            100% { transform: scale(1); }
+        }
         .pa-viz + .missed-word-btns { margin-top: 10px; }
         .pa-err-none, .pa-tl-word.pa-err-none { background: #22C55E; }
         .pa-err-mis, .pa-tl-word.pa-err-mis, .pa-word-card.pa-err-mis .pa-word-badge { background: #FEE2E2; color: #991B1B; }
@@ -953,8 +988,8 @@
 <script src="js/pronunciation-viz.js"></script>
 <script src="js/pitch-compare.js?v=20260529"></script>
 <script src="js/rhythm-notes-builder.js?v=20260528"></script>
-<script src="js/rhythm-lane.js?v=20260528"></script>
-<script src="js/stress-timeline.js?v=20260529"></script>
+<script src="js/rhythm-lane.js?v=20260530"></script>
+<script src="js/stress-timeline.js?v=20260530"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js?v=20260527"></script>
 <script>
@@ -1500,6 +1535,9 @@
         setMissionWorkDimmed(false);
         currentMissedWordsList = [];
         fbBtnGroup.innerHTML = '';
+        if (typeof clearRhythmStressWordHighlight === 'function') {
+            clearRhythmStressWordHighlight();
+        }
 
         document.getElementById('ui-topic-title').innerText = data.title;
         document.getElementById('ui-bridge-box').style.display = 'none';
@@ -1512,7 +1550,7 @@
 
         let engHtml = '';
         if (hintLevel >= 2) {
-            engHtml = formatEngForDisplay(chunk.en, false, { syllableDots: true });
+            engHtml = formatEngForDisplay(chunk.en, false, { syllableDots: true, rhythmMarks: true });
             document.getElementById('ui-eng-text').className = 'english-text eng-phase2-stress';
             setReadingGuideVisible(true, buildReadingGuideHtml(chunk.en));
         } else if (hintLevel === 1 && typeof ClozeHint !== 'undefined') {
@@ -3765,14 +3803,77 @@
     function formatEngForDisplay(text, multiSentence, options) {
         const opts = options || {};
         let t = multiSentence ? text : addPauseSlashes(text);
-        return applyStress(t, !!opts.syllableDots);
+        return applyStress(t, !!opts.syllableDots, !!opts.rhythmMarks);
     }
 
-    function applyStress(text, useDots) {
+    function applyStress(text, useDots, rhythmMarks) {
         return text.split(/\s+/).map(function (w) {
-            return renderStressedWordToken(w, useDots);
+            const inner = renderStressedWordToken(w, useDots);
+            if (!rhythmMarks) return inner;
+            const m = w.match(/[A-Za-z]+/);
+            const clean = m ? m[0].toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+            if (!clean) return inner;
+            return (
+                '<span class="rhythm-word-token" data-clean="' +
+                escapeHtml(clean) +
+                '">' +
+                inner +
+                '</span>'
+            );
         }).join(' ');
     }
+
+    let rhythmStressPopSeq = 0;
+
+    function clearRhythmStressWordHighlight() {
+        const eng = document.getElementById('ui-eng-text');
+        if (!eng) return;
+        eng.querySelectorAll('.rhythm-word-token.is-rhythm-pop').forEach(function (el) {
+            el.classList.remove('is-rhythm-pop');
+        });
+    }
+
+    window.clearRhythmStressWordHighlight = clearRhythmStressWordHighlight;
+
+    function highlightRhythmStressWord(clean, beatIndex, word) {
+        const eng = document.getElementById('ui-eng-text');
+        if (!eng) return;
+        const key = String(clean || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+        if (!key) return;
+
+        clearRhythmStressWordHighlight();
+        const matches = eng.querySelectorAll('.rhythm-word-token[data-clean="' + key + '"]');
+        let target = null;
+        if (matches.length) {
+            const ord = Math.max(0, (beatIndex || 1) - 1);
+            target = matches[Math.min(ord, matches.length - 1)];
+        }
+        if (!target && word) {
+            const tokens = eng.querySelectorAll('.rhythm-word-token');
+            const want = String(word).toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (let i = 0; i < tokens.length; i++) {
+                if (tokens[i].textContent.toLowerCase().replace(/[^a-z0-9]/g, '') === want) {
+                    target = tokens[i];
+                    break;
+                }
+            }
+        }
+        if (!target) return;
+
+        rhythmStressPopSeq += 1;
+        const seq = rhythmStressPopSeq;
+        target.classList.remove('is-rhythm-pop');
+        void target.offsetWidth;
+        target.classList.add('is-rhythm-pop');
+        global.setTimeout(function () {
+            if (seq !== rhythmStressPopSeq) return;
+            target.classList.remove('is-rhythm-pop');
+        }, 620);
+    }
+
+    window.highlightRhythmStressWord = highlightRhythmStressWord;
 
     function cleanWordToken(w) {
         return w.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9]/g, '');

@@ -43,6 +43,7 @@
             '<div class="rhythm-lane-grid" aria-hidden="true"></div>' +
             '<div class="rhythm-hit-line" aria-hidden="true"></div>' +
             '<div class="rhythm-hit-ripple" aria-hidden="true"></div>' +
+            '<div class="rhythm-word-pop" aria-live="polite"></div>' +
             '<div class="rhythm-notes-layer"></div>' +
             '</div>' +
             coach +
@@ -56,6 +57,8 @@
         const mode = options.mode || 'listen';
         const pixelsPerSecond = options.pixelsPerSecond || DEFAULT_PPS;
         const onReplay = options.onReplay || null;
+        const onStressHit = options.onStressHit || null;
+        const onStressReset = options.onStressReset || null;
 
         container.innerHTML = shellHtml({
             mode: mode,
@@ -67,7 +70,27 @@
         const notesLayer = container.querySelector('.rhythm-notes-layer');
         const hitLine = container.querySelector('.rhythm-hit-line');
         const ripple = container.querySelector('.rhythm-hit-ripple');
+        const wordPop = container.querySelector('.rhythm-word-pop');
         const replayBtn = container.querySelector('.rhythm-lane-replay');
+
+        function displayStressWord(note) {
+            const raw = String((note && note.word) || '').trim();
+            const m = raw.match(/[A-Za-z]+/);
+            if (!m) return raw.slice(0, 14);
+            return m[0].length <= 12 ? m[0] : m[0].slice(0, 11) + '…';
+        }
+
+        function showWordPop(note) {
+            if (!wordPop || !note || !note.stress) return;
+            wordPop.textContent = displayStressWord(note);
+            wordPop.classList.remove('is-active');
+            void wordPop.offsetWidth;
+            wordPop.classList.add('is-active');
+        }
+
+        function hideWordPop() {
+            if (wordPop) wordPop.classList.remove('is-active');
+        }
 
         const noteItems = notes.map(function (note) {
             const el = document.createElement('div');
@@ -123,10 +146,14 @@
             ripple.classList.add('is-active');
         }
 
-        function triggerNoteHit(el) {
+        function triggerNoteHit(el, note) {
             if (!el) return;
             el.classList.add('is-hit');
             triggerLineRipple();
+            if (note && note.stress) {
+                showWordPop(note);
+                if (onStressHit) onStressHit(note);
+            }
             global.setTimeout(function () {
                 el.classList.remove('is-hit');
             }, 420);
@@ -166,7 +193,7 @@
                     audioTime <= n.startTime + n.duration
                 ) {
                     item.hitFired = true;
-                    triggerNoteHit(item.el);
+                    triggerNoteHit(item.el, n);
                 }
             });
         }
@@ -223,6 +250,8 @@
                 item.hitFired = false;
                 item.el.classList.remove('is-hit');
             });
+            hideWordPop();
+            if (onStressReset) onStressReset();
         }
 
         function markDone() {
