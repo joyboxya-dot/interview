@@ -971,6 +971,116 @@
         src.start(0);
     }
 
+    function findAzureWordTimeSec(words, clean) {
+        const sorted = sortWordsByOffset(words || []);
+        let i;
+        for (i = 0; i < sorted.length; i++) {
+            if (cleanAzureWord(sorted[i].word) === clean && sorted[i].offsetMs != null) {
+                return sorted[i].offsetMs / 1000;
+            }
+        }
+        return null;
+    }
+
+    /** 슬롯별 리듬 교정 (한글 코칭) */
+    function evaluateStressSlots(plan, modelPts, userPts, refDur, userDur, alignUser, azureWords) {
+        return (plan || []).map(function (slot) {
+            const tm = slot.tCenter != null ? slot.tCenter : (slot.t0 + slot.t1) * 0.5;
+            const mSemi = sampleSemiAt(modelPts, tm, refDur, false, refDur);
+            const uSemi = sampleSemiAt(userPts, tm, userDur, alignUser, refDur);
+            const userWordT = findAzureWordTimeSec(azureWords, slot.clean);
+            let status = 'ok';
+            let hintKo = 'OK';
+
+            if (mSemi == null || uSemi == null) {
+                status = 'weak';
+                hintKo = (slot.word || '이 박자') + ' — 소리가 잘 안 잡혔어요. 다시 크게 말해 보세요';
+            } else {
+                const diff = uSemi - mSemi;
+                if (userWordT != null && userWordT > tm + 0.28) {
+                    status = 'late';
+                    hintKo = (slot.word || '이 박자') + ' — 강세가 늦어요 · 더 앞에서 박';
+                } else if (diff < -1.15) {
+                    status = 'low';
+                    hintKo = (slot.word || '여기') + ' — 톤을 더 올려 보세요';
+                } else if (diff > 1.45) {
+                    status = 'high';
+                    hintKo = (slot.word || '여기') + ' — 톤이 너무 높아요 · 조금만 낮추기';
+                } else if (Math.abs(diff) <= 1.35) {
+                    status = 'ok';
+                    hintKo = 'OK';
+                } else {
+                    status = 'weak';
+                    hintKo = (slot.word || '이 박자') + ' — 모범과 리듬을 맞춰 보세요';
+                }
+            }
+
+            return Object.assign({}, slot, {
+                status: status,
+                hintKo: hintKo,
+                modelSemi: mSemi,
+                userSemi: uSemi,
+                userWordT: userWordT,
+            });
+        });
+    }
+
+    async function analyzePitchPair(opts) {
+        opts = opts || {};
+        const userWavBlob = opts.userWavBlob;
+        const refText = String(opts.refText || '').trim();
+        if (!userWavBlob || !refText) return fail('no_input');
+
+        const modelBlob = await getModelMp3Blob(refText);
+        if (!modelBlob) return fail('no_model_tts');
+
+        const modelMono = await blobToMono(await modelBlob.arrayBuffer());
+        const modelTrim = trimSpeechBounds(modelMono.samples, modelMono.sampleRate);
+        const modelDs = downsample(modelTrim.samples, modelMono.sampleRate, 8000);
+        const modelContour = buildDisplayContour(modelDs.samples, modelDs.sampleRate);
+        const modelPts = modelContour.points;
+        const refDur = modelTrim.speechDur;
+
+        const latestData = await analyzeUserBlob(userWavBlob);
+        const userDur = latestData.speechDur;
+        if (refDur < 0.25 || userDur < 0.25) return fail('too_short');
+
+        const shiftedWords = sortWordsByOffset(
+            shiftWordOffsets(opts.words || [], latestData.trimOffsetSec)
+        );
+        const plan = buildStressedWordPlan(refText, refDur, shiftedWords);
+        const alignCompare = true;
+        const slots = evaluateStressSlots(
+            plan,
+            modelPts,
+            latestData.pts,
+            refDur,
+            userDur,
+            alignCompare,
+            shiftedWords
+        );
+
+        return {
+            error: null,
+            refText: refText,
+            refDur: refDur,
+            userDur: userDur,
+            modelPts: modelPts,
+            userPts: latestData.pts,
+            plan: plan,
+            slots: slots,
+            words: shiftedWords,
+            alignUser: alignCompare,
+            latestSimilarity: computeModelSimilarity(
+                modelPts,
+                latestData.pts,
+                refDur,
+                userDur,
+                alignCompare
+            ),
+        };
+    }
+
     async function buildCompareBlock(opts) {
         opts = opts || {};
         const userWavBlob = opts.userWavBlob;
@@ -1233,6 +1343,9 @@
     global.PitchCompare = {
         CHART_STYLES: CHART_STYLES,
         getPitchChartStyle: getPitchChartStyle,
+        buildStressedWordPlan: buildStressedWordPlan,
+        evaluateStressSlots: evaluateStressSlots,
+        analyzePitchPair: analyzePitchPair,
         buildCompareBlock: buildCompareBlock,
         bind: bind,
         stopPlayback: stopPlayback,

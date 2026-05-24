@@ -169,7 +169,7 @@
         return blob;
     }
 
-    function playMp3Blob(blob, playbackRate, callback, sessionId) {
+    function playMp3Blob(blob, playbackRate, callback, sessionId, onTimeUpdate) {
         return new Promise(function (resolve) {
             if (sessionId !== playSessionId) {
                 resolve();
@@ -188,6 +188,9 @@
             }
 
             function finish() {
+                if (currentAudio === audio) {
+                    audio.ontimeupdate = null;
+                }
                 if (currentAudio === audio) currentAudio = null;
                 if (currentObjectUrl === url) {
                     URL.revokeObjectURL(url);
@@ -197,18 +200,26 @@
                 resolve();
             }
 
+            audio.ontimeupdate = function () {
+                if (!onTimeUpdate || sessionId !== playSessionId) return;
+                const d = audio.duration;
+                if (!d || !isFinite(d)) return;
+                onTimeUpdate(audio.currentTime, d);
+            };
             audio.onended = finish;
             audio.onerror = finish;
             audio.play().catch(finish);
         });
     }
 
-    async function speak(text, lang, callback) {
+    async function speak(text, lang, callback, options) {
         const safe = String(text || '').trim();
         if (!safe) {
             if (callback) callback();
             return;
         }
+        const opts = options && typeof options === 'object' ? options : {};
+        const onTimeUpdate = opts.onTimeUpdate || null;
         const sessionId = beginPlaySession();
         if (!isTtsReady()) {
             return speakBrowserFallback(safe, lang, callback, false, sessionId);
@@ -218,7 +229,7 @@
             const rate = normalPlaybackRate(langKey);
             const blob = await getCachedMp3Blob(safe, langKey, 'normal', rate);
             if (sessionId !== playSessionId) return;
-            await playMp3Blob(blob, 1, callback, sessionId);
+            await playMp3Blob(blob, 1, callback, sessionId, onTimeUpdate);
         } catch (e) {
             console.warn('Azure TTS speak failed', e);
             if (sessionId === playSessionId) {

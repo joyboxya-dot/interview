@@ -638,6 +638,73 @@
         .rn-beat-label { font-size: 11px; fill: #64748B; font-weight: 800; }
         .pitch-legend-match { color: #CA8A04; font-size: 11px; font-weight: 700; }
         .pitch-compare-rhythm .pitch-chart-wrap { min-height: 132px; }
+        .fb-stress-prominent { margin: 0 0 12px; }
+        .stress-tl {
+            background: #fff; border: 1px solid #E2E8F0; border-radius: 10px;
+            padding: 10px 12px; margin-bottom: 0;
+        }
+        .stress-tl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+        .stress-tl-title { font-size: 12px; font-weight: 800; color: #0369A1; }
+        .stress-tl-hint { font-size: 11px; color: #64748B; margin: 0 0 8px; line-height: 1.35; }
+        .stress-tl-replay {
+            padding: 5px 10px; border-radius: 6px; border: none; background: #2563EB;
+            color: #fff; font-size: 11px; font-weight: 800; cursor: pointer;
+        }
+        .stress-tl-track {
+            position: relative; height: 72px; margin: 4px 0 8px;
+            border-radius: 8px; background: #F8FAFC; overflow: hidden;
+        }
+        .stress-tl-bar {
+            position: absolute; left: 8px; right: 8px; top: 50%; height: 3px;
+            background: #E2E8F0; border-radius: 2px; transform: translateY(-50%);
+        }
+        .stress-tl-playhead {
+            position: absolute; top: 6px; bottom: 6px; width: 2px; margin-left: -1px;
+            background: #2563EB; border-radius: 1px; left: 0; transition: left 0.05s linear;
+            pointer-events: none; z-index: 3;
+        }
+        .stress-tl-slots { position: absolute; inset: 0; }
+        .stress-tl-slot {
+            position: absolute; top: 50%; transform: translate(-50%, -50%);
+            text-align: center; min-width: 44px; z-index: 2;
+            transition: opacity 0.15s, transform 0.15s;
+        }
+        .stress-tl-slot .stress-tl-num { display: block; font-size: 11px; color: #94A3B8; font-weight: 800; }
+        .stress-tl-slot .stress-tl-word {
+            display: block; font-size: 13px; font-weight: 800; color: #64748B;
+            letter-spacing: 0.02em;
+        }
+        .stress-tl-slot.is-past { opacity: 0.45; }
+        .stress-tl-slot.is-past .stress-tl-word { color: #94A3B8; font-weight: 600; }
+        .stress-tl-slot.is-active { transform: translate(-50%, -50%) scale(1.08); z-index: 4; }
+        .stress-tl-slot.is-active .stress-tl-num { color: #2563EB; }
+        .stress-tl-slot.is-active .stress-tl-word {
+            color: #0F172A; font-size: 15px;
+            text-shadow: 0 0 12px rgba(37, 99, 235, 0.35);
+        }
+        .stress-tl-dots { display: flex; gap: 4px; justify-content: center; margin-top: 3px; }
+        .stress-tl-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        }
+        .stress-tl-dot-model { background: #94A3B8; }
+        .stress-tl-dot-user { background: #EA580C; }
+        .stress-tl-dot-user.is-ok { background: #22C55E; }
+        .stress-tl-dot-user.is-low, .stress-tl-dot-user.is-weak { background: #EF4444; }
+        .stress-tl-dot-user.is-late { background: #F59E0B; }
+        .stress-tl-dot-user.is-high { background: #A855F7; }
+        .stress-tl-slot.is-ok .stress-tl-word { color: #15803D; }
+        .stress-tl-slot.is-low .stress-tl-word, .stress-tl-slot.is-weak .stress-tl-word { color: #B91C1C; }
+        .stress-tl-slot.is-late .stress-tl-word { color: #B45309; }
+        .stress-tl-coach { border-top: 1px solid #E2E8F0; padding-top: 8px; margin-top: 4px; }
+        .stress-tl-coach-row {
+            display: flex; gap: 8px; align-items: flex-start; font-size: 12px;
+            padding: 5px 0; line-height: 1.4;
+        }
+        .stress-tl-coach-row strong { flex: 0 0 auto; min-width: 72px; color: #334155; }
+        .stress-tl-coach-row span { color: #64748B; }
+        .stress-tl-coach-row.is-ok strong { color: #15803D; }
+        .stress-tl-coach-row.is-low strong, .stress-tl-coach-row.is-weak strong { color: #B91C1C; }
+        .stress-tl-coach-row.is-late strong { color: #B45309; }
         .pa-viz + .missed-word-btns { margin-top: 10px; }
         .pa-err-none, .pa-tl-word.pa-err-none { background: #22C55E; }
         .pa-err-mis, .pa-tl-word.pa-err-mis, .pa-word-card.pa-err-mis .pa-word-badge { background: #FEE2E2; color: #991B1B; }
@@ -805,6 +872,7 @@
         <div class="mission-reference" id="mission-reference">
             <p class="mission-reference-label">참고 · 말하기 리듬 · 4컷 · ↑↓</p>
             <div class="question-box" id="ui-question-box" style="display:none">Q. 질문</div>
+            <div id="ui-stress-timeline" class="stress-timeline-host" aria-live="polite"></div>
             <div id="ui-reading-guide" class="reading-guide" style="display:none"></div>
             <div id="ui-comic-strip" class="comic-strip" style="display:none" aria-hidden="true">
                 <p class="comic-strip-label" id="ui-comic-label" style="display:none"></p>
@@ -831,7 +899,8 @@
 <script src="js/comic-generator.js"></script>
 <script src="js/audio-wav.js?v=20260521d"></script>
 <script src="js/pronunciation-viz.js"></script>
-<script src="js/pitch-compare.js?v=20260524"></script>
+<script src="js/pitch-compare.js?v=20260525"></script>
+<script src="js/stress-timeline.js?v=20260525"></script>
 <script src="js/azure-speech.js"></script>
 <script src="js/azure-tts.js"></script>
 <script>
@@ -1431,7 +1500,15 @@
         persistProgress();
         updateSrsDashBadges();
 
-        if (hintLevel >= 2) speakText(chunk.en, 'en');
+        const stHost = document.getElementById('ui-stress-timeline');
+        if (stHost && typeof StressTimeline !== 'undefined') {
+            StressTimeline.mountListen(stHost, chunk.en, {
+                autoPlay: true,
+                onEnd: null,
+            });
+        } else if (hintLevel >= 2) {
+            speakText(chunk.en, 'en');
+        }
     }
 
     function advanceChunkPractice() {
@@ -2302,6 +2379,9 @@
         if (typeof AzureTts !== 'undefined' && AzureTts.stopPlayback) {
             AzureTts.stopPlayback();
         }
+        if (typeof StressTimeline !== 'undefined' && StressTimeline.stop) {
+            StressTimeline.stop();
+        }
         if (activeAudio) {
             try {
                 activeAudio.pause();
@@ -2857,12 +2937,15 @@
         /* 피드백 영역 자동 스크롤 없음 */
     }
 
-    function buildFeedbackHtml(statusMsg, detailHtml, fixHint, pitchHtml) {
+    function buildFeedbackHtml(statusMsg, detailHtml, fixHint, stressHtml, pitchHtml) {
         let h = '';
         if (fixHint) {
             h += '<div class="fb-fix-first">' + escapeHtml(fixHint) + '</div>';
         }
         h += '<div class="fb-status">' + statusMsg + '</div>';
+        if (stressHtml) {
+            h += '<div class="fb-stress-prominent">' + stressHtml + '</div>';
+        }
         if (pitchHtml) {
             h += '<div class="fb-pitch-prominent">' + pitchHtml + '</div>';
         }
@@ -3263,19 +3346,24 @@
         }
 
         let pitchHtml = '';
-        if (
-            lastAssessWavBlob &&
-            refText &&
-            typeof PitchCompare !== 'undefined' &&
-            mPhase >= 2 &&
-            mPhase <= 6
-        ) {
+        let stressHtml = '';
+        const words =
+            assessment.detail && assessment.detail.words
+                ? assessment.detail.words
+                : assessment.words;
+        if (lastAssessWavBlob && refText && typeof PitchCompare !== 'undefined') {
             try {
-                const words =
-                    assessment.detail && assessment.detail.words
-                        ? assessment.detail.words
-                        : assessment.words;
                 const recBlobs = getPitchCompareUserBlobs();
+                if (typeof PitchCompare.analyzePitchPair === 'function' && typeof StressTimeline !== 'undefined') {
+                    const analysis = await PitchCompare.analyzePitchPair({
+                        userWavBlob: recBlobs.latest,
+                        refText: refText,
+                        words: words,
+                    });
+                    if (!analysis.error) {
+                        stressHtml = StressTimeline.buildFeedbackHtml(analysis);
+                    }
+                }
                 const built = await PitchCompare.buildCompareBlock({
                     userWavBlob: recBlobs.latest,
                     firstUserWavBlob: recBlobs.first,
@@ -3305,6 +3393,7 @@
             '❌ ' + scoreLine,
             resHtml,
             fixHint,
+            stressHtml,
             pitchHtml
         );
     }
@@ -3326,7 +3415,7 @@
         );
     }
 
-    function showEvalResult(isPass, passMsg, failMsg, detailHtml, fixHint, pitchHtml) {
+    function showEvalResult(isPass, passMsg, failMsg, detailHtml, fixHint, stressHtml, pitchHtml) {
         fbBox.style.display = 'block';
         fbBtnGroup.innerHTML = '';
         setMissionWorkDimmed(true);
@@ -3334,7 +3423,7 @@
         if (isPass) {
             bumpClozeAfterPass();
             fbBox.className = 'feedback mission-feedback pass';
-            fbRes.innerHTML = buildFeedbackHtml(passMsg, detailHtml, fixHint, pitchHtml);
+            fbRes.innerHTML = buildFeedbackHtml(passMsg, detailHtml, fixHint, stressHtml, pitchHtml);
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
         } else {
             retryCount++;
@@ -3348,8 +3437,14 @@
                           : '⚠️ 재도전 초과';
             }
             fbBox.className = 'feedback mission-feedback fail';
-            fbRes.innerHTML = buildFeedbackHtml(statusMsg, detailHtml, fixHint, pitchHtml);
+            fbRes.innerHTML = buildFeedbackHtml(statusMsg, detailHtml, fixHint, stressHtml, pitchHtml);
             document.getElementById('ui-eng-text').classList.remove('mode-blur');
+        }
+        if (stressHtml && typeof StressTimeline !== 'undefined') {
+            const stRoot = fbRes.querySelector('.stress-tl');
+            if (stRoot && currentTargetEng) {
+                StressTimeline.bindReplay(stRoot, currentTargetEng);
+            }
         }
         if (pitchHtml && typeof PitchCompare !== 'undefined') {
             PitchCompare.bind(fbRes);
@@ -3388,7 +3483,9 @@
             '✅ 회상 OK',
             '❌ 더 말해 보세요',
             resHtml,
-            mastery.fluHint || ''
+            mastery.fluHint || '',
+            '',
+            ''
         );
     }
 
@@ -4120,7 +4217,9 @@
             passMsg,
             '❌ 다시 말해 보세요',
             resHtml,
-            mastery.fluHint || ''
+            mastery.fluHint || '',
+            '',
+            ''
         );
     }
 
