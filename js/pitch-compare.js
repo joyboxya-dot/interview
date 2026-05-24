@@ -1060,6 +1060,18 @@
             shiftedWords
         );
 
+        let rhythmNotes = null;
+        if (global.RhythmNotesBuilder && global.RhythmNotesBuilder.buildRhythmNotes) {
+            rhythmNotes = global.RhythmNotesBuilder.buildRhythmNotes({
+                refText: refText,
+                refDur: refDur,
+                plan: plan,
+                modelPts: modelPts,
+                slots: slots,
+                azureWords: shiftedWords,
+            });
+        }
+
         return {
             error: null,
             refText: refText,
@@ -1069,6 +1081,7 @@
             userPts: latestData.pts,
             plan: plan,
             slots: slots,
+            rhythmNotes: rhythmNotes,
             words: shiftedWords,
             alignUser: alignCompare,
             latestSimilarity: computeModelSimilarity(
@@ -1347,6 +1360,7 @@
         evaluateStressSlots: evaluateStressSlots,
         analyzePitchPair: analyzePitchPair,
         buildCompareBlock: buildCompareBlock,
+        sampleSemiAt: sampleSemiAt,
         bind: bind,
         stopPlayback: stopPlayback,
     };

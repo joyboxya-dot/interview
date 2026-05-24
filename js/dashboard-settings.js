@@ -4,14 +4,20 @@
 (function (global) {
     const STORAGE_KEY = 'interviewDashboardSettingsV1';
 
+    const CHART_STYLES = {
+        'rhythm-nodes': { id: 'rhythm-nodes', label: '리듬 노드' },
+        line: { id: 'line', label: '피치 곡선' },
+    };
+
     const DEFAULTS = {
-        version: 3,
+        version: 4,
         practiceTrack: 'interview',
         difficultyId: 'strict',
         ttsNormalRate: 0.82,
         ttsPracticeRate: 0.82,
         l2PresetId: 'interview',
         masteryMode: true,
+        pitchChartStyle: 'rhythm-nodes',
     };
 
     let cached = null;
@@ -42,6 +48,9 @@
             s.practiceTrack = DEFAULTS.practiceTrack;
         } else if (!s.practiceTrack || (s.practiceTrack !== 'interview' && s.practiceTrack !== 'deep')) {
             s.practiceTrack = DEFAULTS.practiceTrack;
+        }
+        if (!CHART_STYLES[s.pitchChartStyle]) {
+            s.pitchChartStyle = DEFAULTS.pitchChartStyle;
         }
         return s;
     }
@@ -138,6 +147,11 @@
             patch.practiceTrack = global.PracticeTrack.getTrackId();
         }
 
+        const chartActive = document.querySelector('#chart-style-options .chart-style-btn.active');
+        if (chartActive && chartActive.dataset && chartActive.dataset.id) {
+            patch.pitchChartStyle = chartActive.dataset.id;
+        }
+
         return save(patch);
     }
 
@@ -148,6 +162,9 @@
         if (typeof global.renderPracticeTrackPanel === 'function') {
             global.renderPracticeTrackPanel();
         }
+        if (typeof global.renderChartStylePanel === 'function') {
+            global.renderChartStylePanel();
+        }
         return s;
     }
 
@@ -156,6 +173,7 @@
     }
 
     global.DashboardSettings = {
+        CHART_STYLES: CHART_STYLES,
         loadAndApply: loadAndApply,
         get: get,
         save: save,

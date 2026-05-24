@@ -187,7 +187,29 @@
                 global.registerActiveAudio(audio);
             }
 
+            let timePollRaf = null;
+
+            function emitTime() {
+                if (!onTimeUpdate || sessionId !== playSessionId || currentAudio !== audio) return;
+                const d = audio.duration;
+                if (!d || !isFinite(d)) return;
+                onTimeUpdate(audio.currentTime, d);
+            }
+
+            function stopTimePoll() {
+                if (timePollRaf) {
+                    cancelAnimationFrame(timePollRaf);
+                    timePollRaf = null;
+                }
+            }
+
+            function pollTimeLoop() {
+                emitTime();
+                timePollRaf = requestAnimationFrame(pollTimeLoop);
+            }
+
             function finish() {
+                stopTimePoll();
                 if (currentAudio === audio) {
                     audio.ontimeupdate = null;
                 }
@@ -200,14 +222,15 @@
                 resolve();
             }
 
-            audio.ontimeupdate = function () {
-                if (!onTimeUpdate || sessionId !== playSessionId) return;
-                const d = audio.duration;
-                if (!d || !isFinite(d)) return;
-                onTimeUpdate(audio.currentTime, d);
-            };
+            audio.ontimeupdate = emitTime;
             audio.onended = finish;
             audio.onerror = finish;
+            audio.onplay = function () {
+                if (onTimeUpdate && sessionId === playSessionId) {
+                    stopTimePoll();
+                    pollTimeLoop();
+                }
+            };
             audio.play().catch(finish);
         });
     }
